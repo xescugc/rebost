@@ -1,5 +1,21 @@
 # Gogilefs
 
+Index:
+
+* [Objective](#objective)
+* [Implementation](#implementation)
+* [Configuration](#configuration)
+* [Objects Stored](#objects_stored)
+* [Node (follower) role](#node_role)
+  - [Store](#store)
+  - [Serve](#serve)
+  - [Status](#status)
+  - [Comunication](#comunication)
+  - [Replication](#node_replication)
+* [Leader role](#leader_role)
+  - [Replication](#leader_replication)
+  - [Leader election](#leader_election)
+
 ## Objective
 
 The objective is to write a Distributed filesystem inspired in MogileFS
@@ -27,21 +43,23 @@ Te basic configuration is a .gogilefs.(json|yaml|xml) file located by default: _
 
 ```json
   {
-    storage: ['/data/'],
-    name: 'Pepito',
-    node_name: 'Palotes',
-    nodes: ['127.0.0.1:5000'],
-    classes: {
-      original: 4,
-      thumbnail: 2,
+    "storage": ["/data/"],
+    "name": "Pepito",
+    "node_name": "Palotes",
+    "nodes": ["127.0.0.1:5000"],
+    "classes": {
+      "original": 4,
+      "thumbnail": 2,
     }
   }
 ```
 
+<a name="objects_stored"></a>
 ## Objects Stored
 
 Object can be anithing, from images to videso to anithing. The way we store them is making a SHAXXX and with the SHA key of length 40 we create subfolders for every X numbers (40/4=10 subfolders)
 
+<a name="node_role"></a>
 ## Node (follower) Role
 
 A simmple Node by itself can store Objects and Serve Objects to the client.
@@ -82,10 +100,12 @@ Each heartbeat from the Leader, the followers may answer with:
 * Pending Replications
 * The answer to the request of the heartbeat (if it brings information)
 
+<a name="node_replication"></a>
 ### Replication
 
 When a Node recives the order to replicate FROM A to B, the Node B will request the Object to the Node A (with some identifier of the request to prevent invalid replications).
 
+<a name="leader_role"></a>
 ## Leader Role
 
 A cluster MUST have ONE and only ONE Leader.
@@ -94,12 +114,14 @@ The main job of the Leader is to track the `stats` of the Followers to start rep
 
 It also comunicates if one Node goes down to the other Nodes, in case some Objects needs to be replicated.
 
+<a name="leader_replication"></a>
 ### Replication
 
 When a Follower communicates to the Leader that it has an Object that need to be replicated, the master decides (with an algorith based on all the nodes `stats`) which Node will thake it, then it comunicates to both of the nodes that the Node A need to replicate to Node B, and after that it leaves the control to the Nodes itself.
 
 If the replication if from more than 2 Nodes then all the Nodes must save the location of the Node that also have the Object.
 
+<a name="leader_election"></a>
 ### Leader Electino
 
 For the Leader election, as each Node is independent from the others (more or less) the approch thah Raft follows, without taking in conisderation the Raft Log, will fit.
@@ -143,6 +165,6 @@ Which in resume is the following:
 * If no one wins the election, meaning that more that one node has entered in Candidate state, the the nodes will tiemout and restart an election in a random (for each Node) time and incrementing the current Term.
 * Restart everithing again :)
 
-#TODO
+# TODO
 
 * Master replication is a RPC to itself?
