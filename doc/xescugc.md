@@ -1,6 +1,6 @@
 # Gogilefs
 
-# Index:
+## Index
 
 * [Objective](#objective)
 * [Implementation](#implementation)
