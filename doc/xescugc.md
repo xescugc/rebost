@@ -22,11 +22,13 @@ The objective is to write a Distributed filesystem inspired in MogileFS
 
 ## Implementation
 
-The main idea behind it is to be EASY to setup (barely no configuration needed). We plan to implement a Leader/Follower distribution for the Nodes, but in this case the Leaders is a week leader. Each Node has a KV store of the images it knows (not the full DB) and where they are replicated.
+The main idea behind it is to be EASY to setup (barely no configuration needed). We plan to implement a Leader/Follower distribution for the Nodes, but in this case the Leaders is a week Leader. Each Node has a KV store of the Objects it knows (not the full DB) and where they are replicated.
 
 Each Object(stored) has a Class/Type/? that defines the replication.
 
 Every Node can serve the Objects without comunication with the Leader.
+
+On the first implementation, the comunication between Nodes will be over HTTPS? and latter on via RPC
 
 ## Configuration
 
@@ -39,21 +41,6 @@ Te basic configuration is a .gogilefs.(json|yaml|xml) file located by default: _
 * classes/types: Map with the 'keys' beeing the names of the class and the values the reaplication.
 * much more ...
 
-*Example:*
-
-```json
-  {
-    "storage": ["/data/"],
-    "name": "Pepito",
-    "node_name": "Palotes",
-    "nodes": ["127.0.0.1:5000"],
-    "classes": {
-      "original": 4,
-      "thumbnail": 2,
-    }
-  }
-```
-
 <a name="objects_stored"></a>
 ## Objects Stored
 
@@ -62,7 +49,11 @@ Object can be anithing, from images to videso to anithing. The way we store them
 <a name="node_role"></a>
 ## Node (follower) Role
 
-A simmple Node by itself can store Objects and Serve Objects to the client.
+A simmple Node by itself can store Objects, Serve Objects to the client and Obey orders (replicates .. etc).
+
+Each Node has an internal KV where it saves the Objects and the replica on the other servers.
+
+Each Node has another internal DB/KV/StateMachine to store the current jobs, replicating, candidate, current_term etc.
 
 ### Store
 
@@ -72,13 +63,13 @@ When a Object needs to be stored:
 * Then it's copied to the location and removed from the `tmp/`
 * Finally stores the SHA key to the KV store
 
-If the image needs to be replicated then the Node, in the next heartbeat will comunicate te pending replications to the Leader.
+If the Objects needs to be replicated then the Node, in the next heartbeat will comunicate te pending replications to the Leader.
 
 ### Serve
 
-If the image needed is in the Node, the it serves the image.
+If the Object needed is in the Node, the it serves the Object.
 
-If the image is not in his KV then __TODO__
+If the Object is not in his KV then __TODO__
 
 ### Status
 
@@ -90,6 +81,10 @@ The node itself can be in status:
 * Draining ???
 
 This status is saved (with other metadata) in disk, because if this node is restarted, then it needs to know what it was doing
+
+#### Draning
+
+The Draining status means that the server is going to be shootdown, so all the Objects must be replicated, and all the Nodes must be informed to remove the Draining Node from the list. If the object does not have any Object with replica, it can be shootdown saftly, because the other Nodes, once they remove the node from the KV of the Object, they will enter in replication.
 
 ### Comunication
 
@@ -103,7 +98,8 @@ Each heartbeat from the Leader, the followers may answer with:
 <a name="node_replication"></a>
 ### Replication
 
-When a Node recives the order to replicate FROM A to B, the Node B will request the Object to the Node A (with some identifier of the request to prevent invalid replications).
+When a Node recives the order to replicate FROM A to B, the Node B will request the Object to the Node A (with some identifier of the request to prevent invalid replications). When the replication is compleated, the reciever (Node B) notifies the other nodes that the Object has been replicated successfully so they store that the Node B now also have a copy of the Object.
+
 
 <a name="leader_role"></a>
 ## Leader Role
@@ -119,7 +115,11 @@ It also comunicates if one Node goes down to the other Nodes, in case some Objec
 
 When a Follower communicates to the Leader that it has an Object that need to be replicated, the master decides (with an algorith based on all the nodes `stats`) which Node will thake it, then it comunicates to both of the nodes that the Node A need to replicate to Node B, and after that it leaves the control to the Nodes itself.
 
-If the replication if from more than 2 Nodes then all the Nodes must save the location of the Node that also have the Object.
+If the replication if from more than 2 Nodes then all the Nodes must save the location of the Node that also have the Object when the Node B finishes the replication.
+
+__NOTE__: If we have a global KV then the maste may know that the Object is alredy in one Node, and just communicate that the Object is there.
+__NOTE__: If no Global KV, then the Master must ask the Followers if one of them have the Object. This cenario is if 2 Objects are uploaded at the same time, so 2 nodes enter in replication state.
+__NOTE__: Maybe the good solution is the global KV store in case of 2 Objects uploaded at the same time.
 
 <a name="leader_election"></a>
 ### Leader Electino
