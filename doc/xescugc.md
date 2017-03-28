@@ -6,6 +6,7 @@
 * [Implementation](#implementation)
 * [Configuration](#configuration)
 * [Objects Stored](#objects_stored)
+* [Term](#term)
 * [Node (follower) role](#node_role)
   - [Store](#store)
   - [Serve](#serve)
@@ -15,6 +16,7 @@
 * [Leader role](#leader_role)
   - [Replication](#leader_replication)
   - [Leader election](#leader_election)
+  - [New Node](#new_node)
 
 ## Objective
 
@@ -22,13 +24,15 @@ The objective is to write a Distributed filesystem inspired in MogileFS
 
 ## Implementation
 
-The main idea behind it is to be EASY to setup (barely no configuration needed). We plan to implement a Leader/Follower distribution for the Nodes, but in this case the Leaders is a week Leader. Each Node has a KV store of the Objects it knows (not the full DB) and where they are replicated.
+The main idea behind it, is to be EASY to setup (barely no configuration needed). We plan to implement a Leader/Follower distribution for the Nodes, but in this case the Leaders is a week Leader. Each Node has a KV store of the Objects it knows (not the full DB) and where they are replicated.
 
 Each Object(stored) has a Class/Type/? that defines the replication.
 
 Every Node can serve the Objects without comunication with the Leader.
 
 On the first implementation, the comunication between Nodes will be over HTTPS? and latter on via RPC
+
+The Followers will not have any direct request to the Leader, they wait until the next heartbeat to inform the Leader of anithing that needs to be informed.
 
 ## Configuration
 
@@ -44,14 +48,18 @@ Te basic configuration is a .gogilefs.(json|yaml|xml) file located by default: _
 <a name="objects_stored"></a>
 ## Objects Stored
 
-Object can be anithing, from images to videso to anithing. The way we store them is making a SHAXXX and with the SHA key of length 40 we create subfolders for every X numbers (40/4=10 subfolders)
+Object can be anithing, from images to videos to anithing. The way we store them is making a SHAXXX and with the SHA key of length 40 we create subfolders for every X numbers (40/4=10 subfolders)
+
+## Term
+
+This idea is from Raft, the term identifis the "tiem" the current. Its a number incremented on each election, with this simple rule, we can identify old Nodes that try to be Leaders and are old.
 
 <a name="node_role"></a>
 ## Node (follower) Role
 
-A simmple Node by itself can store Objects, Serve Objects to the client and Obey orders (replicates .. etc).
+A simple Node by itself can store Objects, Serve Objects to the client and Obey orders (replicates .. etc).
 
-Each Node has an internal KV where it saves the Objects and the replica on the other servers.
+Each Node has an internal KV where it saves the Objects and the replica of the other servers.
 
 Each Node has another internal DB/KV/StateMachine to store the current jobs, replicating, candidate, current_term etc.
 
@@ -63,7 +71,9 @@ When a Object needs to be stored:
 * Then it's copied to the location and removed from the `tmp/`
 * Finally stores the SHA key to the KV store
 
-If the Objects needs to be replicated then the Node, in the next heartbeat will comunicate te pending replications to the Leader.
+If the Object needs to be replicated then the Node, in the next heartbeat will comunicate te pending replications to the Leader.
+
+The response to the client can will be after the Object is saved on the Node or, if configured on the request/client, after the `w` (like MongoDB journals|j and write|w)
 
 ### Serve
 
@@ -164,6 +174,15 @@ Which in resume is the following:
 * While in Candidate state a Node recieves a heartbeat of a Node, claiming to be Leader, with a term =< of his term then the Candidate Node returns to follower state and recognizes the leader.
 * If no one wins the election, meaning that more that one node has entered in Candidate state, the the nodes will tiemout and restart an election in a random (for each Node) time and incrementing the current Term.
 * Restart everithing again :)
+
+<a name="new_node"></a>
+### New Node
+
+When a new Node is introduced to the cluster, it enters as a Follower and the master comunicates to all of the other Nodes that a new Node is on the Cluster.
+
+Then the Leader starts replicating Objects to the new Node to balance all the cluster.
+
+__NODE__: Some configuration for the maxim of input replcias?
 
 # TODO
 
