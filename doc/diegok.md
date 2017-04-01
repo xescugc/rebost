@@ -39,7 +39,15 @@ Notes:
 3. All tracker decicions will be logged in some way (and replicated to all nodes) so it can follows in case of restart and/or tracker re-election.
 4. When lots of files need to be copied/moved, the tracker should handle this in small steps to prevent the system to be flood by it's own operations. Auto-rebalancing is decired but should be carefully designed to prevent this kind of problems.
 5. When files are being moved as per a rebalancing operation, deletion will be done after copy and the store is able to mark the file with state `to-delete` and do it when it has I/O capacity.
- 
+
+### When a node stop working
+
+In case the leader doesnt't get a number of heartbit responses from a node it will mark this node as DOWN. At this point it will inform all other nodes about the DOWN node and every node will compute which keys are shared with that node and set it's state as `need-replication`. Over the nexts heartbit cycles the leader will get this information and will use normal replication mechanism to heal the cluster. This mechanism will always favor files with less replicas.
+
+### When a leader can't be elected
+
+In case a leader can't be voted the cluster will be frozen and no replication will happen but every node will still be able to serve known files and reacheable ones. This should be well documented as it goes with the main idea of favoring thoughput and durability over concistency.
+
 ## KV Storage options for node internal DB/s
 
 - RocksDB: https://github.com/facebook/rocksdb
