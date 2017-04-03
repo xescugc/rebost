@@ -63,6 +63,8 @@ Each Node has an internal KV where it saves the Objects and the replica of the o
 
 Each Node has another internal DB/KV/StateMachine to store the current jobs, replicating, candidate, current_term etc.
 
+Each Node has a LRU Cache to store the not know Objects.
+
 ### Store
 
 When a Object needs to be stored:
@@ -79,7 +81,9 @@ The response to the client can will be after the Object is saved on the Node or,
 
 If the Object needed is in the Node, the it serves the Object.
 
-If the Object is not in his KV then __TODO__
+If the Object is not in his KV then it asks a "near" Node for the Object (and consecutivelty, if the one asked does not know the Object it asks another node, passing the nodes that do not know it so they do not repeat) one some node have the Object it response that it has the Object, all the "bypass" nodes store to the cache the value of the Object and the Node how have it. When the first Node recieves the Node how has the Object, then Proxyes the Object from the Node to the Client.
+
+__NOTE__: If there are a lot of Nodes, should we stop the "ask near node for the Object" policy? When we consulted the majori and node of them has the Object?
 
 ### Status
 
