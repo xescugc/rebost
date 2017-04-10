@@ -62,3 +62,5 @@ tags
 .vagrant/
 
 # End of https://www.gitignore.io/api/osx,go,vim
+tmp/
+data/

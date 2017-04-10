@@ -191,3 +191,5 @@ __NODE__: Some configuration for the maxim of input replcias?
 # TODO
 
 * Master replication is a RPC to itself?
+
+http://stackoverflow.com/questions/23272663/transfer-a-big-file-in-golang
