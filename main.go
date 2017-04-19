@@ -36,12 +36,6 @@ func mvToStore(h string) {
 }
 
 func mvToTmp(r *http.Request) (string, error) {
-	r.ParseMultipartForm(32 << 20)
-	file, _, err := r.FormFile("file")
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
 	p := path.Join("./tmp", strconv.FormatInt(time.Now().UnixNano(), 10)+".jpg")
 	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
@@ -50,7 +44,7 @@ func mvToTmp(r *http.Request) (string, error) {
 	defer f.Close()
 	sh1 := sha1.New()
 	w := io.MultiWriter(f, sh1)
-	io.Copy(w, file)
+	io.Copy(w, r.Body)
 	hash := fmt.Sprintf("%x", sh1.Sum(nil))
 	tmpDb.set(hash, p)
 	mvToStore(hash)
