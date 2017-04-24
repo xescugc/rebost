@@ -9,6 +9,8 @@ import (
 	"path"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 var (
@@ -63,8 +65,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	h := http.NewServeMux()
+	h := mux.NewRouter()
 
-	h.HandleFunc("/", handler)
+	f := h.PathPrefix("/files").Subrouter()
+	f.HandleFunc("/{key:.*}", getFile).Methods("GET")
+	f.HandleFunc("/{key:.*}", putFile).Methods("PUT")
+	f.HandleFunc("/{key:.*}", deleteFile).Methods("DELETE")
+	f.HandleFunc("/{key:.*}", headFile).Methods("HEAD")
+
+	s := h.PathPrefix("/status").Subrouter()
+	s.HandleFunc("/", getStatus).Methods("GET")
+
+	r := h.PathPrefix("/replica").Subrouter()
+	r.HandleFunc("/in", getReplicaIn).Methods("GET")
+	r.HandleFunc("/out", getReplicaOut).Methods("GET")
+
 	http.ListenAndServe(":8000", h)
 }
