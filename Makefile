@@ -6,7 +6,14 @@ ifeq ($(GO_BIN),)
 	GO_BIN = /usr/local/go/bin/go
 endif
 
+serve:
+	gin -p 8000 -a 8001 -b rebost
+
 deps:
 	$(GO_BIN) get -u github.com/boltdb/bolt/... \
 									 github.com/gorilla/mux \
-									 github.com/satori/go.uuid
+									 github.com/satori/go.uuid \
+									 github.com/shirou/gopsutil
+
+devDeps:
+	$(GO_BIN) get -u github.com/codegangsta/gin
