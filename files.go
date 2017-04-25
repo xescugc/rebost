@@ -38,7 +38,7 @@ func (f *FileIn) store(b io.ReadCloser) {
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
+	defer fh.Close()
 	sh1 := sha1.New()
 	w := io.MultiWriter(fh, sh1)
 	io.Copy(w, b)
@@ -80,15 +80,4 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func headFile(w http.ResponseWriter, r *http.Request) {
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	p, err := mvToTmp(r)
-	if err != nil {
-		w.Write([]byte(fmt.Sprintf("{'error': '%v'}", err)))
-	} else {
-		w.Write([]byte(fmt.Sprintf("{'test': '%s'}", p)))
-	}
-
 }
