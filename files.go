@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/boltdb/bolt"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
 )
@@ -25,11 +26,12 @@ type FileIn struct {
 	key       string
 }
 
-func NewFileIn(key string) *FileIn {
+func NewFileIn(key, signature string) *FileIn {
 
 	return &FileIn{
-		key: key,
-		tmp: path.Join(tmpDir, uuid.NewV4().String()),
+		key:       key,
+		tmp:       path.Join(tmpDir, uuid.NewV4().String()),
+		signature: signature,
 	}
 }
 
@@ -64,14 +66,29 @@ func (f *FileIn) filePath() string {
 }
 
 func getFile(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+	key := mux.Vars(r)["key"]
 
-	fmt.Fprintf(w, "%#v\n", vars)
+	var v []byte
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("files"))
+		v = b.Get([]byte(key))
+		return nil
+	})
+
+	fi := NewFileIn(key, string(v))
+	http.ServeFile(w, r, fi.filePath())
 }
 
 func putFile(w http.ResponseWriter, r *http.Request) {
-	fi := NewFileIn(mux.Vars(r)["key"])
+	key := mux.Vars(r)["key"]
+	fi := NewFileIn(key, "")
 	fi.store(r.Body)
+	db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucket([]byte("files"))
+		//b.Put([]byte(key), []byte(fi.signature))
+		err = b.Put([]byte(key), []byte(fi.signature))
+		return err
+	})
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(fmt.Sprintf("{'checksum': '%s', 'status': 'ok'}", fi.signature)))
 }

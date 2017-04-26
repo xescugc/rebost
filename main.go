@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	tmpDb = &db{m: make(map[string]string)}
-	repDb = &db{m: make(map[string]string)}
-	port  = "8001"
+	//tmpDb = &db{m: make(map[string]string)}
+	//repDb = &db{m: make(map[string]string)}
+	port = "8001"
 )
 
 func init() {
