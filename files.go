@@ -50,12 +50,15 @@ func NewFileIn(key string, data io.ReadCloser) (*FileIn, error) {
 	return f, err
 }
 
-func NewFileOut(key, signature string) *FileIn {
-	//TODO: ensure file exists
-	return &FileIn{
+func NewFileOut(key, signature string) (*FileIn, error) {
+	f := &FileIn{
 		key:       key,
 		signature: signature,
 	}
+
+	_, err := os.Stat(f.filePath())
+
+	return f, err
 }
 
 func (f *FileIn) store(b io.ReadCloser) error {
@@ -118,9 +121,16 @@ func getFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fi := NewFileOut(key, string(v))
-	http.ServeFile(w, r, fi.filePath())
-	logger.info("OUT " + key + " <- " + fi.filePath())
+	var fo *FileIn
+	fo, err = NewFileOut(key, string(v))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":%q}`, err)
+		return
+	}
+
+	http.ServeFile(w, r, fo.filePath())
+	logger.info("OUT " + key + " <- " + fo.filePath())
 }
 
 func putFile(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +159,10 @@ func putFile(w http.ResponseWriter, r *http.Request) {
 	})
 	// Remove old file if it exists
 	if err == nil && old != "" && old != key {
-		err = NewFileOut(key, old).remove()
+		fo, err2 := NewFileOut(key, old)
+		if err2 == nil {
+			err = fo.remove()
+		}
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
