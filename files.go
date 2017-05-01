@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -39,10 +40,20 @@ func init() {
 	}
 }
 
-func NewFileIn(key, signature string) *FileIn {
+func NewFileIn(key string, data io.ReadCloser) (*FileIn, error) {
+	f := &FileIn{
+		key: key,
+		tmp: path.Join(tempDir, uuid.NewV4().String()),
+	}
+
+	err := f.store(data)
+	return f, err
+}
+
+func NewFileOut(key, signature string) *FileIn {
+	//TODO: ensure file exists
 	return &FileIn{
 		key:       key,
-		tmp:       path.Join(tempDir, uuid.NewV4().String()),
 		signature: signature,
 	}
 }
@@ -50,6 +61,7 @@ func NewFileIn(key, signature string) *FileIn {
 func (f *FileIn) store(b io.ReadCloser) error {
 	fh, err := os.OpenFile(f.tmp, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
+		logger.error("FS:STORE " + f.key + " " + err.Error())
 		return err
 	}
 	defer fh.Close()
@@ -62,6 +74,7 @@ func (f *FileIn) store(b io.ReadCloser) error {
 	dir, _ := path.Split(p)
 	os.MkdirAll(dir, 0755)
 	os.Rename(f.tmp, p)
+	f.tmp = ""
 	return nil
 }
 
@@ -78,17 +91,34 @@ func (f *FileIn) filePath() string {
 	return p
 }
 
+func (f *FileIn) remove() error {
+	if f.tmp != "" {
+		return os.Remove(f.tmp)
+	}
+
+	return os.Remove(f.filePath())
+}
+
 func getFile(w http.ResponseWriter, r *http.Request) {
 	key := mux.Vars(r)["key"]
 
 	var v []byte
-	db.View(func(tx *bolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("files"))
 		v = b.Get([]byte(key))
+		if v == nil {
+			return errors.New("Missing file")
+		}
 		return nil
 	})
+	if err != nil {
+		logger.warn("OUT " + key + " " + err.Error())
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, `{"warn":%q}`, err)
+		return
+	}
 
-	fi := NewFileIn(key, string(v))
+	fi := NewFileOut(key, string(v))
 	http.ServeFile(w, r, fi.filePath())
 	logger.info("OUT " + key + " <- " + fi.filePath())
 }
@@ -98,24 +128,37 @@ func putFile(w http.ResponseWriter, r *http.Request) {
 
 	key := mux.Vars(r)["key"]
 
-	fi := NewFileIn(key, "")
-	err := fi.store(r.Body)
+	fi, err := NewFileIn(key, r.Body)
 	if err != nil {
-		logger.error("IN " + key + " " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, `{"error":%q}`, err)
 		return
 	}
 
-	db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucket([]byte("files"))
-		err = b.Put([]byte(key), []byte(fi.signature))
-		return err
-	})
+	var old string
+	err = db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("files"))
+		old = string(b.Get([]byte(key)))
+		err := b.Put([]byte(key), []byte(fi.signature))
+		if err != nil {
+			logger.error("DB:PUT " + err.Error())
+			return err
+		}
 
-	//w.Write([]byte(fmt.Sprintf(`{"checksum":"%s"}`, fi.signature)))
+		return nil
+	})
+	// Remove old file if it exists
+	if err == nil && old != "" && old != key {
+		err = NewFileOut(key, old).remove()
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":%q}`, err)
+		return
+	}
+
 	fmt.Fprintf(w, `{"id":"%s"}`, fi.signature)
-	logger.info("PUT " + key + " -> " + fi.filePath())
+	logger.info("IN " + key + " -> " + fi.filePath())
 }
 
 func deleteFile(w http.ResponseWriter, r *http.Request) {
