@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-
 	"github.com/boltdb/bolt"
 )
 
@@ -12,7 +11,7 @@ var (
 
 func init() {
 	var err error
-	db, err = bolt.Open("my.db", 0600, nil)
+	db, err = bolt.Open("rebost.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

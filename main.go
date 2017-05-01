@@ -8,8 +8,6 @@ import (
 )
 
 var (
-	//tmpDb = &db{m: make(map[string]string)}
-	//repDb = &db{m: make(map[string]string)}
 	port = "8001"
 )
 
@@ -35,5 +33,6 @@ func main() {
 	r.HandleFunc("/in", getReplicaIn).Methods("GET")
 	r.HandleFunc("/out", getReplicaOut).Methods("GET")
 
+	logger.info("Listening on http://*:" + port)
 	http.ListenAndServe(":"+port, h)
 }

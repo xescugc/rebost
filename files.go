@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -15,9 +16,8 @@ import (
 
 var (
 	rootDir string = "./"
-
-	tmpDir  string = path.Join(rootDir, "tmp")
-	dataDir string = path.Join(rootDir, "data")
+	tempDir string = path.Join(rootDir, "data", "tmp")
+	dataDir string = path.Join(rootDir, "data", "files")
 )
 
 type FileIn struct {
@@ -26,19 +26,31 @@ type FileIn struct {
 	key       string
 }
 
-func NewFileIn(key, signature string) *FileIn {
+// Ensure dirs exists
+func init() {
+	err := os.MkdirAll(tempDir, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	err = os.MkdirAll(dataDir, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func NewFileIn(key, signature string) *FileIn {
 	return &FileIn{
 		key:       key,
-		tmp:       path.Join(tmpDir, uuid.NewV4().String()),
+		tmp:       path.Join(tempDir, uuid.NewV4().String()),
 		signature: signature,
 	}
 }
 
-func (f *FileIn) store(b io.ReadCloser) {
+func (f *FileIn) store(b io.ReadCloser) error {
 	fh, err := os.OpenFile(f.tmp, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer fh.Close()
 	sh1 := sha1.New()
@@ -50,6 +62,7 @@ func (f *FileIn) store(b io.ReadCloser) {
 	dir, _ := path.Split(p)
 	os.MkdirAll(dir, 0755)
 	os.Rename(f.tmp, p)
+	return nil
 }
 
 func (f *FileIn) filePath() string {
@@ -77,20 +90,32 @@ func getFile(w http.ResponseWriter, r *http.Request) {
 
 	fi := NewFileIn(key, string(v))
 	http.ServeFile(w, r, fi.filePath())
+	logger.info("OUT " + key + " <- " + fi.filePath())
 }
 
 func putFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	key := mux.Vars(r)["key"]
+
 	fi := NewFileIn(key, "")
-	fi.store(r.Body)
+	err := fi.store(r.Body)
+	if err != nil {
+		logger.error("IN " + key + " " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":%q}`, err)
+		return
+	}
+
 	db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucket([]byte("files"))
-		//b.Put([]byte(key), []byte(fi.signature))
 		err = b.Put([]byte(key), []byte(fi.signature))
 		return err
 	})
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(fmt.Sprintf("{'checksum': '%s', 'status': 'ok'}", fi.signature)))
+
+	//w.Write([]byte(fmt.Sprintf(`{"checksum":"%s"}`, fi.signature)))
+	fmt.Fprintf(w, `{"id":"%s"}`, fi.signature)
+	logger.info("PUT " + key + " -> " + fi.filePath())
 }
 
 func deleteFile(w http.ResponseWriter, r *http.Request) {
