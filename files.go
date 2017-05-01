@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/boltdb/bolt"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
 )
@@ -105,15 +103,7 @@ func (f *FileIn) remove() error {
 func getFile(w http.ResponseWriter, r *http.Request) {
 	key := mux.Vars(r)["key"]
 
-	var v []byte
-	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("files"))
-		v = b.Get([]byte(key))
-		if v == nil {
-			return errors.New("Missing file")
-		}
-		return nil
-	})
+	s, err := dbGetFileSignature(key)
 	if err != nil {
 		logger.warn("OUT " + key + " " + err.Error())
 		w.WriteHeader(http.StatusNotFound)
@@ -122,8 +112,9 @@ func getFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var fo *FileIn
-	fo, err = NewFileOut(key, string(v))
+	fo, err = NewFileOut(key, s)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, `{"error":%q}`, err)
 		return
@@ -136,34 +127,15 @@ func getFile(w http.ResponseWriter, r *http.Request) {
 func putFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	key := mux.Vars(r)["key"]
-
-	fi, err := NewFileIn(key, r.Body)
+	fi, err := NewFileIn(mux.Vars(r)["key"], r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, `{"error":%q}`, err)
 		return
 	}
 
-	var old string
-	err = db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("files"))
-		old = string(b.Get([]byte(key)))
-		err := b.Put([]byte(key), []byte(fi.signature))
-		if err != nil {
-			logger.error("DB:PUT " + err.Error())
-			return err
-		}
-
-		return nil
-	})
-	// Remove old file if it exists
-	if err == nil && old != "" && old != key {
-		fo, err2 := NewFileOut(key, old)
-		if err2 == nil {
-			err = fo.remove()
-		}
-	}
+	var oldSig string
+	oldSig, err = dbSetFileSignature(fi.key, fi.signature)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, `{"error":%q}`, err)
@@ -171,11 +143,53 @@ func putFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, `{"id":"%s"}`, fi.signature)
-	logger.info("IN " + key + " -> " + fi.filePath())
+	logger.info("IN " + fi.key + " -> " + fi.filePath())
+
+	// Remove old file if it exists
+	if oldSig != "" {
+		fo, err2 := NewFileOut("old", oldSig)
+		if err2 == nil {
+			err = fo.remove()
+			logger.info("FS:RM" + fo.filePath())
+		}
+	}
 }
 
 func deleteFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	key := mux.Vars(r)["key"]
+
+	s, err := dbGetFileSignature(key)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, `{"warn":%q}`, err)
+		return
+	}
+
+	var fo *FileIn
+	fo, err = NewFileOut(key, s)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":%q}`, err)
+		return
+	}
+
+	err = dbDelFile(key)
+	err = fo.remove() // BUG: need to reverse check if other keys point to the same file!
+
+	w.WriteHeader(http.StatusGone)
+	logger.info("DEL(" + key + ") " + fo.filePath())
 }
 
 func headFile(w http.ResponseWriter, r *http.Request) {
+	key := mux.Vars(r)["key"]
+	s, err := dbGetFileSignature(key)
+	if err != nil {
+		logger.warn("OUT " + key + " " + err.Error())
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	logger.info("HEAD " + key)
+	w.Header().Set("Signature", s)
 }
