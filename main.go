@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -18,6 +19,14 @@ func init() {
 }
 
 func main() {
+	c, err := GetConfig()
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%#v\n", c)
+
 	h := mux.NewRouter()
 
 	f := h.PathPrefix("/files").Subrouter()
