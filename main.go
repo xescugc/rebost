@@ -19,11 +19,7 @@ func init() {
 }
 
 func main() {
-	c, err := GetConfig()
-
-	if err != nil {
-		panic(err)
-	}
+	c := GetConfig()
 
 	fmt.Printf("%#v\n", c)
 
