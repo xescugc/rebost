@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 
-	"github.com/gorilla/mux"
+	"github.com/xescugc/rebost/api"
+	"github.com/xescugc/rebost/config"
 )
 
 var (
@@ -19,24 +19,10 @@ func init() {
 }
 
 func main() {
-	c := GetConfig()
+	c := config.New()
+	s := storage.New(c)
 
-	fmt.Printf("%#v\n", c)
-
-	h := mux.NewRouter()
-
-	f := h.PathPrefix("/files").Subrouter()
-	f.HandleFunc("/{key:.*}", getFile).Methods("GET")
-	f.HandleFunc("/{key:.*}", putFile).Methods("PUT")
-	f.HandleFunc("/{key:.*}", deleteFile).Methods("DELETE")
-	f.HandleFunc("/{key:.*}", headFile).Methods("HEAD")
-
-	s := h.PathPrefix("/status").Subrouter()
-	s.HandleFunc("", getStatus).Methods("GET")
-
-	r := h.PathPrefix("/replica").Subrouter()
-	r.HandleFunc("/in", getReplicaIn).Methods("GET")
-	r.HandleFunc("/out", getReplicaOut).Methods("GET")
+	h := api.New(c, s)
 
 	logger.info("Listening on http://*:" + port)
 	http.ListenAndServe(":"+port, h)

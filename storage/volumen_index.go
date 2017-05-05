@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"errors"
@@ -7,24 +7,24 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-var (
-	db *bolt.DB
-)
-
-func init() {
-	var err error
-	db, err = bolt.Open("rebost.db", 0600, nil)
+func NewIndex(path string) *bolt.DB {
+	db, err := bolt.Open(path, 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("files"))
-		return err
+		for bucket := range [][]byte{"files"} {
+			_, err := tx.CreateBucketIfNotExists(bucket)
+			if err != nil {
+				return err
+			}
+		}
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
+	return db
 }
 
 func dbGetFileSignature(key string) (string, error) {

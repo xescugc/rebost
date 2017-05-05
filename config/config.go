@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -25,7 +25,7 @@ func (s *stringslice) Set(v string) error {
 	return nil
 }
 
-func GetConfig() *Config {
+func New() *Config {
 
 	var (
 		volumes stringslice
@@ -67,6 +67,9 @@ func loadConfig(config string) *Config {
 	}
 
 	var c Config
-	json.Unmarshal(data, &c)
+	err = json.Unmarshal(data, &c)
+	if err != nil {
+		panic(err)
+	}
 	return &c
 }
