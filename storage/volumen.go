@@ -42,9 +42,22 @@ func (v *volume) initialize() {
 
 func (v *volume) Add(key string, reader io.Reader) (*File, error) {
 	f := &File{key: key, volume: v}
-	err := f.store(reader)
 
-	v.index.ReplaceFile(f)
+	// Save on disk and calculate signature
+	err := f.store(reader)
+	if err != nil {
+		return f, err
+	}
+
+	// save on index and get old file if it need to be deleted
+	oldSig, err := v.indexSetFile(f)
+	if err != nil {
+		return f, err
+	}
+	if oldSig != "" {
+		oldFile := &File{key: key, Signature: oldSig, volume: v}
+		_ = oldFile.remove()
+	}
 
 	return f, err
 }

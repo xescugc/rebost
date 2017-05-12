@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"log"
 
 	"github.com/boltdb/bolt"
@@ -27,22 +28,25 @@ func NewIndex(path string) *bolt.DB {
 	return db
 }
 
-func ReplaceFile(file *File) (string, error) {
-	var old string
-	err := db.Update(func(tx *bolt.Tx) error {
+// indexSetFile: will add the given File to this volume index
+// and it will return a string having the previous signature
+// pointed by the given File key in case it existed.
+func (v *volume) indexSetFile(file *File) (string, error) {
+	var oldSignature string
+	err := v.index.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("files"))
 
 		// look if we know that key
-		old = string(b.Get([]byte(key)))
+		oldSignature = string(b.Get([]byte(file.key)))
 		// skip if we know it and it's the same
-		if old != "" && old == signature {
-			old = ""
+		if oldSignature != "" && oldSignature == file.Signature {
+			oldSignature = ""
 			return nil
 		}
+		//TODO: check here if this signature is referred by other key?, probably not...
 
-		err := b.Put([]byte(key), []byte(signature))
+		err := b.Put([]byte(file.key), []byte(file.Signature))
 		if err != nil {
-			logger.error("DB:PUT " + err.Error())
 			return err
 		}
 
@@ -53,30 +57,28 @@ func ReplaceFile(file *File) (string, error) {
 		return "", err
 	}
 
-	return old, nil
+	return oldSignature, nil
 }
 
-//func dbGetFileSignature(key string) (string, error) {
-//var v []byte
-//err := db.View(func(tx *bolt.Tx) error {
-//b := tx.Bucket([]byte("files"))
-//v = b.Get([]byte(key))
-//if v == nil {
-//return errors.New("Missing file")
-//}
-//return nil
-//})
+func (v *volume) indexGetFileSignature(key string) (string, error) {
+	var sig []byte
+	err := v.index.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("files"))
+		sig = b.Get([]byte(key))
+		if sig == nil {
+			return errors.New("Missing file")
+		}
+		return nil
+	})
 
-//return string(v), err
-//}
+	return string(sig), err
+}
 
-//// Set a file-key signature and get the signature replaced if it exists
+func (v *volume) indexDelFile(key string) error {
+	err := v.index.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("files"))
+		return b.Delete([]byte(key))
+	})
 
-//func dbDelFile(key string) error {
-//err := db.Update(func(tx *bolt.Tx) error {
-//b := tx.Bucket([]byte("files"))
-//return b.Delete([]byte(key))
-//})
-
-//return err
-//}
+	return err
+}
