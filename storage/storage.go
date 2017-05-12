@@ -11,9 +11,22 @@ type Storage struct {
 }
 
 func New(c *config.Config) *Storage {
+	s := &Storage{}
+
+	s.volumes = make([]*volume, 1)
+
+	if len(c.Volumes) == 0 {
+		c.Volumes = []string{"./data"}
+	}
+
+	for _, v := range c.Volumes {
+		s.volumes = append(s.volumes, NewVolume(v))
+	}
+
+	return s
 }
 
-func (s *Storage) Add(key string, reader io.Reader) *File {
+func (s *Storage) Add(key string, reader io.Reader) (*File, error) {
 	return s.getVolume().Add(key, reader)
 }
 

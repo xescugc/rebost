@@ -25,7 +25,7 @@ func NewVolume(root string) *volume {
 	}
 
 	v.initialize()
-	return s
+	return v
 }
 
 func (v *volume) initialize() {
@@ -41,8 +41,10 @@ func (v *volume) initialize() {
 }
 
 func (v *volume) Add(key string, reader io.Reader) (*File, error) {
-	f := File{key: key, volume: v}
-	err := f.Store(reader)
+	f := &File{key: key, volume: v}
+	err := f.store(reader)
+
+	v.index.ReplaceFile(f)
 
 	return f, err
 }

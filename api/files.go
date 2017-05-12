@@ -25,7 +25,7 @@ func putFile(w http.ResponseWriter, r *http.Request) {
 	//return
 	//}
 
-	fmt.Fprintf(w, `{"id":"%s"}`, file.signature)
+	fmt.Fprintf(w, `{"id":"%s"}`, file.Signature)
 	//logger.info("IN " + fi.key + " -> " + fi.filePath())
 
 	// Remove old file if it exists

@@ -11,15 +11,15 @@ import (
 )
 
 type File struct {
-	signature string
+	Signature string
 	key       string
 	volume    *volume
 }
 
 func (f *File) Path() string {
-	p := dataDir
+	p := f.volume.fileDir
 	currentDir := []byte{}
-	for _, b := range []byte(f.signature) {
+	for _, b := range []byte(f.Signature) {
 		currentDir = append(currentDir, b)
 		if len(currentDir) == 3 {
 			p = path.Join(p, string(currentDir))
@@ -41,14 +41,14 @@ func (f *File) store(reader io.Reader) error {
 	sh1 := sha1.New()
 	w := io.MultiWriter(fh, sh1)
 	io.Copy(w, reader)
-	f.signature = fmt.Sprintf("%x", sh1.Sum(nil))
+	f.Signature = fmt.Sprintf("%x", sh1.Sum(nil))
 
 	p, err := f.ensurePath()
 	if err != nil {
 		return err
 	}
 
-	err := os.Rename(tmp)
+	err = os.Rename(tmp, p)
 	if err != nil {
 		return err
 	}
@@ -64,9 +64,5 @@ func (f *File) ensurePath() (string, error) {
 }
 
 func (f *File) remove() error {
-	if f.tmp != "" {
-		return os.Remove(f.tmp)
-	}
-
-	return os.Remove(f.filePath())
+	return os.Remove(f.Path())
 }

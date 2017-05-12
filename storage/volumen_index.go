@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"log"
 
 	"github.com/boltdb/bolt"
@@ -14,12 +13,13 @@ func NewIndex(path string) *bolt.DB {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		for bucket := range [][]byte{"files"} {
-			_, err := tx.CreateBucketIfNotExists(bucket)
+		for _, bucket := range []string{"files"} {
+			_, err := tx.CreateBucketIfNotExists([]byte(bucket))
 			if err != nil {
 				return err
 			}
 		}
+		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -27,22 +27,7 @@ func NewIndex(path string) *bolt.DB {
 	return db
 }
 
-func dbGetFileSignature(key string) (string, error) {
-	var v []byte
-	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("files"))
-		v = b.Get([]byte(key))
-		if v == nil {
-			return errors.New("Missing file")
-		}
-		return nil
-	})
-
-	return string(v), err
-}
-
-// Set a file-key signature and get the signature replaced if it exists
-func dbSetFileSignature(key, signature string) (string, error) {
+func ReplaceFile(file *File) (string, error) {
 	var old string
 	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("files"))
@@ -71,11 +56,27 @@ func dbSetFileSignature(key, signature string) (string, error) {
 	return old, nil
 }
 
-func dbDelFile(key string) error {
-	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("files"))
-		return b.Delete([]byte(key))
-	})
+//func dbGetFileSignature(key string) (string, error) {
+//var v []byte
+//err := db.View(func(tx *bolt.Tx) error {
+//b := tx.Bucket([]byte("files"))
+//v = b.Get([]byte(key))
+//if v == nil {
+//return errors.New("Missing file")
+//}
+//return nil
+//})
 
-	return err
-}
+//return string(v), err
+//}
+
+//// Set a file-key signature and get the signature replaced if it exists
+
+//func dbDelFile(key string) error {
+//err := db.Update(func(tx *bolt.Tx) error {
+//b := tx.Bucket([]byte("files"))
+//return b.Delete([]byte(key))
+//})
+
+//return err
+//}

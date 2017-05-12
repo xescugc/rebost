@@ -1,83 +1,75 @@
 package main
 
-import (
-	"fmt"
-	"net/http"
-	"os"
+//func NewFileOut(key, signature string) (*FileIn, error) {
+//f := &FileIn{
+//key:       key,
+//signature: signature,
+//}
 
-	"github.com/gorilla/mux"
-)
+//_, err := os.Stat(f.filePath())
 
-func NewFileOut(key, signature string) (*FileIn, error) {
-	f := &FileIn{
-		key:       key,
-		signature: signature,
-	}
+//return f, err
+//}
 
-	_, err := os.Stat(f.filePath())
+//func getFile(w http.ResponseWriter, r *http.Request) {
+//key := mux.Vars(r)["key"]
 
-	return f, err
-}
+//s, err := dbGetFileSignature(key)
+//if err != nil {
+//logger.warn("OUT " + key + " " + err.Error())
+//w.WriteHeader(http.StatusNotFound)
+//fmt.Fprintf(w, `{"warn":%q}`, err)
+//return
+//}
 
-func getFile(w http.ResponseWriter, r *http.Request) {
-	key := mux.Vars(r)["key"]
+//var fo *FileIn
+//fo, err = NewFileOut(key, s)
+//if err != nil {
+//w.Header().Set("Content-Type", "application/json")
+//w.WriteHeader(http.StatusInternalServerError)
+//fmt.Fprintf(w, `{"error":%q}`, err)
+//return
+//}
 
-	s, err := dbGetFileSignature(key)
-	if err != nil {
-		logger.warn("OUT " + key + " " + err.Error())
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, `{"warn":%q}`, err)
-		return
-	}
+//http.ServeFile(w, r, fo.filePath())
+//logger.info("OUT " + key + " <- " + fo.filePath())
+//}
 
-	var fo *FileIn
-	fo, err = NewFileOut(key, s)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `{"error":%q}`, err)
-		return
-	}
+//func deleteFile(w http.ResponseWriter, r *http.Request) {
+//w.Header().Set("Content-Type", "application/json")
+//key := mux.Vars(r)["key"]
 
-	http.ServeFile(w, r, fo.filePath())
-	logger.info("OUT " + key + " <- " + fo.filePath())
-}
+//s, err := dbGetFileSignature(key)
+//if err != nil {
+//w.WriteHeader(http.StatusNotFound)
+//fmt.Fprintf(w, `{"warn":%q}`, err)
+//return
+//}
 
-func deleteFile(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	key := mux.Vars(r)["key"]
+//var fo *FileIn
+//fo, err = NewFileOut(key, s)
+//if err != nil {
+//w.WriteHeader(http.StatusInternalServerError)
+//fmt.Fprintf(w, `{"error":%q}`, err)
+//return
+//}
 
-	s, err := dbGetFileSignature(key)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, `{"warn":%q}`, err)
-		return
-	}
+//err = dbDelFile(key)
+//err = fo.remove() // BUG: need to reverse check if other keys point to the same file!
 
-	var fo *FileIn
-	fo, err = NewFileOut(key, s)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `{"error":%q}`, err)
-		return
-	}
+//w.WriteHeader(http.StatusGone)
+//logger.info("DEL(" + key + ") " + fo.filePath())
+//}
 
-	err = dbDelFile(key)
-	err = fo.remove() // BUG: need to reverse check if other keys point to the same file!
+//func headFile(w http.ResponseWriter, r *http.Request) {
+//key := mux.Vars(r)["key"]
+//s, err := dbGetFileSignature(key)
+//if err != nil {
+//logger.warn("OUT " + key + " " + err.Error())
+//w.WriteHeader(http.StatusNotFound)
+//return
+//}
 
-	w.WriteHeader(http.StatusGone)
-	logger.info("DEL(" + key + ") " + fo.filePath())
-}
-
-func headFile(w http.ResponseWriter, r *http.Request) {
-	key := mux.Vars(r)["key"]
-	s, err := dbGetFileSignature(key)
-	if err != nil {
-		logger.warn("OUT " + key + " " + err.Error())
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	logger.info("HEAD " + key)
-	w.Header().Set("Signature", s)
-}
+//logger.info("HEAD " + key)
+//w.Header().Set("Signature", s)
+//}
