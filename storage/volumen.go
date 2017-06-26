@@ -18,18 +18,27 @@ type volume struct {
 
 func NewVolume(root string) *volume {
 	v := &volume{
-		root,
-		path.Join(root, "tmps"),
-		path.Join(root, "file"),
-		NewIndex(path.Join(root, "volume.index")),
+		rootDir: root,
+		tempDir: path.Join(root, "tmps"),
+		fileDir: path.Join(root, "file"),
 	}
 
 	v.initialize()
+
+	// Wait to Initialize the volume before connecting the DB
+	// so the creation of the data directories is done
+	v.index = NewIndex(path.Join(root, "volume.index"))
+
 	return v
 }
 
 func (v *volume) initialize() {
-	err := os.MkdirAll(v.tempDir, os.ModePerm)
+	err := os.MkdirAll(v.rootDir, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.MkdirAll(v.tempDir, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,4 +69,18 @@ func (v *volume) Add(key string, reader io.Reader) (*File, error) {
 	}
 
 	return f, err
+}
+
+func (v *volume) Get(key string) (*File, error) {
+	sig, err := v.indexGetFileSignature(key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &File{Signature: sig, volume: v}, nil
+}
+
+func (v *volume) Delete(key string) error {
+	return v.indexDeleteFile(key)
 }

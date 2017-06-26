@@ -21,9 +21,9 @@ func New(c *config.Config, s *storage.Storage) http.Handler {
 	h := mux.NewRouter()
 
 	f := h.PathPrefix("/files").Subrouter()
-	//f.HandleFunc("/{key:.*}", getFile).Methods("GET")
+	f.HandleFunc("/{key:.*}", getFile).Methods("GET")
 	f.HandleFunc("/{key:.*}", putFile).Methods("PUT")
-	//f.HandleFunc("/{key:.*}", deleteFile).Methods("DELETE")
+	f.HandleFunc("/{key:.*}", deleteFile).Methods("DELETE")
 	//f.HandleFunc("/{key:.*}", headFile).Methods("HEAD")
 
 	//s := h.PathPrefix("/status").Subrouter()

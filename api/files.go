@@ -16,24 +16,25 @@ func putFile(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{"error":%q}`, err)
 		return
 	}
-
-	//var oldSig string
-	//oldSig, err = dbSetFileSignature(fi.key, fi.signature)
-	//if err != nil {
-	//w.WriteHeader(http.StatusInternalServerError)
-	//fmt.Fprintf(w, `{"error":%q}`, err)
-	//return
-	//}
-
 	fmt.Fprintf(w, `{"id":"%s"}`, file.Signature)
-	//logger.info("IN " + fi.key + " -> " + fi.filePath())
+}
 
-	// Remove old file if it exists
-	//if oldSig != "" {
-	//fo, err2 := NewFileOut("old", oldSig)
-	//if err2 == nil {
-	//err = fo.remove()
-	//logger.info("FS:RM" + fo.filePath())
-	//}
-	//}
+func getFile(w http.ResponseWriter, r *http.Request) {
+	f, err := n.storage.Get(mux.Vars(r)["key"])
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":%q}`, err)
+		return
+	}
+	http.ServeFile(w, r, f.Path())
+}
+
+func deleteFile(w http.ResponseWriter, r *http.Request) {
+	err := n.storage.Delete(mux.Vars(r)["key"])
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":%q}`, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

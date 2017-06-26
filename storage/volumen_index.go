@@ -28,7 +28,7 @@ func NewIndex(path string) *bolt.DB {
 	return db
 }
 
-// indexSetFile: will add the given File to this volume index
+// indexSetFile will add the given File to this volume index
 // and it will return a string having the previous signature
 // pointed by the given File key in case it existed.
 func (v *volume) indexSetFile(file *File) (string, error) {
@@ -74,7 +74,7 @@ func (v *volume) indexGetFileSignature(key string) (string, error) {
 	return string(sig), err
 }
 
-func (v *volume) indexDelFile(key string) error {
+func (v *volume) indexDeleteFile(key string) error {
 	err := v.index.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("files"))
 		return b.Delete([]byte(key))

@@ -13,7 +13,8 @@ deps:
 	$(GO_BIN) get -u github.com/boltdb/bolt/... \
 									 github.com/gorilla/mux \
 									 github.com/satori/go.uuid \
-									 github.com/shirou/gopsutil
+									 github.com/shirou/gopsutil \
+									 github.com/codegangsta/gin
 
 devDeps:
 	$(GO_BIN) get -u github.com/codegangsta/gin

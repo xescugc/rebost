@@ -62,7 +62,7 @@ func loadConfig(config string) *Config {
 	}
 
 	data, err := ioutil.ReadFile(p)
-	if err != nil && os.IsNotExist(err) && config != "" {
+	if err != nil && os.IsNotExist(err) {
 		panic(err)
 	}
 
