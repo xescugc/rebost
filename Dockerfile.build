@@ -1,0 +1,7 @@
+FROM golang:1.8
+
+ADD . /go/src/github.com/xescugc/rebost
+
+WORKDIR /go/src/github.com/xescugc/rebost
+
+RUN make deps && make devDeps
