@@ -82,5 +82,14 @@ func (v *volume) Get(key string) (*File, error) {
 }
 
 func (v *volume) Delete(key string) error {
-	return v.indexDeleteFile(key)
+	sig, err := v.indexDeleteFile(key)
+	if err != nil {
+		return err
+	}
+	if sig != "" {
+		f := &File{Signature: sig, volume: v}
+		return f.remove()
+	} else {
+		return nil
+	}
 }

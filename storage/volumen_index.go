@@ -74,11 +74,13 @@ func (v *volume) indexGetFileSignature(key string) (string, error) {
 	return string(sig), err
 }
 
-func (v *volume) indexDeleteFile(key string) error {
+func (v *volume) indexDeleteFile(key string) (string, error) {
+	var sig string
 	err := v.index.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("files"))
+		sig = string(b.Get([]byte(key)))
 		return b.Delete([]byte(key))
 	})
 
-	return err
+	return sig, err
 }
