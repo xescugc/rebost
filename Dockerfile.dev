@@ -1,7 +1,0 @@
-FROM rebost
-
-ADD . /go/src/github.com/xescugc/rebost
-
-WORKDIR /go/src/github.com/xescugc/rebost
-
-RUN go run *.go
