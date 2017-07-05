@@ -7,5 +7,5 @@ To test the endpoint just:
 ```
 
 ```bash
-  $> curl -X POST -F "file=@FILENAME" localhost:8000
+  $> curl -X PUT localhost:8000/files/xescugc --upload-file xescugc.png
 ```
