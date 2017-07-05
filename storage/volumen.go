@@ -49,8 +49,19 @@ func (v *volume) initialize() {
 	}
 }
 
+func (v *volume) Clean() {
+	err := v.index.Close()
+	if err != nil {
+		log.Fatalf("error while closing the DB: %q", err)
+	}
+	err = os.RemoveAll(v.rootDir)
+	if err != nil {
+		log.Fatalf("error while cleaning the volume: %q", err)
+	}
+}
+
 func (v *volume) Add(key string, reader io.Reader) (*File, error) {
-	f := &File{key: key, volume: v}
+	f := v.newFileFromKey(key)
 
 	// Save on disk and calculate signature
 	err := f.store(reader)
@@ -64,7 +75,7 @@ func (v *volume) Add(key string, reader io.Reader) (*File, error) {
 		return f, err
 	}
 	if oldSig != "" {
-		oldFile := &File{key: key, Signature: oldSig, volume: v}
+		oldFile := v.newFile(key, oldSig)
 		_ = oldFile.remove()
 	}
 
@@ -78,7 +89,7 @@ func (v *volume) Get(key string) (*File, error) {
 		return nil, err
 	}
 
-	return &File{Signature: sig, volume: v}, nil
+	return v.newFileFromSignature(sig), nil
 }
 
 func (v *volume) Delete(key string) error {
@@ -87,9 +98,13 @@ func (v *volume) Delete(key string) error {
 		return err
 	}
 	if sig != "" {
-		f := &File{Signature: sig, volume: v}
+		f := v.newFileFromSignature(sig)
 		return f.remove()
 	} else {
 		return nil
 	}
 }
+
+func (v *volume) newFile(k, s string) *File           { return &File{key: k, Signature: s, volume: v} }
+func (v *volume) newFileFromKey(k string) *File       { return &File{key: k, volume: v} }
+func (v *volume) newFileFromSignature(s string) *File { return &File{Signature: s, volume: v} }

@@ -3,14 +3,17 @@ package storage
 import (
 	"errors"
 	"log"
+	"time"
 
 	"github.com/boltdb/bolt"
 )
 
 func NewIndex(path string) *bolt.DB {
-	db, err := bolt.Open(path, 0600, nil)
+	db, err := bolt.Open(path, 0600, &bolt.Options{
+		Timeout: time.Second,
+	})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error while opening the DB: %q", err)
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
