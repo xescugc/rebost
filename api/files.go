@@ -10,7 +10,7 @@ import (
 func putFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	file, err := n.storage.Add(mux.Vars(r)["key"], r.Body)
+	file, err := n.storage.AddFile(mux.Vars(r)["key"], r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, `{"error":%q}`, err)
@@ -20,7 +20,7 @@ func putFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func getFile(w http.ResponseWriter, r *http.Request) {
-	f, err := n.storage.Get(mux.Vars(r)["key"])
+	f, err := n.storage.GetFile(mux.Vars(r)["key"])
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, `{"error":%q}`, err)
@@ -30,7 +30,7 @@ func getFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteFile(w http.ResponseWriter, r *http.Request) {
-	err := n.storage.Delete(mux.Vars(r)["key"])
+	err := n.storage.DeleteFile(mux.Vars(r)["key"])
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, `{"error":%q}`, err)

@@ -26,18 +26,18 @@ func New(c *config.Config) *Storage {
 	return s
 }
 
-func (s *Storage) Add(key string, reader io.Reader) (*File, error) {
+func (s *Storage) AddFile(key string, reader io.Reader) (*File, error) {
 	return s.getVolume().Add(key, reader)
 }
 
-func (s *Storage) Get(key string) (*File, error) {
+func (s *Storage) GetFile(key string) (*File, error) {
 	return s.getVolume().Get(key)
 }
 
 func (s *Storage) Exists() {
 }
 
-func (s *Storage) Delete(key string) error {
+func (s *Storage) DeleteFile(key string) error {
 	return s.getVolume().Delete(key)
 }
 
