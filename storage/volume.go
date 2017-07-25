@@ -9,6 +9,17 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+// Volume is an interface to deal with local or remote volumes
+type Volume interface {
+	AddFile(key string, reader io.Reader) (*File, error)
+
+	GetFile(key string) (*File, error)
+
+	Exists(key string) (*File, error)
+
+	DeleteFile(key string) error
+}
+
 type volume struct {
 	rootDir string
 	tempDir string
@@ -16,7 +27,7 @@ type volume struct {
 	index   *bolt.DB
 }
 
-func NewVolume(root string) *volume {
+func NewVolume(root string) Volume {
 	v := &volume{
 		rootDir: root,
 		tempDir: path.Join(root, "tmps"),
@@ -49,7 +60,8 @@ func (v *volume) initialize() {
 	}
 }
 
-func (v *volume) Clean() {
+// Clean removes all the data from the Volume and closes the DB connection
+func (v volume) Clean() {
 	err := v.index.Close()
 	if err != nil {
 		log.Fatalf("error while closing the DB: %q", err)
@@ -60,7 +72,8 @@ func (v *volume) Clean() {
 	}
 }
 
-func (v *volume) Add(key string, reader io.Reader) (*File, error) {
+// AddFile adds a new File to the Volume
+func (v volume) AddFile(key string, reader io.Reader) (*File, error) {
 	f := v.newFileFromKey(key)
 
 	// Save on disk and calculate signature
@@ -82,7 +95,8 @@ func (v *volume) Add(key string, reader io.Reader) (*File, error) {
 	return f, err
 }
 
-func (v *volume) Get(key string) (*File, error) {
+// Get searches for a file with the given key
+func (v volume) GetFile(key string) (*File, error) {
 	sig, err := v.indexGetFileSignature(key)
 
 	if err != nil {
@@ -92,7 +106,8 @@ func (v *volume) Get(key string) (*File, error) {
 	return v.newFileFromSignature(sig), nil
 }
 
-func (v *volume) Delete(key string) error {
+// Delete removes a File with the matching key
+func (v volume) DeleteFile(key string) error {
 	sig, err := v.indexDeleteFile(key)
 	if err != nil {
 		return err
@@ -104,6 +119,8 @@ func (v *volume) Delete(key string) error {
 		return nil
 	}
 }
+
+func (v volume) Exists(key string) (*File, error) { return nil, nil }
 
 func (v *volume) newFile(k, s string) *File           { return &File{key: k, Signature: s, volume: v} }
 func (v *volume) newFileFromKey(k string) *File       { return &File{key: k, volume: v} }

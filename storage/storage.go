@@ -7,13 +7,13 @@ import (
 )
 
 type Storage struct {
-	volumes []*volume
+	volumes []Volume
 }
 
 func New(c *config.Config) *Storage {
 	s := &Storage{}
 
-	s.volumes = make([]*volume, 0, 1)
+	s.volumes = make([]Volume, 0, 1)
 
 	if len(c.Volumes) == 0 {
 		c.Volumes = []string{"./data"}
@@ -27,20 +27,20 @@ func New(c *config.Config) *Storage {
 }
 
 func (s *Storage) AddFile(key string, reader io.Reader) (*File, error) {
-	return s.getVolume().Add(key, reader)
+	return s.getVolume().AddFile(key, reader)
 }
 
 func (s *Storage) GetFile(key string) (*File, error) {
-	return s.getVolume().Get(key)
+	return s.getVolume().GetFile(key)
 }
 
 func (s *Storage) Exists() {
 }
 
 func (s *Storage) DeleteFile(key string) error {
-	return s.getVolume().Delete(key)
+	return s.getVolume().DeleteFile(key)
 }
 
-func (s *Storage) getVolume() *volume {
+func (s *Storage) getVolume() Volume {
 	return s.volumes[0]
 }

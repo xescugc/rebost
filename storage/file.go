@@ -10,12 +10,15 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// File represents the structure of a stored File with the Signature (SHA1 of the content of the File)
+// and the key which is the name of the file
 type File struct {
 	Signature string
 	key       string
 	volume    *volume
 }
 
+// Path calculates the storage path for the File with the Signature
 func (f *File) Path() string {
 	p := f.volume.fileDir
 	currentDir := []byte{}

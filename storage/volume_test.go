@@ -11,7 +11,10 @@ var (
 	rootDir = "./data"
 )
 
-func createVolumne() *volume { return NewVolume(rootDir) }
+func createVolumne() *volume {
+	v := NewVolume(rootDir)
+	return v.(*volume)
+}
 
 func TestNewVolumeAndClean(t *testing.T) {
 	var err error
