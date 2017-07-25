@@ -29,3 +29,16 @@ func TestNew(t *testing.T) {
 		}
 	}
 }
+
+//func TestGetFileWithMultiplesVolumes(t *testing.T) {
+//c := &config.Config{
+//Volumes: []string{"./volume1", "./volume2"},
+//}
+
+//s := New(c)
+//defer func() {
+//for _, v := range s.volumes {
+//v.(*volume).Clean()
+//}
+//}()
+//}

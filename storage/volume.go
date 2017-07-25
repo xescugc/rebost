@@ -73,7 +73,7 @@ func (v volume) Clean() {
 }
 
 // AddFile adds a new File to the Volume
-func (v volume) AddFile(key string, reader io.Reader) (*File, error) {
+func (v *volume) AddFile(key string, reader io.Reader) (*File, error) {
 	f := v.newFileFromKey(key)
 
 	// Save on disk and calculate signature
@@ -96,7 +96,7 @@ func (v volume) AddFile(key string, reader io.Reader) (*File, error) {
 }
 
 // Get searches for a file with the given key
-func (v volume) GetFile(key string) (*File, error) {
+func (v *volume) GetFile(key string) (*File, error) {
 	sig, err := v.indexGetFileSignature(key)
 
 	if err != nil {
@@ -107,7 +107,7 @@ func (v volume) GetFile(key string) (*File, error) {
 }
 
 // Delete removes a File with the matching key
-func (v volume) DeleteFile(key string) error {
+func (v *volume) DeleteFile(key string) error {
 	sig, err := v.indexDeleteFile(key)
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func (v volume) DeleteFile(key string) error {
 	}
 }
 
-func (v volume) Exists(key string) (*File, error) { return nil, nil }
+func (v *volume) Exists(key string) (*File, error) { return nil, nil }
 
 func (v *volume) newFile(k, s string) *File           { return &File{key: k, Signature: s, volume: v} }
 func (v *volume) newFileFromKey(k string) *File       { return &File{key: k, volume: v} }
