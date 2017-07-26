@@ -15,7 +15,7 @@ type Volume interface {
 
 	GetFile(key string) (*File, error)
 
-	ExistsFile(key string) (bool, error)
+	ExistsFile(key string, propagate bool) (bool, error)
 
 	DeleteFile(key string) error
 
@@ -127,7 +127,7 @@ func (v *volume) DeleteFile(key string) error {
 	}
 }
 
-func (v *volume) ExistsFile(key string) (bool, error) {
+func (v *volume) ExistsFile(key string, propagate bool) (bool, error) {
 	sig, err := v.indexGetFileSignature(key)
 	if err != nil {
 		return false, err

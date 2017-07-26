@@ -35,9 +35,7 @@ func Test_ensurePath(t *testing.T) {
 
 	p, err := f.ensurePath()
 
-	if err != nil {
-		t.Errorf("Expected no error, found %q", err)
-	}
+	ExpectedNoError(t, err)
 
 	if p != fp {
 		t.Errorf("Expected path to be %q, found %q", fp, p)
@@ -62,9 +60,7 @@ func Test_store(t *testing.T) {
 
 	err := f.store(bytes.NewBuffer(content))
 
-	if err != nil {
-		t.Errorf("Expected no errors when storing and found %q", err)
-	}
+	ExpectedNoError(t, err)
 
 	if f.Signature != ef.Signature {
 		t.Errorf("Expected signature to be %q, found %q", ef.Signature, f.Signature)
@@ -76,9 +72,7 @@ func Test_store(t *testing.T) {
 
 	b, err := ioutil.ReadFile(f.Path())
 
-	if err != nil {
-		t.Errorf("Expected no errors when reading file content and found %q", err)
-	}
+	ExpectedNoError(t, err)
 
 	if string(b) != string(content) {
 		t.Errorf("Expected the content of the file to be %q and found %q", b, content)
@@ -100,9 +94,7 @@ func Test_remove(t *testing.T) {
 
 	err := f.store(bytes.NewBuffer(content))
 
-	if err != nil {
-		t.Errorf("Expected no errors when storing and found %q", err)
-	}
+	ExpectedNoError(t, err)
 
 	if _, err = os.Stat(f.Path()); err != nil {
 		t.Errorf("Expected to find file and no errors, found %s", err)
@@ -110,9 +102,7 @@ func Test_remove(t *testing.T) {
 
 	err = f.remove()
 
-	if err != nil {
-		t.Errorf("Expected no errors found %q", err)
-	}
+	ExpectedNoError(t, err)
 
 	if _, err := os.Stat(f.Path()); !os.IsNotExist(err) {
 		t.Errorf("Expected to find error %q, found %q", os.ErrNotExist, err)
