@@ -14,11 +14,7 @@ func TestNew(t *testing.T) {
 	}
 
 	s := New(c)
-	defer func() {
-		for _, v := range s.localVolumes {
-			v.Clean()
-		}
-	}()
+	defer s.Clean()
 
 	if len(s.localVolumes) != 2 {
 		t.Errorf("Expected to have length of 2 and had %d", len(s.localVolumes))
@@ -27,9 +23,21 @@ func TestNew(t *testing.T) {
 	for _, v := range []string{"./volume1", "./volume2"} {
 		if _, err := os.Stat(v); err != nil {
 			ExpectedNoError(t, err)
-			t.Errorf("Expected to find no errors, found %s", err)
 		}
 	}
+}
+
+func TestImplementsVolumeInterface(t *testing.T) {
+	c := &config.Config{
+		Volumes: []string{"./volume1", "./volume2"},
+	}
+
+	s := New(c)
+	defer s.Clean()
+
+	var v Volume = s
+	_ = v
+
 }
 
 func TestAddFileWithMultipleVolumes(t *testing.T) {
@@ -38,11 +46,7 @@ func TestAddFileWithMultipleVolumes(t *testing.T) {
 	}
 
 	s := New(c)
-	defer func() {
-		for _, v := range s.localVolumes {
-			v.Clean()
-		}
-	}()
+	defer s.Clean()
 
 	for _, v := range s.localVolumes {
 		ok, err := v.ExistsFile("test", false)
@@ -80,11 +84,7 @@ func TestExistsFileWithMultipleVolumes(t *testing.T) {
 	}
 
 	s := New(c)
-	defer func() {
-		for _, v := range s.localVolumes {
-			v.Clean()
-		}
-	}()
+	defer s.Clean()
 
 	ok, err := s.ExistsFile("test", false)
 	ExpectedNoError(t, err)

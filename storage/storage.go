@@ -46,6 +46,12 @@ func (s *Storage) DeleteFile(key string) error {
 	return s.getVolumeWithKey(key, false).DeleteFile(key)
 }
 
+func (s *Storage) Clean() {
+	for _, v := range s.localVolumes {
+		v.Clean()
+	}
+}
+
 // getLocalVolume gets one of the local volumes to perform some operations
 func (s *Storage) getLocalVolume() Volume {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
