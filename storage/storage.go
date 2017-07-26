@@ -34,7 +34,8 @@ func (s *Storage) GetFile(key string) (*File, error) {
 	return s.getVolume().GetFile(key)
 }
 
-func (s *Storage) Exists() {
+func (s *Storage) Exists(key string) (bool, error) {
+	return s.getVolume().ExistsFile(key)
 }
 
 func (s *Storage) DeleteFile(key string) error {

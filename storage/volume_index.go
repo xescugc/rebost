@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"log"
 	"time"
 
@@ -68,9 +67,6 @@ func (v *volume) indexGetFileSignature(key string) (string, error) {
 	err := v.index.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("files"))
 		sig = b.Get([]byte(key))
-		if sig == nil {
-			return errors.New("Missing file")
-		}
 		return nil
 	})
 

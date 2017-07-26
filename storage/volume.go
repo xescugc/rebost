@@ -15,9 +15,11 @@ type Volume interface {
 
 	GetFile(key string) (*File, error)
 
-	Exists(key string) (*File, error)
+	ExistsFile(key string) (bool, error)
 
 	DeleteFile(key string) error
+
+	Clean()
 }
 
 type volume struct {
@@ -61,7 +63,7 @@ func (v *volume) initialize() {
 }
 
 // Clean removes all the data from the Volume and closes the DB connection
-func (v volume) Clean() {
+func (v *volume) Clean() {
 	err := v.index.Close()
 	if err != nil {
 		log.Fatalf("error while closing the DB: %q", err)
@@ -103,6 +105,11 @@ func (v *volume) GetFile(key string) (*File, error) {
 		return nil, err
 	}
 
+	// If there is no File with this key
+	if sig == "" {
+		return nil, nil
+	}
+
 	return v.newFileFromSignature(sig), nil
 }
 
@@ -120,7 +127,16 @@ func (v *volume) DeleteFile(key string) error {
 	}
 }
 
-func (v *volume) Exists(key string) (*File, error) { return nil, nil }
+func (v *volume) ExistsFile(key string) (bool, error) {
+	sig, err := v.indexGetFileSignature(key)
+	if err != nil {
+		return false, err
+	}
+	if sig == "" {
+		return false, nil
+	}
+	return true, nil
+}
 
 func (v *volume) newFile(k, s string) *File           { return &File{key: k, Signature: s, volume: v} }
 func (v *volume) newFileFromKey(k string) *File       { return &File{key: k, volume: v} }

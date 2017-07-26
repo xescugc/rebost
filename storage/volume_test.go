@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"os"
 	"path"
 	"reflect"
@@ -102,4 +103,91 @@ func Test_newFile(t *testing.T) {
 		}
 	}
 
+}
+
+func TestAddFile(t *testing.T) {
+	v := createVolumne()
+	defer v.Clean()
+
+	content := []byte("test body")
+	ef := v.newFile("test", "a140e4eff89659e835b76f8fef7da83e096a91ff")
+
+	f, err := v.AddFile("test", bytes.NewBuffer(content))
+
+	ExpectedNoError(t, err)
+
+	if !reflect.DeepEqual(f, ef) {
+		t.Errorf("Expected %#v but found %#v", ef, f)
+	}
+}
+
+func TestGetFile(t *testing.T) {
+	v := createVolumne()
+	defer v.Clean()
+
+	content := []byte("test body")
+	ef := v.newFile("test", "a140e4eff89659e835b76f8fef7da83e096a91ff")
+
+	f, err := v.GetFile("test")
+	ExpectedNoError(t, err)
+
+	if f != nil {
+		t.Errorf("Expected no File but found %#v", f)
+	}
+
+	f, err = v.AddFile("test", bytes.NewBuffer(content))
+	ExpectedNoError(t, err)
+
+	if !reflect.DeepEqual(f, ef) {
+		t.Errorf("Expected %#v but found %#v", ef, f)
+	}
+}
+
+func TestDeleteFile(t *testing.T) {
+	v := createVolumne()
+	defer v.Clean()
+
+	content := []byte("test body")
+	_, err := v.AddFile("test", bytes.NewBuffer(content))
+	ExpectedNoError(t, err)
+
+	ok, err := v.ExistsFile("test")
+	ExpectedNoError(t, err)
+
+	if !ok {
+		t.Errorf("Expected to find File but found no one")
+	}
+
+	err = v.DeleteFile("test")
+
+	ok, err = v.ExistsFile("test")
+	ExpectedNoError(t, err)
+
+	if ok {
+		t.Errorf("Expected to find no File but found one")
+	}
+
+}
+
+func TestExistsFile(t *testing.T) {
+	v := createVolumne()
+	defer v.Clean()
+
+	ok, err := v.ExistsFile("test")
+	ExpectedNoError(t, err)
+
+	if ok {
+		t.Errorf("Expected not to find File but found one")
+	}
+
+	content := []byte("test body")
+	_, err = v.AddFile("test", bytes.NewBuffer(content))
+	ExpectedNoError(t, err)
+
+	ok, err = v.ExistsFile("test")
+	ExpectedNoError(t, err)
+
+	if !ok {
+		t.Errorf("Expected to File but found none")
+	}
 }
