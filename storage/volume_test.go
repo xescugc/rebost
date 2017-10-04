@@ -151,7 +151,7 @@ func TestDeleteFile(t *testing.T) {
 	_, err := v.AddFile("test", bytes.NewBuffer(content))
 	ExpectedNoError(t, err)
 
-	ok, err := v.ExistsFile("test", false)
+	ok, err := v.HasFile("test")
 	ExpectedNoError(t, err)
 
 	if !ok {
@@ -160,7 +160,7 @@ func TestDeleteFile(t *testing.T) {
 
 	err = v.DeleteFile("test")
 
-	ok, err = v.ExistsFile("test", false)
+	ok, err = v.HasFile("test")
 	ExpectedNoError(t, err)
 
 	if ok {
@@ -169,11 +169,11 @@ func TestDeleteFile(t *testing.T) {
 
 }
 
-func TestExistsFile(t *testing.T) {
+func TestHasFile(t *testing.T) {
 	v := createVolumne()
 	defer v.Clean()
 
-	ok, err := v.ExistsFile("test", false)
+	ok, err := v.HasFile("test")
 	ExpectedNoError(t, err)
 
 	if ok {
@@ -184,7 +184,7 @@ func TestExistsFile(t *testing.T) {
 	_, err = v.AddFile("test", bytes.NewBuffer(content))
 	ExpectedNoError(t, err)
 
-	ok, err = v.ExistsFile("test", false)
+	ok, err = v.HasFile("test")
 	ExpectedNoError(t, err)
 
 	if !ok {

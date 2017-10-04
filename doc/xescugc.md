@@ -52,7 +52,7 @@ Object can be anithing, from images to videos to anithing. The way we store them
 
 ## Term
 
-This idea is from Raft, the term identifis the "tiem" the current. Its a number incremented on each election, with this simple rule, we can identify old Nodes that try to be Leaders and are old.
+This idea is from Raft, the term identifis the "term" the current. Its a number incremented on each election, with this simple rule, we can identify old Nodes that try to be Leaders and are old.
 
 <a name="node_role"></a>
 ## Node (follower) Role

@@ -49,7 +49,7 @@ func TestAddFileWithMultipleVolumes(t *testing.T) {
 	defer s.Clean()
 
 	for _, v := range s.localVolumes {
-		ok, err := v.ExistsFile("test", false)
+		ok, err := v.HasFile("test")
 		ExpectedNoError(t, err)
 		if ok {
 			t.Errorf("Expected to find no File but found one")
@@ -62,13 +62,13 @@ func TestAddFileWithMultipleVolumes(t *testing.T) {
 
 	for _, v := range s.localVolumes {
 		if v.(*volume).rootDir == f.volume.rootDir {
-			ok, err := v.ExistsFile("test", false)
+			ok, err := v.HasFile("test")
 			ExpectedNoError(t, err)
 			if !ok {
 				t.Errorf("Expected to find File but found no one")
 			}
 		} else {
-			ok, err := v.ExistsFile("test", false)
+			ok, err := v.HasFile("test")
 			ExpectedNoError(t, err)
 			if ok {
 				t.Errorf("Expected to find no File but found one")
@@ -78,7 +78,7 @@ func TestAddFileWithMultipleVolumes(t *testing.T) {
 
 }
 
-func TestExistsFileWithMultipleVolumes(t *testing.T) {
+func TestHasFileWithMultipleVolumes(t *testing.T) {
 	c := &config.Config{
 		Volumes: []string{"./volume1", "./volume2"},
 	}
@@ -86,7 +86,7 @@ func TestExistsFileWithMultipleVolumes(t *testing.T) {
 	s := New(c)
 	defer s.Clean()
 
-	ok, err := s.ExistsFile("test", false)
+	ok, err := s.HasFile("test")
 	ExpectedNoError(t, err)
 
 	if ok {
@@ -97,7 +97,7 @@ func TestExistsFileWithMultipleVolumes(t *testing.T) {
 	_, err = s.AddFile("test", bytes.NewBuffer(content))
 	ExpectedNoError(t, err)
 
-	ok, err = s.ExistsFile("test", false)
+	ok, err = s.HasFile("test")
 	ExpectedNoError(t, err)
 
 	if !ok {
