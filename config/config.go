@@ -11,7 +11,8 @@ import (
 )
 
 type Config struct {
-	Volumes []string `json:"volumes"`
+	Volumes []string          `json:"volumes"`
+	Classes map[string]uint32 `json:"classes"`
 }
 
 type stringslice []string
@@ -40,7 +41,7 @@ func New() *Config {
 
 	flag.Parse()
 
-	c := loadConfig(config)
+	c := load(config)
 
 	if len(volumes) != 0 {
 		c.Volumes = volumes
@@ -49,7 +50,7 @@ func New() *Config {
 	return c
 }
 
-func loadConfig(config string) *Config {
+func load(config string) *Config {
 	var p string
 	if config == "" {
 		wd, err := os.Getwd()
