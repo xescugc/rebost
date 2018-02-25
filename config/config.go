@@ -1,76 +1,44 @@
 package config
 
 import (
-	"encoding/json"
-	"flag"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Volumes []string          `json:"volumes"`
-	Classes map[string]uint32 `json:"classes"`
+	Port    string
+	Volumes []string
 }
 
-type stringslice []string
+func New(v *viper.Viper) (*Config, error) {
+	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	v.AutomaticEnv()
 
-func (s *stringslice) String() string {
-	return fmt.Sprint(*s)
-}
-
-func (s *stringslice) Set(v string) error {
-	*s = append(*s, strings.Split(v, ",")...)
-	return nil
-}
-
-func New() *Config {
-
-	var (
-		volumes stringslice
-		config  string
-	)
-
-	flag.StringVar(&config, "config", "", "Config full path")
-	flag.StringVar(&config, "c", "", "Config full path (shorthand)")
-
-	flag.Var(&volumes, "volume", "List of volumes (multi value or ',' separated)")
-	flag.Var(&volumes, "v", "List of volumes, multi value or ',' separated (shorthand)")
-
-	flag.Parse()
-
-	c := load(config)
-
-	if len(volumes) != 0 {
-		c.Volumes = volumes
-	}
-
-	return c
-}
-
-func load(config string) *Config {
-	var p string
-	if config == "" {
-		wd, err := os.Getwd()
+	//if v.IsSet("config") {
+	if v.GetString("config") != "" {
+		v.SetConfigFile(v.GetString("config"))
+		err := v.ReadInConfig()
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
-		p = path.Join(wd, "rebost.json")
-	} else {
-		p = config
-	}
 
-	data, err := ioutil.ReadFile(p)
-	if err != nil && os.IsNotExist(err) {
-		panic(err)
-	}
+	} /* else {*/
+	//pwd, err := os.Getwd()
+	//if err != nil {
+	//return nil, err
+	//}
 
-	var c Config
-	err = json.Unmarshal(data, &c)
-	if err != nil {
-		panic(err)
-	}
-	return &c
+	//v.SetConfigName("rebost")
+	//v.AddConfigPath(pwd)
+	/*}*/
+	//err := v.ReadInConfig()
+	//if err != nil {
+	//return nil, err
+	//}
+
+	return &Config{
+		Port:    v.GetString("port"),
+		Volumes: v.GetStringSlice("volumes"),
+	}, nil
 }
