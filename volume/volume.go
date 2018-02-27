@@ -14,6 +14,8 @@ import (
 	"github.com/xescugc/rebost/uow"
 )
 
+//go:generate mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
+
 // Volume is an interface to deal with the simples actions
 // and basic ones
 type Volume interface {

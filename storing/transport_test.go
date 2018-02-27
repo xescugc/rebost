@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/mock"
@@ -16,32 +17,25 @@ import (
 
 func TestMakeHandler(t *testing.T) {
 	var (
-		st  mock.Storing
-		key = "fileName"
+		key     = "fileName"
+		content = []byte("content")
+		ctrl    = gomock.NewController(t)
 	)
 
-	h := storing.MakeHandler(&st)
+	st := mock.NewStoring(ctrl)
+	defer ctrl.Finish()
+
+	h := storing.MakeHandler(st)
 	server := httptest.NewServer(h)
 	client := server.Client()
 
-	st.CreateFileFn = func(k string, r io.Reader) error {
-		assert.Equal(t, key, k)
+	st.EXPECT().CreateFile(key, gomock.Any()).Do(func(_ string, r io.Reader) {
 		b, err := ioutil.ReadAll(r)
 		require.NoError(t, err)
-		assert.Equal(t, "content", string(b))
-		return nil
-	}
-
-	st.GetFileFn = func(k string) (io.Reader, error) {
-		assert.Equal(t, key, k)
-		buff := bytes.NewBufferString("content")
-		return buff, nil
-	}
-
-	st.DeleteFileFn = func(k string) error {
-		assert.Equal(t, key, k)
-		return nil
-	}
+		assert.Equal(t, content, b)
+	}).Return(nil).AnyTimes()
+	st.EXPECT().GetFile(key).Return(bytes.NewBuffer(content), nil).AnyTimes()
+	st.EXPECT().DeleteFile(key).Return(nil).AnyTimes()
 
 	tests := []struct {
 		Name        string
@@ -63,7 +57,7 @@ func TestMakeHandler(t *testing.T) {
 			URL:    "/files/fileName",
 			Method: http.MethodGet,
 			EBody: func() []byte {
-				return []byte("content")
+				return content
 			},
 			EStatusCode: http.StatusOK,
 		},

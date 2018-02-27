@@ -84,7 +84,7 @@ func (uw *unitOfWork) begin(db *bolt.DB) error {
 	} else if uw.t == uow.Write {
 		tx, err = db.Begin(true)
 	} else {
-		err = fmt.Errorf("unsoported uow.Type: %s", uw.t)
+		err = fmt.Errorf("unsoported uow.Type: %d", uw.t)
 	}
 	if err != nil {
 		return err
@@ -105,7 +105,7 @@ func (uw *unitOfWork) commit() error {
 	} else if uw.t == uow.Write {
 		return uw.tx.Commit()
 	} else {
-		return fmt.Errorf("unsoported uow.Type: %s", uw.t)
+		return fmt.Errorf("unsoported uow.Type: %d", uw.t)
 	}
 }
 

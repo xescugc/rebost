@@ -2,7 +2,6 @@ package volume_test
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/spf13/afero"
 	"github.com/spf13/afero/mem"
 	"github.com/stretchr/testify/assert"
@@ -23,289 +23,217 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	var files mock.FileRepository
-	var fs mock.Fs
-	var idxkeys mock.IDXKeyRepository
 	var suow uow.StartUnitOfWork
+	var rootDir = "root"
 
-	fs.MkdirAllFn = func(p string, fm os.FileMode) error {
-		assert.Equal(t, os.ModePerm, fm)
+	filesCtrl := gomock.NewController(t)
+	idxKeysCtrl := gomock.NewController(t)
+	fsCtrl := gomock.NewController(t)
+
+	files := mock.NewFileRepository(filesCtrl)
+	idxkeys := mock.NewIDXKeyRepository(idxKeysCtrl)
+	fs := mock.NewFs(fsCtrl)
+
+	defer filesCtrl.Finish()
+	defer idxKeysCtrl.Finish()
+	defer fsCtrl.Finish()
+
+	fs.EXPECT().MkdirAll(gomock.Any(), os.ModePerm).DoAndReturn(func(p string, _ os.FileMode) error {
 		switch p {
-		case path.Join("root", "file"):
+		case path.Join(rootDir, "file"):
 			return nil
-		case path.Join("root", "tmps"):
+		case path.Join(rootDir, "tmps"):
 			return nil
 		default:
 			return fmt.Errorf("test error for path: %q", p)
 		}
-	}
+	}).Times(2)
 
-	v, err := volume.New("root", &files, &idxkeys, &fs, suow)
+	v, err := volume.New(rootDir, files, idxkeys, fs, suow)
 	require.NoError(t, err)
 	assert.NotNil(t, v)
-
-	assert.True(t, fs.MkdirAllInvoked)
 }
 
 func TestCreateFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			rootDir  = "root"
-			mv       = mock.NewManageVolume(t, rootDir)
-			key      = "expectedkey"
 			tempuuid string
-		)
-		buff := bytes.NewBufferString("content of the file")
-		ef := file.File{
-			Keys:      []string{key},
-			Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-		}
-		eik := idxkey.IDXKey{
-			Key:   key,
-			Value: ef.Signature,
-		}
-
-		mv.Fs.OpenFileFn = func(p string, flag int, perm os.FileMode) (afero.File, error) {
-			assert.True(t, strings.HasPrefix(p, path.Join(rootDir, "tmps")))
-
-			_, tempuuid = path.Split(p)
-			tf := mem.NewFileHandle(mem.CreateFile(p))
-			return tf, nil
-		}
-
-		mv.Fs.MkdirAllFn = func(p string, fm os.FileMode) error {
-			assert.Equal(t, os.ModePerm, fm)
-			dir, _ := path.Split(ef.Path(path.Join(rootDir, "file")))
-			switch p {
-			case path.Join(rootDir, "tmps", tempuuid):
-				return nil
-			case dir:
-				return nil
-			default:
-				return fmt.Errorf("test error for path: %q", p)
+			rootDir  = "root"
+			tmpsDir  = path.Join(rootDir, "tmps")
+			fileDir  = path.Join(rootDir, "file")
+			key      = "expectedkey"
+			buff     = bytes.NewBufferString("content of the file")
+			ef       = file.File{
+				Keys:      []string{key},
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 			}
-		}
+			eik = idxkey.IDXKey{
+				Key:   key,
+				Value: ef.Signature,
+			}
 
-		mv.Fs.RenameFn = func(oldpath, newpath string) error {
-			assert.Equal(t, path.Join(rootDir, "tmps", tempuuid), oldpath)
-			assert.Equal(t, ef.Path(path.Join(rootDir, "file")), newpath)
-			return nil
-		}
+			mv = mock.NewManageVolume(t, rootDir)
+		)
 
-		mv.Files.FindBySignatureFn = func(sig string) (*file.File, error) {
-			assert.Equal(t, ef.Signature, sig)
-			return nil, errors.New("not found")
-		}
+		defer mv.Finish()
 
-		mv.Files.CreateOrReplaceFn = func(fl *file.File) error {
-			assert.Equal(t, &ef, fl)
-			return nil
-		}
+		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+			assert.True(t, strings.HasPrefix(p, tmpsDir))
+			_, tempuuid = path.Split(p)
+			return mem.NewFileHandle(mem.CreateFile(p)), nil
+		})
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, ef.Keys[0], k)
-			return nil, errors.New("not found")
-		}
+		dir, _ := path.Split(ef.Path(fileDir))
+		mv.Fs.EXPECT().MkdirAll(dir, os.ModePerm).Return(nil)
 
-		mv.IDXKeys.CreateOrReplaceFn = func(ik *idxkey.IDXKey) error {
-			assert.Equal(t, &eik, ik)
-			return nil
-		}
+		mv.Fs.EXPECT().Rename(gomock.Any(), ef.Path(fileDir)).Do(func(p string, _ string) {
+			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
+		}).Return(nil)
 
-		f, err := mv.V.CreateFile(ef.Keys[0], buff)
+		mv.Files.EXPECT().FindBySignature(ef.Signature).Return(nil, errors.New("not found"))
+
+		mv.Files.EXPECT().CreateOrReplace(&ef).Return(nil)
+
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(nil, errors.New("not found"))
+
+		mv.IDXKeys.EXPECT().CreateOrReplace(&eik).Return(nil)
+
+		f, err := mv.V.CreateFile(key, buff)
 		require.NoError(t, err)
-
 		assert.Equal(t, &ef, f)
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.Fs.OpenFileInvoked)
-		assert.True(t, mv.Fs.RenameInvoked)
-		assert.True(t, mv.Files.CreateOrReplaceInvoked)
-		assert.True(t, mv.Files.FindBySignatureInvoked)
-		assert.True(t, mv.IDXKeys.CreateOrReplaceInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
 	})
 	t.Run("SuccessUpdateFileKey", func(t *testing.T) {
 		var (
-			rootDir  = "root"
-			mv       = mock.NewManageVolume(t, rootDir)
-			key      = "expectedkey"
 			tempuuid string
+			rootDir  = "root"
+			tmpsDir  = path.Join(rootDir, "tmps")
+			fileDir  = path.Join(rootDir, "file")
+			key      = "expectedkey"
 			buff     = bytes.NewBufferString("content of the file")
-		)
-		ef := file.File{
-			Keys:      []string{"b", key},
-			Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-		}
-		eik := idxkey.IDXKey{
-			Key:   "expectedkey",
-			Value: ef.Signature,
-		}
-
-		mv.Fs.OpenFileFn = func(p string, flag int, perm os.FileMode) (afero.File, error) {
-			assert.True(t, strings.HasPrefix(p, path.Join(rootDir, "tmps")))
-
-			_, tempuuid = path.Split(p)
-			tf := mem.NewFileHandle(mem.CreateFile(p))
-			return tf, nil
-		}
-
-		mv.Fs.MkdirAllFn = func(p string, fm os.FileMode) error {
-			assert.Equal(t, os.ModePerm, fm)
-			dir, _ := path.Split(ef.Path(path.Join(rootDir, "file")))
-			switch p {
-			case path.Join("root", "tmps", tempuuid):
-				return nil
-			case dir:
-				return nil
-			default:
-				return fmt.Errorf("test error for path: %q", p)
+			ef       = file.File{
+				Keys:      []string{"b", key},
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 			}
-		}
+			eik = idxkey.IDXKey{
+				Key:   key,
+				Value: ef.Signature,
+			}
 
-		mv.Fs.RenameFn = func(oldpath, newpath string) error {
-			assert.Equal(t, path.Join(rootDir, "tmps", tempuuid), oldpath)
-			assert.Equal(t, ef.Path(path.Join(rootDir, "file")), newpath)
-			return nil
-		}
+			mv = mock.NewManageVolume(t, rootDir)
+		)
 
-		mv.Files.FindBySignatureFn = func(sig string) (*file.File, error) {
-			return &file.File{
-				Keys:      []string{"b"},
-				Signature: sig,
-			}, nil
-		}
+		defer mv.Finish()
 
-		mv.Files.CreateOrReplaceFn = func(fl *file.File) error {
-			assert.Equal(t, &ef, fl)
-			return nil
-		}
+		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+			assert.True(t, strings.HasPrefix(p, tmpsDir))
+			_, tempuuid = path.Split(p)
+			return mem.NewFileHandle(mem.CreateFile(p)), nil
+		})
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return nil, errors.New("not found")
-		}
+		dir, _ := path.Split(ef.Path(fileDir))
+		mv.Fs.EXPECT().MkdirAll(dir, os.ModePerm).Return(nil)
 
-		mv.IDXKeys.CreateOrReplaceFn = func(ik *idxkey.IDXKey) error {
-			assert.Equal(t, &eik, ik)
-			return nil
-		}
+		mv.Fs.EXPECT().Rename(gomock.Any(), ef.Path(fileDir)).Do(func(p string, _ string) {
+			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
+		}).Return(nil)
+
+		mv.Files.EXPECT().FindBySignature(ef.Signature).Return(&file.File{
+			Keys:      []string{"b"},
+			Signature: ef.Signature,
+		}, nil)
+
+		mv.Files.EXPECT().CreateOrReplace(&ef).Return(nil)
+
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(nil, errors.New("not found"))
+
+		mv.IDXKeys.EXPECT().CreateOrReplace(&eik).Return(nil)
 
 		f, err := mv.V.CreateFile(key, buff)
 		require.NoError(t, err)
 
 		assert.Equal(t, &ef, f)
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.Fs.OpenFileInvoked)
-		assert.True(t, mv.Fs.RenameInvoked)
-		assert.True(t, mv.Files.CreateOrReplaceInvoked)
-		assert.True(t, mv.Files.FindBySignatureInvoked)
-		assert.True(t, mv.IDXKeys.CreateOrReplaceInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
 	})
 	t.Run("SuccessSame", func(t *testing.T) {
 		var (
-			rootDir  = "root"
-			mv       = mock.NewManageVolume(t, rootDir)
-			key      = "expectedkey"
 			tempuuid string
-		)
-		buff := bytes.NewBufferString("content of the file")
-		ef := file.File{
-			Keys:      []string{key},
-			Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-		}
-
-		mv.Fs.OpenFileFn = func(p string, flag int, perm os.FileMode) (afero.File, error) {
-			assert.True(t, strings.HasPrefix(p, path.Join(rootDir, "tmps")))
-
-			_, tempuuid = path.Split(p)
-			tf := mem.NewFileHandle(mem.CreateFile(p))
-			return tf, nil
-		}
-
-		mv.Fs.MkdirAllFn = func(p string, fm os.FileMode) error {
-			assert.Equal(t, os.ModePerm, fm)
-			dir, _ := path.Split(ef.Path(path.Join(rootDir, "file")))
-			switch p {
-			case path.Join(rootDir, "tmps", tempuuid):
-				return nil
-			case dir:
-				return nil
-			default:
-				return fmt.Errorf("test error for path: %q", p)
+			rootDir  = "root"
+			tmpsDir  = path.Join(rootDir, "tmps")
+			fileDir  = path.Join(rootDir, "file")
+			key      = "expectedkey"
+			buff     = bytes.NewBufferString("content of the file")
+			ef       = file.File{
+				Keys:      []string{key},
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 			}
-		}
 
-		mv.Fs.RenameFn = func(oldpath, newpath string) error {
-			assert.Equal(t, path.Join(rootDir, "tmps", tempuuid), oldpath)
-			assert.Equal(t, ef.Path(path.Join(rootDir, "file")), newpath)
-			return nil
-		}
+			mv = mock.NewManageVolume(t, rootDir)
+		)
 
-		mv.Files.FindBySignatureFn = func(sig string) (*file.File, error) {
-			assert.Equal(t, ef.Signature, sig)
-			return &ef, nil
-		}
+		defer mv.Finish()
 
-		f, err := mv.V.CreateFile(ef.Keys[0], buff)
+		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+			assert.True(t, strings.HasPrefix(p, tmpsDir))
+			_, tempuuid = path.Split(p)
+			return mem.NewFileHandle(mem.CreateFile(p)), nil
+		})
+
+		dir, _ := path.Split(ef.Path(fileDir))
+		mv.Fs.EXPECT().MkdirAll(dir, os.ModePerm).Return(nil)
+
+		mv.Fs.EXPECT().Rename(gomock.Any(), ef.Path(fileDir)).Do(func(p string, _ string) {
+			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
+		}).Return(nil)
+
+		mv.Files.EXPECT().FindBySignature(ef.Signature).Return(&file.File{
+			Keys:      ef.Keys,
+			Signature: ef.Signature,
+		}, nil)
+
+		f, err := mv.V.CreateFile(key, buff)
 		require.NoError(t, err)
 
 		assert.Equal(t, &ef, f)
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.Fs.OpenFileInvoked)
-		assert.True(t, mv.Fs.RenameInvoked)
-		assert.True(t, mv.Files.FindBySignatureInvoked)
 	})
 	t.Run("SuccessRemoveFileKey", func(t *testing.T) {
 		var (
-			rootDir  = "root"
-			mv       = mock.NewManageVolume(t, rootDir)
-			key      = "expectedkey"
 			tempuuid string
+			rootDir  = "root"
+			tmpsDir  = path.Join(rootDir, "tmps")
+			fileDir  = path.Join(rootDir, "file")
+			key      = "expectedkey"
 			buff     = bytes.NewBufferString("content of the file")
-		)
-		ef := file.File{
-			Keys:      []string{key},
-			Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-		}
-		eik := idxkey.IDXKey{
-			Key:   key,
-			Value: ef.Signature,
-		}
-
-		mv.Fs.OpenFileFn = func(p string, flag int, perm os.FileMode) (afero.File, error) {
-			assert.True(t, strings.HasPrefix(p, path.Join(rootDir, "tmps")))
-
-			_, tempuuid = path.Split(p)
-			tf := mem.NewFileHandle(mem.CreateFile(p))
-			return tf, nil
-		}
-
-		mv.Fs.MkdirAllFn = func(p string, fm os.FileMode) error {
-			assert.Equal(t, os.ModePerm, fm)
-			dir, _ := path.Split(ef.Path(path.Join(rootDir, "file")))
-			switch p {
-			case path.Join("root", "tmps", tempuuid):
-				return nil
-			case dir:
-				return nil
-			default:
-				return fmt.Errorf("test error for path: %q", p)
+			ef       = file.File{
+				Keys:      []string{key},
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 			}
-		}
+			eik = idxkey.IDXKey{
+				Key:   key,
+				Value: ef.Signature,
+			}
+			foundFile = file.File{
+				Keys:      []string{key, "b"},
+				Signature: "123123123",
+			}
 
-		mv.Fs.RenameFn = func(oldpath, newpath string) error {
-			assert.Equal(t, path.Join(rootDir, "tmps", tempuuid), oldpath)
-			assert.Equal(t, ef.Path(path.Join(rootDir, "file")), newpath)
-			return nil
-		}
+			mv = mock.NewManageVolume(t, rootDir)
+		)
 
-		foundFile := file.File{
-			Keys:      []string{key, "b"},
-			Signature: "123123123",
-		}
+		defer mv.Finish()
 
-		mv.Files.FindBySignatureFn = func(sig string) (*file.File, error) {
+		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+			assert.True(t, strings.HasPrefix(p, tmpsDir))
+			_, tempuuid = path.Split(p)
+			return mem.NewFileHandle(mem.CreateFile(p)), nil
+		})
+
+		dir, _ := path.Split(ef.Path(fileDir))
+		mv.Fs.EXPECT().MkdirAll(dir, os.ModePerm).Return(nil)
+
+		mv.Fs.EXPECT().Rename(gomock.Any(), ef.Path(fileDir)).Do(func(p string, _ string) {
+			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
+		}).Return(nil)
+
+		mv.Files.EXPECT().FindBySignature(gomock.Any()).DoAndReturn(func(sig string) (*file.File, error) {
 			if sig == ef.Signature {
 				return nil, errors.New("not found")
 			}
@@ -313,94 +241,66 @@ func TestCreateFile(t *testing.T) {
 				Keys:      foundFile.Keys,
 				Signature: foundFile.Signature,
 			}, nil
-		}
+		}).Times(2)
 
-		mv.Files.CreateOrReplaceFn = func(fl *file.File) error {
+		mv.Files.EXPECT().CreateOrReplace(gomock.Any()).Do(func(fl *file.File) {
 			if fl.Signature == ef.Signature {
 				assert.Equal(t, &ef, fl)
-				return nil
+			} else {
+				foundFile.Keys = []string{"b"}
+				assert.Equal(t, &foundFile, fl)
 			}
-			foundFile.Keys = []string{"b"}
-			assert.Equal(t, &foundFile, fl)
-			return nil
-		}
+		}).Return(nil).Times(2)
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return idxkey.New(k, foundFile.Signature), nil
-		}
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, foundFile.Signature), nil)
 
-		mv.IDXKeys.CreateOrReplaceFn = func(ik *idxkey.IDXKey) error {
-			assert.Equal(t, &eik, ik)
-			return nil
-		}
+		mv.IDXKeys.EXPECT().CreateOrReplace(&eik).Return(nil)
 
 		f, err := mv.V.CreateFile(key, buff)
 		require.NoError(t, err)
 
 		assert.Equal(t, &ef, f)
-		assert.Equal(t, 2, mv.Files.CreateOrReplaceTimes)
-		assert.Equal(t, 2, mv.Files.FindBySignatureTimes)
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.Fs.OpenFileInvoked)
-		assert.True(t, mv.Fs.RenameInvoked)
-		assert.True(t, mv.Files.CreateOrReplaceInvoked)
-		assert.True(t, mv.Files.FindBySignatureInvoked)
-		assert.True(t, mv.IDXKeys.CreateOrReplaceInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
 	})
 	t.Run("SuccessRemoveFileKeyAndFile", func(t *testing.T) {
 		var (
-			rootDir  = "root"
-			mv       = mock.NewManageVolume(t, rootDir)
-			key      = "expectedkey"
 			tempuuid string
+			rootDir  = "root"
+			tmpsDir  = path.Join(rootDir, "tmps")
+			fileDir  = path.Join(rootDir, "file")
+			key      = "expectedkey"
 			buff     = bytes.NewBufferString("content of the file")
-		)
-		sh1 := sha1.New()
-		sh1.Write(buff.Bytes())
-		ef := file.File{
-			Keys:      []string{key},
-			Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-		}
-		eik := idxkey.IDXKey{
-			Key:   key,
-			Value: ef.Signature,
-		}
-
-		mv.Fs.OpenFileFn = func(p string, flag int, perm os.FileMode) (afero.File, error) {
-			assert.True(t, strings.HasPrefix(p, path.Join(rootDir, "tmps")))
-
-			_, tempuuid = path.Split(p)
-			tf := mem.NewFileHandle(mem.CreateFile(p))
-			return tf, nil
-		}
-
-		mv.Fs.MkdirAllFn = func(p string, fm os.FileMode) error {
-			assert.Equal(t, os.ModePerm, fm)
-			dir, _ := path.Split(ef.Path(path.Join(rootDir, "file")))
-			switch p {
-			case path.Join("root", "tmps", tempuuid):
-				return nil
-			case dir:
-				return nil
-			default:
-				return fmt.Errorf("test error for path: %q", p)
+			ef       = file.File{
+				Keys:      []string{key},
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 			}
-		}
+			eik = idxkey.IDXKey{
+				Key:   key,
+				Value: ef.Signature,
+			}
+			foundFile = file.File{
+				Keys:      []string{key},
+				Signature: "123123123",
+			}
 
-		mv.Fs.RenameFn = func(oldpath, newpath string) error {
-			assert.Equal(t, path.Join(rootDir, "tmps", tempuuid), oldpath)
-			assert.Equal(t, ef.Path(path.Join(rootDir, "file")), newpath)
-			return nil
-		}
+			mv = mock.NewManageVolume(t, rootDir)
+		)
 
-		foundFile := file.File{
-			Keys:      []string{key},
-			Signature: "123123123",
-		}
+		defer mv.Finish()
 
-		mv.Files.FindBySignatureFn = func(sig string) (*file.File, error) {
+		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+			assert.True(t, strings.HasPrefix(p, tmpsDir))
+			_, tempuuid = path.Split(p)
+			return mem.NewFileHandle(mem.CreateFile(p)), nil
+		})
+
+		dir, _ := path.Split(ef.Path(fileDir))
+		mv.Fs.EXPECT().MkdirAll(dir, os.ModePerm).Return(nil)
+
+		mv.Fs.EXPECT().Rename(gomock.Any(), ef.Path(fileDir)).Do(func(p string, _ string) {
+			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
+		}).Return(nil)
+
+		mv.Files.EXPECT().FindBySignature(gomock.Any()).DoAndReturn(func(sig string) (*file.File, error) {
 			if sig == ef.Signature {
 				return nil, errors.New("not found")
 			}
@@ -408,54 +308,24 @@ func TestCreateFile(t *testing.T) {
 				Keys:      foundFile.Keys,
 				Signature: foundFile.Signature,
 			}, nil
-		}
+		}).Times(2)
 
-		mv.Files.CreateOrReplaceFn = func(fl *file.File) error {
-			assert.Equal(t, &ef, fl)
-			return nil
-		}
+		mv.Files.EXPECT().CreateOrReplace(&ef).Return(nil)
 
-		mv.Files.DeleteBySignatureFn = func(sig string) error {
-			assert.Equal(t, foundFile.Signature, sig)
-			return nil
-		}
+		mv.Files.EXPECT().DeleteBySignature(foundFile.Signature).Return(nil)
 
-		mv.Fs.RemoveFn = func(p string) error {
-			assert.Equal(t, foundFile.Path(path.Join(rootDir, "file")), p)
-			return nil
-		}
+		mv.Fs.EXPECT().Remove(foundFile.Path(fileDir)).Return(nil)
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return idxkey.New(k, foundFile.Signature), nil
-		}
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, foundFile.Signature), nil)
 
-		mv.IDXKeys.DeleteByKeyFn = func(k string) error {
-			assert.Equal(t, key, k)
-			return nil
-		}
+		mv.IDXKeys.EXPECT().DeleteByKey(key).Return(nil)
 
-		mv.IDXKeys.CreateOrReplaceFn = func(ik *idxkey.IDXKey) error {
-			assert.Equal(t, &eik, ik)
-			return nil
-		}
+		mv.IDXKeys.EXPECT().CreateOrReplace(&eik).Return(nil)
 
 		f, err := mv.V.CreateFile(key, buff)
 		require.NoError(t, err)
 
 		assert.Equal(t, &ef, f)
-		assert.Equal(t, 1, mv.Files.CreateOrReplaceTimes)
-		assert.Equal(t, 2, mv.Files.FindBySignatureTimes)
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.Fs.OpenFileInvoked)
-		assert.True(t, mv.Fs.RenameInvoked)
-		assert.True(t, mv.Fs.RemoveInvoked)
-		assert.True(t, mv.Files.CreateOrReplaceInvoked)
-		assert.True(t, mv.Files.FindBySignatureInvoked)
-		assert.True(t, mv.Files.DeleteBySignatureInvoked)
-		assert.True(t, mv.IDXKeys.CreateOrReplaceInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
-		assert.True(t, mv.IDXKeys.DeleteByKeyInvoked)
 	})
 }
 
@@ -463,20 +333,19 @@ func TestGetFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			rootDir   = "root"
-			mv        = mock.NewManageVolume(t, rootDir)
 			key       = "expectedkey"
 			signature = "123123123"
 			content   = "expectedcontent"
+			fileDir   = path.Join(rootDir, "file")
+
+			mv = mock.NewManageVolume(t, rootDir)
 		)
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return idxkey.New(k, signature), nil
-		}
+		defer mv.Finish()
 
-		mv.Fs.OpenFileFn = func(p string, flag int, perm os.FileMode) (afero.File, error) {
-			assert.Equal(t, file.Path(path.Join(rootDir, "file"), signature), p)
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, signature), nil)
 
+		mv.Fs.EXPECT().OpenFile(file.Path(fileDir, signature), os.O_RDONLY, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
 			tf := mem.NewFileHandle(mem.CreateFile(p))
 			tf.WriteString(content)
 			// After finishing writting, the "cursor" points to the end of
@@ -484,37 +353,28 @@ func TestGetFile(t *testing.T) {
 			// set to the beggining, that's what the Seek does
 			tf.Seek(0, 0)
 			return tf, nil
-		}
+		})
 
 		ior, err := mv.V.GetFile(key)
 		require.NoError(t, err)
 		require.NotNil(t, ior)
 		b, err := ioutil.ReadAll(ior)
 		require.NoError(t, err)
-
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.Fs.OpenFileInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
 		assert.Equal(t, content, string(b))
 	})
 	t.Run("NotFound", func(t *testing.T) {
 		var (
 			rootDir = "root"
-			mv      = mock.NewManageVolume(t, rootDir)
 			key     = "expectedkey"
+			mv      = mock.NewManageVolume(t, rootDir)
 		)
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return nil, errors.New("not found")
-		}
+		defer mv.Finish()
+
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(nil, errors.New("not found"))
 
 		_, err := mv.V.GetFile(key)
 		assert.EqualError(t, err, errors.New("not found").Error())
-
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.False(t, mv.Fs.OpenFileInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
 	})
 }
 
@@ -522,40 +382,32 @@ func TestHasFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			rootDir = "root"
-			mv      = mock.NewManageVolume(t, rootDir)
 			key     = "expectedkey"
+			mv      = mock.NewManageVolume(t, rootDir)
 		)
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return idxkey.New(k, "not needed"), nil
-		}
+		defer mv.Finish()
+
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, "not needed"), nil)
 
 		ok, err := mv.V.HasFile(key)
 		require.NoError(t, err)
-
 		assert.True(t, ok)
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
 	})
 	t.Run("NotFound", func(t *testing.T) {
 		var (
 			rootDir = "root"
-			mv      = mock.NewManageVolume(t, rootDir)
 			key     = "expectedkey"
+			mv      = mock.NewManageVolume(t, rootDir)
 		)
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return nil, errors.New("not found")
-		}
+		defer mv.Finish()
+
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(nil, errors.New("not found"))
 
 		ok, err := mv.V.HasFile(key)
 		require.NoError(t, err)
-
 		assert.False(t, ok)
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
 	})
 }
 
@@ -563,93 +415,62 @@ func TestDeleteFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			rootDir   = "root"
-			mv        = mock.NewManageVolume(t, rootDir)
 			key       = "expectedkey"
 			signature = "123123123"
 			ef        = file.File{
 				Keys:      []string{key},
 				Signature: signature,
 			}
+			fileDir = path.Join(rootDir, "file")
+
+			mv = mock.NewManageVolume(t, rootDir)
 		)
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return idxkey.New(k, signature), nil
-		}
+		defer mv.Finish()
 
-		mv.Files.FindBySignatureFn = func(sig string) (*file.File, error) {
-			assert.Equal(t, signature, sig)
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, signature), nil)
+
+		mv.Files.EXPECT().FindBySignature(signature).DoAndReturn(func(sig string) (*file.File, error) {
 			aux := file.File(ef)
 			return &aux, nil
-		}
+		})
 
-		mv.Files.DeleteBySignatureFn = func(sig string) error {
-			assert.Equal(t, signature, sig)
-			return nil
-		}
+		mv.Files.EXPECT().DeleteBySignature(signature).Return(nil)
 
-		mv.IDXKeys.DeleteByKeyFn = func(k string) error {
-			assert.Equal(t, key, k)
-			return nil
-		}
+		mv.IDXKeys.EXPECT().DeleteByKey(key).Return(nil)
 
-		mv.Fs.RemoveFn = func(p string) error {
-			assert.Equal(t, file.Path(path.Join(rootDir, "file"), signature), p)
-			return nil
-		}
+		mv.Fs.EXPECT().Remove(file.Path(fileDir, signature)).Return(nil)
 
 		err := mv.V.DeleteFile(key)
 		require.NoError(t, err)
-
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.True(t, mv.Fs.RemoveInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
-		assert.True(t, mv.IDXKeys.DeleteByKeyInvoked)
-		assert.True(t, mv.Files.DeleteBySignatureInvoked)
-		assert.True(t, mv.Files.FindBySignatureInvoked)
 	})
 	t.Run("SuccessWithMultipleKeys", func(t *testing.T) {
 		var (
 			rootDir   = "root"
-			mv        = mock.NewManageVolume(t, rootDir)
 			key       = "expectedkey"
 			signature = "123123123"
 			ef        = file.File{
 				Keys:      []string{key, "b"},
 				Signature: signature,
 			}
+
+			mv = mock.NewManageVolume(t, rootDir)
 		)
 
-		mv.IDXKeys.FindByKeyFn = func(k string) (*idxkey.IDXKey, error) {
-			assert.Equal(t, key, k)
-			return idxkey.New(k, signature), nil
-		}
+		defer mv.Finish()
 
-		mv.Files.FindBySignatureFn = func(sig string) (*file.File, error) {
-			assert.Equal(t, signature, sig)
+		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, signature), nil)
+
+		mv.Files.EXPECT().FindBySignature(signature).DoAndReturn(func(sig string) (*file.File, error) {
 			aux := file.File(ef)
 			return &aux, nil
-		}
+		})
 
-		mv.Files.CreateOrReplaceFn = func(f *file.File) error {
-			assert.Equal(t, []string{"b"}, f.Keys)
-			assert.Equal(t, signature, f.Signature)
-			return nil
-		}
+		mv.Files.EXPECT().CreateOrReplace(&file.File{Keys: []string{"b"}, Signature: signature}).Return(nil)
 
-		mv.IDXKeys.DeleteByKeyFn = func(k string) error {
-			assert.Equal(t, key, k)
-			return nil
-		}
+		mv.IDXKeys.EXPECT().DeleteByKey(key).Return(nil)
 
 		err := mv.V.DeleteFile(key)
 		require.NoError(t, err)
-
-		assert.True(t, mv.Fs.MkdirAllInvoked)
-		assert.False(t, mv.Fs.RemoveInvoked)
-		assert.True(t, mv.IDXKeys.FindByKeyInvoked)
-		assert.True(t, mv.IDXKeys.DeleteByKeyInvoked)
-		assert.True(t, mv.Files.FindBySignatureInvoked)
-		assert.False(t, mv.Files.DeleteBySignatureInvoked)
 	})
 }

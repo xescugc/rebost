@@ -8,6 +8,8 @@ import (
 	"github.com/xescugc/rebost/volume"
 )
 
+//go:generate mockgen -destination=../mock/storing.go -mock_names=Service=Storing -package=mock github.com/xescugc/rebost/storing Service
+
 type Service interface {
 	CreateFile(key string, reader io.Reader) error
 

@@ -5,6 +5,8 @@ import (
 	"github.com/xescugc/rebost/idxkey"
 )
 
+//go:generate mockgen -destination=../mock/unit_of_work.go -mock_names=UnitOfWork=UnitOfWork -package mock github.com/xescugc/rebost/uow UnitOfWork
+
 type Type int
 
 const (

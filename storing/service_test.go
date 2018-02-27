@@ -2,10 +2,10 @@ package storing_test
 
 import (
 	"bytes"
-	"io"
 	"io/ioutil"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/file"
@@ -17,24 +17,23 @@ import (
 func TestCreateFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			v    mock.Volume
 			key  = "expectedkey"
 			buff = bytes.NewBufferString("expectedcontent")
+			ctrl = gomock.NewController(t)
 		)
 
-		v.CreateFileFn = func(k string, r io.Reader) (*file.File, error) {
-			assert.Equal(t, key, k)
-			return &file.File{
-				Keys:      []string{key},
-				Signature: "signature",
-			}, nil
-		}
+		v := mock.NewVolume(ctrl)
+		defer ctrl.Finish()
 
-		s := storing.New([]volume.Volume{&v})
+		v.EXPECT().CreateFile(key, buff).Return(&file.File{
+			Keys:      []string{key},
+			Signature: "signature",
+		}, nil)
+
+		s := storing.New([]volume.Volume{v})
+
 		err := s.CreateFile(key, buff)
-
 		require.NoError(t, err)
-		assert.True(t, v.CreateFileInvoked)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		t.Skip("Not yet thought")
@@ -44,59 +43,43 @@ func TestCreateFile(t *testing.T) {
 func TestGetFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			v   mock.Volume
-			key = "expectedkey"
+			key  = "expectedkey"
+			ctrl = gomock.NewController(t)
 		)
 
-		v.HasFileFn = func(k string) (bool, error) {
-			assert.Equal(t, key, k)
-			return true, nil
-		}
+		v := mock.NewVolume(ctrl)
+		defer ctrl.Finish()
 
-		v.GetFileFn = func(k string) (io.Reader, error) {
-			assert.Equal(t, key, k)
-			return bytes.NewBufferString("expectedcontent"), nil
-		}
+		v.EXPECT().HasFile(key).Return(true, nil)
+		v.EXPECT().GetFile(key).Return(bytes.NewBufferString("expectedcontent"), nil)
 
-		s := storing.New([]volume.Volume{&v})
+		s := storing.New([]volume.Volume{v})
 		ior, err := s.GetFile(key)
 
 		require.NoError(t, err)
-		assert.True(t, v.GetFileInvoked)
-		assert.True(t, v.HasFileInvoked)
 
 		b, err := ioutil.ReadAll(ior)
 		assert.Equal(t, "expectedcontent", string(b))
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
-			v   mock.Volume
-			v2  mock.Volume
-			key = "expectedkey"
+			key   = "expectedkey"
+			ctrl  = gomock.NewController(t)
+			ctrl2 = gomock.NewController(t)
 		)
+		v := mock.NewVolume(ctrl)
+		defer ctrl.Finish()
+		v2 := mock.NewVolume(ctrl2)
+		defer ctrl2.Finish()
 
-		v.HasFileFn = func(k string) (bool, error) {
-			assert.Equal(t, key, k)
-			return false, nil
-		}
+		v.EXPECT().HasFile(key).Return(false, nil)
+		v2.EXPECT().HasFile(key).Return(true, nil)
+		v2.EXPECT().GetFile(key).Return(bytes.NewBufferString("expectedcontent"), nil)
 
-		v2.HasFileFn = func(k string) (bool, error) {
-			assert.Equal(t, key, k)
-			return true, nil
-		}
+		s := storing.New([]volume.Volume{v, v2})
 
-		v2.GetFileFn = func(k string) (io.Reader, error) {
-			assert.Equal(t, key, k)
-			return bytes.NewBufferString("expectedcontent"), nil
-		}
-
-		s := storing.New([]volume.Volume{&v, &v2})
 		ior, err := s.GetFile(key)
-
 		require.NoError(t, err)
-		assert.True(t, v.HasFileInvoked)
-		assert.True(t, v2.HasFileInvoked)
-		assert.True(t, v2.GetFileInvoked)
 
 		b, err := ioutil.ReadAll(ior)
 		assert.Equal(t, "expectedcontent", string(b))
@@ -106,54 +89,38 @@ func TestGetFile(t *testing.T) {
 func TestDeleteFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			v   mock.Volume
-			key = "expectedkey"
+			ctrl = gomock.NewController(t)
+			key  = "expectedkey"
 		)
+		v := mock.NewVolume(ctrl)
+		defer ctrl.Finish()
 
-		v.HasFileFn = func(k string) (bool, error) {
-			assert.Equal(t, key, k)
-			return true, nil
-		}
+		v.EXPECT().HasFile(key).Return(true, nil)
+		v.EXPECT().DeleteFile(key).Return(nil)
 
-		v.DeleteFileFn = func(k string) error {
-			assert.Equal(t, key, k)
-			return nil
-		}
+		s := storing.New([]volume.Volume{v})
 
-		s := storing.New([]volume.Volume{&v})
 		err := s.DeleteFile(key)
-
 		require.NoError(t, err)
-		assert.True(t, v.DeleteFileInvoked)
-		assert.True(t, v.HasFileInvoked)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
-			v   mock.Volume
-			v2  mock.Volume
-			key = "expectedkey"
+			key   = "expectedkey"
+			ctrl  = gomock.NewController(t)
+			ctrl2 = gomock.NewController(t)
 		)
-		v.HasFileFn = func(k string) (bool, error) {
-			assert.Equal(t, key, k)
-			return false, nil
-		}
+		v := mock.NewVolume(ctrl)
+		defer ctrl.Finish()
+		v2 := mock.NewVolume(ctrl2)
+		defer ctrl2.Finish()
 
-		v2.HasFileFn = func(k string) (bool, error) {
-			assert.Equal(t, key, k)
-			return true, nil
-		}
+		v.EXPECT().HasFile(key).Return(false, nil)
+		v2.EXPECT().HasFile(key).Return(true, nil)
+		v2.EXPECT().DeleteFile(key).Return(nil)
 
-		v2.DeleteFileFn = func(k string) error {
-			assert.Equal(t, key, k)
-			return nil
-		}
+		s := storing.New([]volume.Volume{v, v2})
 
-		s := storing.New([]volume.Volume{&v, &v2})
 		err := s.DeleteFile(key)
-
 		require.NoError(t, err)
-		assert.True(t, v.HasFileInvoked)
-		assert.True(t, v2.HasFileInvoked)
-		assert.True(t, v2.DeleteFileInvoked)
 	})
 }

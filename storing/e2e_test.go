@@ -2,7 +2,6 @@ package storing_test
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -66,24 +65,6 @@ func TestE2E(t *testing.T) {
 
 		// Compare them with string to make it readable
 		assert.Equal(t, string(content), string(b))
-	})
-
-	err = bdb.View(func(tx *bolt.Tx) error {
-		fb := tx.Bucket([]byte("files"))
-		idxb := tx.Bucket([]byte("idxkeys"))
-
-		fmt.Println("FILES")
-		fb.ForEach(func(k, v []byte) error {
-			fmt.Printf("key=%s, value=%s\n", k, v)
-			return nil
-		})
-
-		fmt.Println("IDXKEYS")
-		idxb.ForEach(func(k, v []byte) error {
-			fmt.Printf("key=%s, value=%s\n", k, v)
-			return nil
-		})
-		return nil
 	})
 }
 
