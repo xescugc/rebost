@@ -1,23 +1,22 @@
-GO_BIN = $(shell which go)
-PROJ_DIR := $(shell pwd)
-VERBOSE := 1
+.PHONY: help 
+help: ## Show this help
+	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
 
-DOCKER_TEST = docker run --rm rebost-test go test ./...
+.PHONY: ci
+ci:	lint test vet 	## Run all the CI targets
 
-# HACK: This is a trick because when deploying the GO_BIN is undefined (empty)
-# so we harcode it to the default Debian installation to be able to use it
-ifeq ($(GO_BIN),)
-	GO_BIN = /usr/local/go/bin/go
-endif
+.PHONY: test
+test:
+	@go test ./...
 
-serve:
-	gin -p 8000 -a 8001 -b rebost
+.PHONY: vet
+vet:
+	@go vet ./...
 
-build:
-	docker build -t rebost -f Dockerfile.build .
+.PHONY: lint
+lint: install-lint
+	@go list ./... | xargs golint -set_exit_status
 
-start:
-	docker run -ti --rm -p 8000:8000 -v $(PROJ_DIR):/go/src/github.com/xescugc/rebost/ rebost make serve
-
-buildTest:
-	docker build -t rebost-test -f Dockerfile.test .
+.PHONY: install-lint
+install-lint:
+	@go get -u golang.org/x/lint/golint

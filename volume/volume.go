@@ -39,6 +39,9 @@ type volume struct {
 	startUnitOfWork uow.StartUnitOfWork
 }
 
+// New returns an implementation of the volume.Volume interface using the provided parameters
+// it can return an error because when initialized it also creates the needed directories
+// if they are missing which are $root/file and $root/tmps
 func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Volume, error) {
 	v := &volume{
 		fileDir: path.Join(root, "file"),

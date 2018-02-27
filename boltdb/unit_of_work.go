@@ -17,6 +17,7 @@ type unitOfWork struct {
 	idxkeyRepository idxkey.Repository
 }
 
+// NewUOW returns an implementation of the interface uow.StartUnitOfWork
 func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 	return func(t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) (err error) {
 		uw := newUnitOfWork(t)
@@ -51,11 +52,7 @@ func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 			return
 		}()
 
-		if err = uowFn(uw); err != nil {
-			return err
-		}
-
-		return nil
+		return uowFn(uw)
 	}
 }
 

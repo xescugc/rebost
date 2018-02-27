@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// MakeHandler returns a http.Handler that uses the storing.Service
+// to make the http calls, it links eac http endpoint to a
+// storing.Service method
 func MakeHandler(s Service) http.Handler {
 	createFileHandler := kithttp.NewServer(
 		makeCreateFileEndpoint(s),

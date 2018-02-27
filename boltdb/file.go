@@ -14,6 +14,7 @@ type fileRepository struct {
 	bucket     *bolt.Bucket
 }
 
+// NewFileRepository returns an implementation of the interface file.Repository
 func NewFileRepository(c *bolt.DB) (file.Repository, error) {
 	bn := []byte("files")
 	if err := createBucket(c, bn); err != nil {

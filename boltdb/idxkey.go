@@ -13,6 +13,7 @@ type idxkeyRepository struct {
 	bucket     *bolt.Bucket
 }
 
+// NewIDXKeyRepository returns an implementation of the interface idxkey.Repository
 func NewIDXKeyRepository(c *bolt.DB) (idxkey.Repository, error) {
 	bn := []byte("idxkeys")
 	if err := createBucket(c, bn); err != nil {

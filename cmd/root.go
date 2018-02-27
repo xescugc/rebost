@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	// RootCmd is the root command for the CLI
 	RootCmd = &cobra.Command{
 		Use:   "rebost",
 		Short: "Distributed Object Storage",

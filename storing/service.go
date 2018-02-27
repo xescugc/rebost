@@ -10,6 +10,9 @@ import (
 
 //go:generate mockgen -destination=../mock/storing.go -mock_names=Service=Storing -package=mock github.com/xescugc/rebost/storing Service
 
+// Service is the interface of used to for the storing,
+// it's the one that will be used when defining a client
+// to consume the API
 type Service interface {
 	CreateFile(key string, reader io.Reader) error
 
@@ -24,6 +27,8 @@ type service struct {
 	localVolumes []volume.Volume
 }
 
+// New returns an implementation of the Service with
+// the given parameters
 func New(lv []volume.Volume) Service {
 	return &service{
 		localVolumes: lv,

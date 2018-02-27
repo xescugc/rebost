@@ -9,6 +9,8 @@ import (
 	"github.com/xescugc/rebost/volume"
 )
 
+// ManageVolume is a test structure that hepls initialize a
+// Volume with all his 'mocks' initialized an ready to use
 type ManageVolume struct {
 	Files   *FileRepository
 	IDXKeys *IDXKeyRepository
@@ -22,6 +24,8 @@ type ManageVolume struct {
 	uowCtrl     *gomock.Controller
 }
 
+// NewManageVolume returns the initialization of the ManageVolume
+// with all the mocks
 func NewManageVolume(t *testing.T, root string) ManageVolume {
 	filesCtrl := gomock.NewController(t)
 	idxKeysCtrl := gomock.NewController(t)
@@ -64,6 +68,7 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 
 }
 
+// Finish finishes all the *Ctrl for the 'gomock' at ones
 func (mv *ManageVolume) Finish() {
 	mv.filesCtrl.Finish()
 	mv.idxKeysCtrl.Finish()
