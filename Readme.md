@@ -1,3 +1,3 @@
 # Rebost
 
-Rebost is a Object Storage
+Rebost is a Distributed Object Storage
