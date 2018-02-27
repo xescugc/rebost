@@ -5,10 +5,6 @@ go:
   - "1.10"
   - master
 
-# Skip the install step. Don't `go get` dependencies. Only build with the
-# code in vendor/
-install: true
-
 matrix:
   # It's ok if our code fails on unstable development versions of Go.
   allow_failures:
