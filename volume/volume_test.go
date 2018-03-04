@@ -77,7 +77,7 @@ func TestCreateFile(t *testing.T) {
 
 		defer mv.Finish()
 
-		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
 			assert.True(t, strings.HasPrefix(p, tmpsDir))
 			_, tempuuid = path.Split(p)
 			return mem.NewFileHandle(mem.CreateFile(p)), nil
@@ -124,7 +124,7 @@ func TestCreateFile(t *testing.T) {
 
 		defer mv.Finish()
 
-		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
 			assert.True(t, strings.HasPrefix(p, tmpsDir))
 			_, tempuuid = path.Split(p)
 			return mem.NewFileHandle(mem.CreateFile(p)), nil
@@ -171,7 +171,7 @@ func TestCreateFile(t *testing.T) {
 
 		defer mv.Finish()
 
-		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
 			assert.True(t, strings.HasPrefix(p, tmpsDir))
 			_, tempuuid = path.Split(p)
 			return mem.NewFileHandle(mem.CreateFile(p)), nil
@@ -220,7 +220,7 @@ func TestCreateFile(t *testing.T) {
 
 		defer mv.Finish()
 
-		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
 			assert.True(t, strings.HasPrefix(p, tmpsDir))
 			_, tempuuid = path.Split(p)
 			return mem.NewFileHandle(mem.CreateFile(p)), nil
@@ -287,7 +287,7 @@ func TestCreateFile(t *testing.T) {
 
 		defer mv.Finish()
 
-		mv.Fs.EXPECT().OpenFile(gomock.Any(), os.O_WRONLY|os.O_CREATE, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
 			assert.True(t, strings.HasPrefix(p, tmpsDir))
 			_, tempuuid = path.Split(p)
 			return mem.NewFileHandle(mem.CreateFile(p)), nil
@@ -345,7 +345,7 @@ func TestGetFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, signature), nil)
 
-		mv.Fs.EXPECT().OpenFile(file.Path(fileDir, signature), os.O_RDONLY, os.FileMode(0666)).DoAndReturn(func(p string, _ int, _ os.FileMode) (afero.File, error) {
+		mv.Fs.EXPECT().Open(file.Path(fileDir, signature)).DoAndReturn(func(p string) (afero.File, error) {
 			tf := mem.NewFileHandle(mem.CreateFile(p))
 			tf.WriteString(content)
 			// After finishing writting, the "cursor" points to the end of

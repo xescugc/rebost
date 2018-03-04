@@ -70,7 +70,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSyst
 func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
 	tmp := path.Join(v.tempDir, uuid.NewV4().String())
 
-	fh, err := v.fs.OpenFile(tmp, os.O_WRONLY|os.O_CREATE, 0666)
+	fh, err := v.fs.Create(tmp)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (v *volume) GetFile(k string) (io.Reader, error) {
 
 	pr, pw := io.Pipe()
 
-	fh, err := v.fs.OpenFile(file.Path(v.fileDir, idk.Value), os.O_RDONLY, 0666)
+	fh, err := v.fs.Open(file.Path(v.fileDir, idk.Value))
 	if err != nil {
 		return nil, err
 	}
