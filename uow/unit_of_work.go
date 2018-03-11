@@ -1,3 +1,9 @@
+// Package uow provides an interface in which the "repositories" that participate on it
+// are asure that the functions/actions that are called will be rollback if the Unit of Work
+// fails at some point.
+// So it's not necessary to care about removing the already created data if an error raises
+// on the middle of the Unit of Work. It's basically an interface to emulate a Transaction
+// which is a more common word for it.
 package uow
 
 import (

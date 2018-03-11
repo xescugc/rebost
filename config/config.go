@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config represents the struct whith all the possible configurations
-// that are possible
+// Config represents the struct whith all the possible
+// configuration options
 type Config struct {
 	Port    string
 	Volumes []string

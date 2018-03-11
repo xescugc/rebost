@@ -10,9 +10,10 @@ import (
 )
 
 // UOWWithFs creates a Unit of Work for the fs.Fs that will wrap a uow.StartUnitOfWork repositories that
-// fulfil the fs.Fs with a tracker. In order to 'rollback' all the actions done if the UoW fails
-// on the uow.UnitOfWorkFn.
-// So if a directory is created it'll delete that directory if the uow fails
+// fulfil the fs.Fs with a tracker. In order to 'rollback' and 'commit' all the actions done.
+// For now it only supports 'Create', 'Remove' and 'Rename' actions to Rollback.
+// TODO: Eventually add support for the uow.Type, if it's uow.Read only allow read operations
+// and if it's uow.Write allow all operations.
 func UOWWithFs(suow uow.StartUnitOfWork) uow.StartUnitOfWork {
 	return func(t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) error {
 		newRepos := make([]interface{}, 0, len(repos))

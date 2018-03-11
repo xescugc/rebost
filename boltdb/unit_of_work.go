@@ -20,6 +20,7 @@ type unitOfWork struct {
 }
 
 // NewUOW returns an implementation of the interface uow.StartUnitOfWork
+// that will track all the boltDB repositories
 func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 	return func(t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) (err error) {
 		uw := newUnitOfWork(t)
