@@ -146,7 +146,7 @@ func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
 					return err
 				}
 
-				err = v.fs.Remove(file.Path(v.fileDir, ik.Value))
+				err = uw.Fs().Remove(file.Path(v.fileDir, ik.Value))
 				if err != nil {
 					return err
 				}
@@ -171,7 +171,7 @@ func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
 		}
 
 		return nil
-	}, v.idxkeys, v.files)
+	}, v.idxkeys, v.files, v.fs)
 
 	if err != nil {
 		return nil, err
@@ -237,7 +237,7 @@ func (v *volume) DeleteFile(key string) error {
 				return err
 			}
 
-			err = v.fs.Remove(file.Path(v.fileDir, ik.Value))
+			err = uw.Fs().Remove(file.Path(v.fileDir, ik.Value))
 			if err != nil {
 				return err
 			}
@@ -251,7 +251,7 @@ func (v *volume) DeleteFile(key string) error {
 		}
 
 		return uw.IDXKeys().DeleteByKey(key)
-	}, v.idxkeys, v.files)
+	}, v.idxkeys, v.files, v.fs)
 }
 
 func (v *volume) HasFile(k string) (bool, error) {
