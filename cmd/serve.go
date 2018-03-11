@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/xescugc/rebost/boltdb"
 	"github.com/xescugc/rebost/config"
+	"github.com/xescugc/rebost/fs"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
@@ -33,7 +34,7 @@ var (
 				return errors.New("at last one volume is required")
 			}
 
-			fs := afero.NewOsFs()
+			osfs := afero.NewOsFs()
 
 			vs := make([]volume.Volume, 0, len(cfg.Volumes))
 			for _, vp := range cfg.Volumes {
@@ -49,9 +50,9 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating IDXKeys Repository: %s", err)
 				}
-				suow := boltdb.NewUOW(bdb)
+				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-				v, err := volume.New(vp, files, idxkeys, fs, suow)
+				v, err := volume.New(vp, files, idxkeys, osfs, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}

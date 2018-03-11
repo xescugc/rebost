@@ -6,6 +6,7 @@ package mock
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	afero "github.com/spf13/afero"
 	file "github.com/xescugc/rebost/file"
 	idxkey "github.com/xescugc/rebost/idxkey"
 	reflect "reflect"
@@ -44,6 +45,18 @@ func (m *UnitOfWork) Files() file.Repository {
 // Files indicates an expected call of Files
 func (mr *UnitOfWorkMockRecorder) Files() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Files", reflect.TypeOf((*UnitOfWork)(nil).Files))
+}
+
+// Fs mocks base method
+func (m *UnitOfWork) Fs() afero.Fs {
+	ret := m.ctrl.Call(m, "Fs")
+	ret0, _ := ret[0].(afero.Fs)
+	return ret0
+}
+
+// Fs indicates an expected call of Fs
+func (mr *UnitOfWorkMockRecorder) Fs() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fs", reflect.TypeOf((*UnitOfWork)(nil).Fs))
 }
 
 // IDXKeys mocks base method

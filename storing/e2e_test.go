@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/boltdb"
+	"github.com/xescugc/rebost/fs"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
@@ -28,7 +29,7 @@ func TestE2E(t *testing.T) {
 	os.MkdirAll(vp, os.ModePerm)
 	defer os.RemoveAll(vp)
 
-	fs := afero.NewOsFs()
+	osfs := afero.NewOsFs()
 	bdb, err := createDB(vp)
 	require.NoError(t, err)
 	defer bdb.Close()
@@ -36,8 +37,8 @@ func TestE2E(t *testing.T) {
 	require.NoError(t, err)
 	idxkeys, err := boltdb.NewIDXKeyRepository(bdb)
 	require.NoError(t, err)
-	suow := boltdb.NewUOW(bdb)
-	v, err := volume.New(vp, files, idxkeys, fs, suow)
+	suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
+	v, err := volume.New(vp, files, idxkeys, osfs, suow)
 	require.NoError(t, err)
 
 	s := storing.New([]volume.Volume{v})

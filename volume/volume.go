@@ -8,8 +8,8 @@ import (
 	"path"
 
 	uuid "github.com/satori/go.uuid"
+	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
-	"github.com/xescugc/rebost/fs"
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/uow"
 )
@@ -32,7 +32,7 @@ type volume struct {
 	fileDir string
 	tempDir string
 
-	fs      fs.Fs
+	fs      afero.Fs
 	files   file.Repository
 	idxkeys idxkey.Repository
 
@@ -42,7 +42,7 @@ type volume struct {
 // New returns an implementation of the volume.Volume interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps
-func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSystem fs.Fs, suow uow.StartUnitOfWork) (Volume, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Volume, error) {
 	v := &volume{
 		fileDir: path.Join(root, "file"),
 		tempDir: path.Join(root, "tmps"),

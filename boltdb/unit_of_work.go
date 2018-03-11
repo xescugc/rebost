@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/boltdb/bolt"
+	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/uow"
@@ -15,6 +16,7 @@ type unitOfWork struct {
 
 	fileRepository   file.Repository
 	idxkeyRepository idxkey.Repository
+	fs               afero.Fs
 }
 
 // NewUOW returns an implementation of the interface uow.StartUnitOfWork
@@ -62,6 +64,10 @@ func (uw *unitOfWork) Files() file.Repository {
 
 func (uw *unitOfWork) IDXKeys() idxkey.Repository {
 	return uw.idxkeyRepository
+}
+
+func (uw *unitOfWork) Fs() afero.Fs {
+	return uw.fs
 }
 
 func newUnitOfWork(t uow.Type) *unitOfWork {
@@ -127,6 +133,10 @@ func (uw *unitOfWork) add(r interface{}) error {
 		uw.idxkeyRepository = &r
 		return nil
 	default:
+		if v, ok := r.(afero.Fs); ok {
+			uw.fs = v
+			return nil
+		}
 		return fmt.Errorf("inalid respository of type: %T", rep)
 	}
 }

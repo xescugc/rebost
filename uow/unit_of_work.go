@@ -1,6 +1,7 @@
 package uow
 
 import (
+	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
 )
@@ -24,6 +25,7 @@ const (
 type UnitOfWork interface {
 	Files() file.Repository
 	IDXKeys() idxkey.Repository
+	Fs() afero.Fs
 }
 
 // StartUnitOfWork it's the way to initialize a typed UoW, it has a uowFn

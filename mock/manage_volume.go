@@ -40,6 +40,7 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 		uw := NewUnitOfWork(uowCtrl)
 		uw.EXPECT().Files().Return(files).AnyTimes()
 		uw.EXPECT().IDXKeys().Return(idxkeys).AnyTimes()
+		uw.EXPECT().Fs().Return(fs).AnyTimes()
 		return uowFn(uw)
 	}
 
