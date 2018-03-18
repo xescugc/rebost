@@ -18,7 +18,7 @@ type Service interface {
 
 	GetFile(key string) (io.Reader, error)
 
-	//HasFile(key string) (bool, error)
+	HasFile(key string) (bool, error)
 
 	DeleteFile(key string) error
 }
@@ -42,7 +42,6 @@ func (s *service) CreateFile(k string, r io.Reader) error {
 	}
 
 	return nil
-
 }
 
 func (s *service) GetFile(k string) (io.Reader, error) {
@@ -64,6 +63,19 @@ func (s *service) DeleteFile(k string) error {
 		return err
 	}
 	return v.DeleteFile(k)
+}
+
+func (s *service) HasFile(k string) (bool, error) {
+	for _, v := range s.localVolumes {
+		ok, err := v.HasFile(k)
+		if err != nil {
+			return false, err
+		}
+		if ok {
+			return ok, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *service) getVolume(k string) (volume.Volume, error) {

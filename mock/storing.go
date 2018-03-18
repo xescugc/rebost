@@ -69,3 +69,16 @@ func (m *Storing) GetFile(arg0 string) (io.Reader, error) {
 func (mr *StoringMockRecorder) GetFile(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*Storing)(nil).GetFile), arg0)
 }
+
+// HasFile mocks base method
+func (m *Storing) HasFile(arg0 string) (bool, error) {
+	ret := m.ctrl.Call(m, "HasFile", arg0)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HasFile indicates an expected call of HasFile
+func (mr *StoringMockRecorder) HasFile(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*Storing)(nil).HasFile), arg0)
+}

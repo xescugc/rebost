@@ -62,3 +62,22 @@ func makeDeleteFileEndpoint(s Service) endpoint.Endpoint {
 		return deleteFileResponse{Err: err}, nil
 	}
 }
+
+type hasFileRequest struct {
+	Key string
+}
+
+type hasFileResponse struct {
+	Ok  bool
+	Err error
+}
+
+func (r hasFileResponse) error() error { return r.Err }
+
+func makeHasFileEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(hasFileRequest)
+		ok, err := s.HasFile(req.Key)
+		return hasFileResponse{Ok: ok, Err: err}, nil
+	}
+}

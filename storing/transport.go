@@ -34,11 +34,18 @@ func MakeHandler(s Service) http.Handler {
 		encodeDeleteFileResponse,
 	)
 
+	hasFileHandler := kithttp.NewServer(
+		makeHasFileEndpoint(s),
+		decodeHasFileRequest,
+		encodeHasFileResponse,
+	)
+
 	r := mux.NewRouter()
 
 	r.Handle("/files/{key:.*}", createFileHandler).Methods("PUT")
 	r.Handle("/files/{key:.*}", getFileHandler).Methods("GET")
 	r.Handle("/files/{key:.*}", deleteFileHandler).Methods("DELETE")
+	r.Handle("/files/{key:.*}", hasFileHandler).Methods("HEAD")
 
 	r.NotFoundHandler = http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +134,27 @@ func encodeDeleteFileResponse(ctx context.Context, w http.ResponseWriter, respon
 		return nil
 	}
 	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func decodeHasFileRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	return hasFileRequest{
+		Key: mux.Vars(r)["key"],
+	}, nil
+}
+
+func encodeHasFileResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	if e, ok := response.(errorer); ok && e.error() != nil {
+		encodeError(ctx, e.error(), w)
+		return nil
+	}
+
+	hfr := response.(hasFileResponse)
+	if hfr.Ok {
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
 	return nil
 }
 

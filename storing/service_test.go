@@ -124,3 +124,58 @@ func TestDeleteFile(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestHasFile(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			ctrl = gomock.NewController(t)
+			key  = "expectedkey"
+		)
+		v := mock.NewVolume(ctrl)
+		defer ctrl.Finish()
+
+		v.EXPECT().HasFile(key).Return(true, nil)
+
+		s := storing.New([]volume.Volume{v})
+
+		ok, err := s.HasFile(key)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+	t.Run("SuccessMultiVolume", func(t *testing.T) {
+		var (
+			key   = "expectedkey"
+			ctrl  = gomock.NewController(t)
+			ctrl2 = gomock.NewController(t)
+		)
+		v := mock.NewVolume(ctrl)
+		defer ctrl.Finish()
+		v2 := mock.NewVolume(ctrl2)
+		defer ctrl2.Finish()
+
+		v.EXPECT().HasFile(key).Return(false, nil)
+		v2.EXPECT().HasFile(key).Return(true, nil)
+
+		s := storing.New([]volume.Volume{v, v2})
+
+		ok, err := s.HasFile(key)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+	t.Run("SuccessFalse", func(t *testing.T) {
+		var (
+			ctrl = gomock.NewController(t)
+			key  = "expectedkey"
+		)
+		v := mock.NewVolume(ctrl)
+		defer ctrl.Finish()
+
+		v.EXPECT().HasFile(key).Return(false, nil)
+
+		s := storing.New([]volume.Volume{v})
+
+		ok, err := s.HasFile(key)
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+}

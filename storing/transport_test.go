@@ -36,6 +36,12 @@ func TestMakeHandler(t *testing.T) {
 	}).Return(nil).AnyTimes()
 	st.EXPECT().GetFile(key).Return(bytes.NewBuffer(content), nil).AnyTimes()
 	st.EXPECT().DeleteFile(key).Return(nil).AnyTimes()
+	st.EXPECT().HasFile(gomock.Any()).DoAndReturn(func(k string) (bool, error) {
+		if k == key {
+			return true, nil
+		}
+		return false, nil
+	}).AnyTimes()
 
 	tests := []struct {
 		Name        string
@@ -66,6 +72,18 @@ func TestMakeHandler(t *testing.T) {
 			URL:         "/files/fileName",
 			Method:      http.MethodDelete,
 			EStatusCode: http.StatusNoContent,
+		},
+		{
+			Name:        "HasFile(true)",
+			URL:         "/files/fileName",
+			Method:      http.MethodHead,
+			EStatusCode: http.StatusNoContent,
+		},
+		{
+			Name:        "HasFile(false)",
+			URL:         "/files/file",
+			Method:      http.MethodHead,
+			EStatusCode: http.StatusNotFound,
 		},
 	}
 
