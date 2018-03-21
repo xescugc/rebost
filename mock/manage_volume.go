@@ -1,6 +1,7 @@
 package mock
 
 import (
+	context "context"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -36,7 +37,7 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 	idxkeys := NewIDXKeyRepository(idxKeysCtrl)
 	fs := NewFs(fsCtrl)
 
-	uowFn := func(t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
+	uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
 		uw := NewUnitOfWork(uowCtrl)
 		uw.EXPECT().Files().Return(files).AnyTimes()
 		uw.EXPECT().IDXKeys().Return(idxkeys).AnyTimes()

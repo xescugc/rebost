@@ -2,6 +2,7 @@ package storing_test
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"testing"
 
@@ -20,19 +21,20 @@ func TestCreateFile(t *testing.T) {
 			key  = "expectedkey"
 			buff = bytes.NewBufferString("expectedcontent")
 			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
 		)
 
 		v := mock.NewVolume(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().CreateFile(key, buff).Return(&file.File{
+		v.EXPECT().CreateFile(ctx, key, buff).Return(&file.File{
 			Keys:      []string{key},
 			Signature: "signature",
 		}, nil)
 
 		s := storing.New([]volume.Volume{v})
 
-		err := s.CreateFile(key, buff)
+		err := s.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
@@ -45,16 +47,17 @@ func TestGetFile(t *testing.T) {
 		var (
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
 		)
 
 		v := mock.NewVolume(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().HasFile(key).Return(true, nil)
-		v.EXPECT().GetFile(key).Return(bytes.NewBufferString("expectedcontent"), nil)
+		v.EXPECT().HasFile(ctx, key).Return(true, nil)
+		v.EXPECT().GetFile(ctx, key).Return(bytes.NewBufferString("expectedcontent"), nil)
 
 		s := storing.New([]volume.Volume{v})
-		ior, err := s.GetFile(key)
+		ior, err := s.GetFile(ctx, key)
 
 		require.NoError(t, err)
 
@@ -66,19 +69,20 @@ func TestGetFile(t *testing.T) {
 			key   = "expectedkey"
 			ctrl  = gomock.NewController(t)
 			ctrl2 = gomock.NewController(t)
+			ctx   = context.Background()
 		)
 		v := mock.NewVolume(ctrl)
 		defer ctrl.Finish()
 		v2 := mock.NewVolume(ctrl2)
 		defer ctrl2.Finish()
 
-		v.EXPECT().HasFile(key).Return(false, nil)
-		v2.EXPECT().HasFile(key).Return(true, nil)
-		v2.EXPECT().GetFile(key).Return(bytes.NewBufferString("expectedcontent"), nil)
+		v.EXPECT().HasFile(ctx, key).Return(false, nil)
+		v2.EXPECT().HasFile(ctx, key).Return(true, nil)
+		v2.EXPECT().GetFile(ctx, key).Return(bytes.NewBufferString("expectedcontent"), nil)
 
 		s := storing.New([]volume.Volume{v, v2})
 
-		ior, err := s.GetFile(key)
+		ior, err := s.GetFile(ctx, key)
 		require.NoError(t, err)
 
 		b, err := ioutil.ReadAll(ior)
@@ -91,16 +95,17 @@ func TestDeleteFile(t *testing.T) {
 		var (
 			ctrl = gomock.NewController(t)
 			key  = "expectedkey"
+			ctx  = context.Background()
 		)
 		v := mock.NewVolume(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().HasFile(key).Return(true, nil)
-		v.EXPECT().DeleteFile(key).Return(nil)
+		v.EXPECT().HasFile(ctx, key).Return(true, nil)
+		v.EXPECT().DeleteFile(ctx, key).Return(nil)
 
 		s := storing.New([]volume.Volume{v})
 
-		err := s.DeleteFile(key)
+		err := s.DeleteFile(ctx, key)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
@@ -108,19 +113,20 @@ func TestDeleteFile(t *testing.T) {
 			key   = "expectedkey"
 			ctrl  = gomock.NewController(t)
 			ctrl2 = gomock.NewController(t)
+			ctx   = context.Background()
 		)
 		v := mock.NewVolume(ctrl)
 		defer ctrl.Finish()
 		v2 := mock.NewVolume(ctrl2)
 		defer ctrl2.Finish()
 
-		v.EXPECT().HasFile(key).Return(false, nil)
-		v2.EXPECT().HasFile(key).Return(true, nil)
-		v2.EXPECT().DeleteFile(key).Return(nil)
+		v.EXPECT().HasFile(ctx, key).Return(false, nil)
+		v2.EXPECT().HasFile(ctx, key).Return(true, nil)
+		v2.EXPECT().DeleteFile(ctx, key).Return(nil)
 
 		s := storing.New([]volume.Volume{v, v2})
 
-		err := s.DeleteFile(key)
+		err := s.DeleteFile(ctx, key)
 		require.NoError(t, err)
 	})
 }
@@ -130,15 +136,16 @@ func TestHasFile(t *testing.T) {
 		var (
 			ctrl = gomock.NewController(t)
 			key  = "expectedkey"
+			ctx  = context.Background()
 		)
 		v := mock.NewVolume(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().HasFile(key).Return(true, nil)
+		v.EXPECT().HasFile(ctx, key).Return(true, nil)
 
 		s := storing.New([]volume.Volume{v})
 
-		ok, err := s.HasFile(key)
+		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -147,18 +154,19 @@ func TestHasFile(t *testing.T) {
 			key   = "expectedkey"
 			ctrl  = gomock.NewController(t)
 			ctrl2 = gomock.NewController(t)
+			ctx   = context.Background()
 		)
 		v := mock.NewVolume(ctrl)
 		defer ctrl.Finish()
 		v2 := mock.NewVolume(ctrl2)
 		defer ctrl2.Finish()
 
-		v.EXPECT().HasFile(key).Return(false, nil)
-		v2.EXPECT().HasFile(key).Return(true, nil)
+		v.EXPECT().HasFile(ctx, key).Return(false, nil)
+		v2.EXPECT().HasFile(ctx, key).Return(true, nil)
 
 		s := storing.New([]volume.Volume{v, v2})
 
-		ok, err := s.HasFile(key)
+		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -166,15 +174,16 @@ func TestHasFile(t *testing.T) {
 		var (
 			ctrl = gomock.NewController(t)
 			key  = "expectedkey"
+			ctx  = context.Background()
 		)
 		v := mock.NewVolume(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().HasFile(key).Return(false, nil)
+		v.EXPECT().HasFile(ctx, key).Return(false, nil)
 
 		s := storing.New([]volume.Volume{v})
 
-		ok, err := s.HasFile(key)
+		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})

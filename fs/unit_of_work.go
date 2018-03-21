@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -15,7 +16,7 @@ import (
 // TODO: Eventually add support for the uow.Type, if it's uow.Read only allow read operations
 // and if it's uow.Write allow all operations.
 func UOWWithFs(suow uow.StartUnitOfWork) uow.StartUnitOfWork {
-	return func(t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) error {
+	return func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) error {
 		newRepos := make([]interface{}, 0, len(repos))
 		fsRepos := make([]*uowTracker, 0)
 
@@ -28,7 +29,7 @@ func UOWWithFs(suow uow.StartUnitOfWork) uow.StartUnitOfWork {
 			newRepos = append(newRepos, v)
 		}
 
-		err := suow(t, uowFn, newRepos...)
+		err := suow(ctx, t, uowFn, newRepos...)
 		if err != nil {
 			for _, r := range fsRepos {
 				for _, ra := range r.rollbackActions {

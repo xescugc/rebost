@@ -7,6 +7,8 @@
 package uow
 
 import (
+	"context"
+
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
@@ -37,7 +39,7 @@ type UnitOfWork interface {
 // StartUnitOfWork it's the way to initialize a typed UoW, it has a uowFn
 // which is the callback where all the work should be done, it also has the
 // repositories, which are all the Repositories that belong to this UoW
-type StartUnitOfWork func(t Type, uowFn UnitOfWorkFn, repositories ...interface{}) error
+type StartUnitOfWork func(ctx context.Context, t Type, uowFn UnitOfWorkFn, repositories ...interface{}) error
 
 // UnitOfWorkFn is the signature of the function
 // that is the callback of the StartUnitOfWork

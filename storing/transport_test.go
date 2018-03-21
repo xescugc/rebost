@@ -2,6 +2,7 @@ package storing_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -29,14 +30,14 @@ func TestMakeHandler(t *testing.T) {
 	server := httptest.NewServer(h)
 	client := server.Client()
 
-	st.EXPECT().CreateFile(key, gomock.Any()).Do(func(_ string, r io.Reader) {
+	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, r io.Reader) {
 		b, err := ioutil.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
 	}).Return(nil).AnyTimes()
-	st.EXPECT().GetFile(key).Return(bytes.NewBuffer(content), nil).AnyTimes()
-	st.EXPECT().DeleteFile(key).Return(nil).AnyTimes()
-	st.EXPECT().HasFile(gomock.Any()).DoAndReturn(func(k string) (bool, error) {
+	st.EXPECT().GetFile(gomock.Any(), key).Return(bytes.NewBuffer(content), nil).AnyTimes()
+	st.EXPECT().DeleteFile(gomock.Any(), key).Return(nil).AnyTimes()
+	st.EXPECT().HasFile(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, k string) (bool, error) {
 		if k == key {
 			return true, nil
 		}

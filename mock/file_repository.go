@@ -5,6 +5,7 @@
 package mock
 
 import (
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 	file "github.com/xescugc/rebost/file"
 	reflect "reflect"
@@ -34,38 +35,38 @@ func (m *FileRepository) EXPECT() *FileRepositoryMockRecorder {
 }
 
 // CreateOrReplace mocks base method
-func (m *FileRepository) CreateOrReplace(arg0 *file.File) error {
-	ret := m.ctrl.Call(m, "CreateOrReplace", arg0)
+func (m *FileRepository) CreateOrReplace(arg0 context.Context, arg1 *file.File) error {
+	ret := m.ctrl.Call(m, "CreateOrReplace", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateOrReplace indicates an expected call of CreateOrReplace
-func (mr *FileRepositoryMockRecorder) CreateOrReplace(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrReplace", reflect.TypeOf((*FileRepository)(nil).CreateOrReplace), arg0)
+func (mr *FileRepositoryMockRecorder) CreateOrReplace(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrReplace", reflect.TypeOf((*FileRepository)(nil).CreateOrReplace), arg0, arg1)
 }
 
 // DeleteBySignature mocks base method
-func (m *FileRepository) DeleteBySignature(arg0 string) error {
-	ret := m.ctrl.Call(m, "DeleteBySignature", arg0)
+func (m *FileRepository) DeleteBySignature(arg0 context.Context, arg1 string) error {
+	ret := m.ctrl.Call(m, "DeleteBySignature", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteBySignature indicates an expected call of DeleteBySignature
-func (mr *FileRepositoryMockRecorder) DeleteBySignature(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBySignature", reflect.TypeOf((*FileRepository)(nil).DeleteBySignature), arg0)
+func (mr *FileRepositoryMockRecorder) DeleteBySignature(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBySignature", reflect.TypeOf((*FileRepository)(nil).DeleteBySignature), arg0, arg1)
 }
 
 // FindBySignature mocks base method
-func (m *FileRepository) FindBySignature(arg0 string) (*file.File, error) {
-	ret := m.ctrl.Call(m, "FindBySignature", arg0)
+func (m *FileRepository) FindBySignature(arg0 context.Context, arg1 string) (*file.File, error) {
+	ret := m.ctrl.Call(m, "FindBySignature", arg0, arg1)
 	ret0, _ := ret[0].(*file.File)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindBySignature indicates an expected call of FindBySignature
-func (mr *FileRepositoryMockRecorder) FindBySignature(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBySignature", reflect.TypeOf((*FileRepository)(nil).FindBySignature), arg0)
+func (mr *FileRepositoryMockRecorder) FindBySignature(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBySignature", reflect.TypeOf((*FileRepository)(nil).FindBySignature), arg0, arg1)
 }

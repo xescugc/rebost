@@ -21,7 +21,7 @@ func (r createFileResponse) error() error { return r.Err }
 func makeCreateFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createFileRequest)
-		err := s.CreateFile(req.Key, req.Body)
+		err := s.CreateFile(ctx, req.Key, req.Body)
 		return createFileResponse{Err: err}, nil
 	}
 }
@@ -40,7 +40,7 @@ func (r getFileResponse) error() error { return r.Err }
 func makeGetFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getFileRequest)
-		ior, err := s.GetFile(req.Key)
+		ior, err := s.GetFile(ctx, req.Key)
 		return getFileResponse{IOR: ior, Err: err}, nil
 	}
 }
@@ -58,7 +58,7 @@ func (r deleteFileResponse) error() error { return r.Err }
 func makeDeleteFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteFileRequest)
-		err := s.DeleteFile(req.Key)
+		err := s.DeleteFile(ctx, req.Key)
 		return deleteFileResponse{Err: err}, nil
 	}
 }
@@ -77,7 +77,7 @@ func (r hasFileResponse) error() error { return r.Err }
 func makeHasFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(hasFileRequest)
-		ok, err := s.HasFile(req.Key)
+		ok, err := s.HasFile(ctx, req.Key)
 		return hasFileResponse{Ok: ok, Err: err}, nil
 	}
 }

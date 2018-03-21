@@ -1,6 +1,7 @@
 package boltdb
 
 import (
+	"context"
 	"errors"
 
 	"github.com/boltdb/bolt"
@@ -25,11 +26,11 @@ func NewIDXKeyRepository(c *bolt.DB) (idxkey.Repository, error) {
 	}, nil
 }
 
-func (r *idxkeyRepository) CreateOrReplace(ik *idxkey.IDXKey) error {
+func (r *idxkeyRepository) CreateOrReplace(ctx context.Context, ik *idxkey.IDXKey) error {
 	return r.bucket.Put([]byte(ik.Key), []byte(ik.Value))
 }
 
-func (r *idxkeyRepository) FindByKey(k string) (*idxkey.IDXKey, error) {
+func (r *idxkeyRepository) FindByKey(ctx context.Context, k string) (*idxkey.IDXKey, error) {
 	v := r.bucket.Get([]byte(k))
 	if v == nil {
 		return nil, errors.New("not found")
@@ -37,6 +38,6 @@ func (r *idxkeyRepository) FindByKey(k string) (*idxkey.IDXKey, error) {
 	return idxkey.New(k, string(v)), nil
 }
 
-func (r *idxkeyRepository) DeleteByKey(k string) error {
+func (r *idxkeyRepository) DeleteByKey(ctx context.Context, k string) error {
 	return r.bucket.Delete([]byte(k))
 }

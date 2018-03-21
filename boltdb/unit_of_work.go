@@ -1,6 +1,7 @@
 package boltdb
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/boltdb/bolt"
@@ -22,7 +23,7 @@ type unitOfWork struct {
 // NewUOW returns an implementation of the interface uow.StartUnitOfWork
 // that will track all the boltDB repositories
 func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
-	return func(t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) (err error) {
+	return func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) (err error) {
 		uw := newUnitOfWork(t)
 
 		err = uw.begin(db)

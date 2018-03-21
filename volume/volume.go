@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"context"
 	"crypto/sha1"
 	"fmt"
 	"io"
@@ -19,13 +20,13 @@ import (
 // Volume is an interface to deal with the simples actions
 // and basic ones
 type Volume interface {
-	CreateFile(key string, reader io.Reader) (*file.File, error)
+	CreateFile(ctx context.Context, key string, reader io.Reader) (*file.File, error)
 
-	GetFile(key string) (io.Reader, error)
+	GetFile(ctx context.Context, key string) (io.Reader, error)
 
-	HasFile(key string) (bool, error)
+	HasFile(ctx context.Context, key string) (bool, error)
 
-	DeleteFile(key string) error
+	DeleteFile(ctx context.Context, key string) error
 }
 
 type volume struct {
@@ -67,7 +68,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSyst
 	return v, nil
 }
 
-func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
+func (v *volume) CreateFile(ctx context.Context, key string, r io.Reader) (*file.File, error) {
 	tmp := path.Join(v.tempDir, uuid.NewV4().String())
 
 	fh, err := v.fs.Create(tmp)
@@ -98,8 +99,8 @@ func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
 		return nil, err
 	}
 
-	err = v.startUnitOfWork(uow.Write, func(uw uow.UnitOfWork) error {
-		dbf, err := uw.Files().FindBySignature(f.Signature)
+	err = v.startUnitOfWork(ctx, uow.Write, func(uw uow.UnitOfWork) error {
+		dbf, err := uw.Files().FindBySignature(ctx, f.Signature)
 		if err != nil && err.Error() != "not found" {
 			return err
 		}
@@ -118,18 +119,18 @@ func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
 			f = dbf
 		}
 
-		err = uw.Files().CreateOrReplace(f)
+		err = uw.Files().CreateOrReplace(ctx, f)
 		if err != nil {
 			return err
 		}
 
-		ik, err := uw.IDXKeys().FindByKey(key)
+		ik, err := uw.IDXKeys().FindByKey(ctx, key)
 		if err != nil && err.Error() != "not found" {
 			return err
 		}
 
 		if ik != nil {
-			dbf, err := uw.Files().FindBySignature(ik.Value)
+			dbf, err := uw.Files().FindBySignature(ctx, ik.Value)
 			if err != nil && err.Error() != "not found" {
 				return err
 			}
@@ -141,7 +142,7 @@ func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
 				newKeys = append(newKeys, k)
 			}
 			if len(newKeys) == 0 {
-				err = uw.Files().DeleteBySignature(ik.Value)
+				err = uw.Files().DeleteBySignature(ctx, ik.Value)
 				if err != nil {
 					return err
 				}
@@ -151,21 +152,21 @@ func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
 					return err
 				}
 
-				err = uw.IDXKeys().DeleteByKey(key)
+				err = uw.IDXKeys().DeleteByKey(ctx, key)
 				if err != nil {
 					return err
 				}
 			} else {
 				dbf.Keys = newKeys
 
-				err = uw.Files().CreateOrReplace(dbf)
+				err = uw.Files().CreateOrReplace(ctx, dbf)
 				if err != nil {
 					return err
 				}
 			}
 		}
 
-		err = uw.IDXKeys().CreateOrReplace(idxkey.New(key, f.Signature))
+		err = uw.IDXKeys().CreateOrReplace(ctx, idxkey.New(key, f.Signature))
 		if err != nil && err.Error() != "not found" {
 			return err
 		}
@@ -180,14 +181,14 @@ func (v *volume) CreateFile(key string, r io.Reader) (*file.File, error) {
 	return f, nil
 }
 
-func (v *volume) GetFile(k string) (io.Reader, error) {
+func (v *volume) GetFile(ctx context.Context, k string) (io.Reader, error) {
 	var (
 		idk *idxkey.IDXKey
 		err error
 	)
 
-	err = v.startUnitOfWork(uow.Read, func(uw uow.UnitOfWork) error {
-		idk, err = uw.IDXKeys().FindByKey(k)
+	err = v.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+		idk, err = uw.IDXKeys().FindByKey(ctx, k)
 		if err != nil {
 			return err
 		}
@@ -214,13 +215,13 @@ func (v *volume) GetFile(k string) (io.Reader, error) {
 	return pr, nil
 }
 
-func (v *volume) DeleteFile(key string) error {
-	return v.startUnitOfWork(uow.Read, func(uw uow.UnitOfWork) error {
-		ik, err := uw.IDXKeys().FindByKey(key)
+func (v *volume) DeleteFile(ctx context.Context, key string) error {
+	return v.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+		ik, err := uw.IDXKeys().FindByKey(ctx, key)
 		if err != nil {
 			return err
 		}
-		dbf, err := uw.Files().FindBySignature(ik.Value)
+		dbf, err := uw.Files().FindBySignature(ctx, ik.Value)
 		if err != nil && err.Error() != "not found" {
 			return err
 		}
@@ -232,7 +233,7 @@ func (v *volume) DeleteFile(key string) error {
 			newKeys = append(newKeys, k)
 		}
 		if len(newKeys) == 0 {
-			err = uw.Files().DeleteBySignature(ik.Value)
+			err = uw.Files().DeleteBySignature(ctx, ik.Value)
 			if err != nil {
 				return err
 			}
@@ -244,19 +245,19 @@ func (v *volume) DeleteFile(key string) error {
 		} else {
 			dbf.Keys = newKeys
 
-			err = uw.Files().CreateOrReplace(dbf)
+			err = uw.Files().CreateOrReplace(ctx, dbf)
 			if err != nil {
 				return err
 			}
 		}
 
-		return uw.IDXKeys().DeleteByKey(key)
+		return uw.IDXKeys().DeleteByKey(ctx, key)
 	}, v.idxkeys, v.files, v.fs)
 }
 
-func (v *volume) HasFile(k string) (bool, error) {
-	err := v.startUnitOfWork(uow.Read, func(uw uow.UnitOfWork) error {
-		_, err := uw.IDXKeys().FindByKey(k)
+func (v *volume) HasFile(ctx context.Context, k string) (bool, error) {
+	err := v.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+		_, err := uw.IDXKeys().FindByKey(ctx, k)
 		if err != nil {
 			return err
 		}

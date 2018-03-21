@@ -1,6 +1,7 @@
 package boltdb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -26,7 +27,7 @@ func NewFileRepository(c *bolt.DB) (file.Repository, error) {
 	}, nil
 }
 
-func (r *fileRepository) CreateOrReplace(f *file.File) error {
+func (r *fileRepository) CreateOrReplace(ctx context.Context, f *file.File) error {
 	b, err := json.Marshal(f)
 	if err != nil {
 		return err
@@ -34,7 +35,7 @@ func (r *fileRepository) CreateOrReplace(f *file.File) error {
 	return r.bucket.Put([]byte(f.Signature), b)
 }
 
-func (r *fileRepository) FindBySignature(sig string) (*file.File, error) {
+func (r *fileRepository) FindBySignature(ctx context.Context, sig string) (*file.File, error) {
 	var f file.File
 	b := r.bucket.Get([]byte(sig))
 	if b == nil {
@@ -47,6 +48,6 @@ func (r *fileRepository) FindBySignature(sig string) (*file.File, error) {
 	return &f, nil
 }
 
-func (r *fileRepository) DeleteBySignature(sig string) error {
+func (r *fileRepository) DeleteBySignature(ctx context.Context, sig string) error {
 	return r.bucket.Delete([]byte(sig))
 }

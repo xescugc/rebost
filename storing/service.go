@@ -1,6 +1,7 @@
 package storing
 
 import (
+	"context"
 	"io"
 	"math/rand"
 	"time"
@@ -14,13 +15,13 @@ import (
 // it's the one that will be used when defining a client
 // to consume the API
 type Service interface {
-	CreateFile(key string, reader io.Reader) error
+	CreateFile(ctx context.Context, key string, reader io.Reader) error
 
-	GetFile(key string) (io.Reader, error)
+	GetFile(ctx context.Context, key string) (io.Reader, error)
 
-	HasFile(key string) (bool, error)
+	HasFile(ctx context.Context, key string) (bool, error)
 
-	DeleteFile(key string) error
+	DeleteFile(ctx context.Context, key string) error
 }
 
 type service struct {
@@ -35,8 +36,8 @@ func New(lv []volume.Volume) Service {
 	}
 }
 
-func (s *service) CreateFile(k string, r io.Reader) error {
-	_, err := s.localVolumes[0].CreateFile(k, r)
+func (s *service) CreateFile(ctx context.Context, k string, r io.Reader) error {
+	_, err := s.localVolumes[0].CreateFile(ctx, k, r)
 	if err != nil {
 		return err
 	}
@@ -44,12 +45,12 @@ func (s *service) CreateFile(k string, r io.Reader) error {
 	return nil
 }
 
-func (s *service) GetFile(k string) (io.Reader, error) {
-	v, err := s.getVolume(k)
+func (s *service) GetFile(ctx context.Context, k string) (io.Reader, error) {
+	v, err := s.getVolume(ctx, k)
 	if err != nil {
 		return nil, err
 	}
-	r, err := v.GetFile(k)
+	r, err := v.GetFile(ctx, k)
 	if err != nil {
 		return nil, err
 	}
@@ -57,17 +58,17 @@ func (s *service) GetFile(k string) (io.Reader, error) {
 	return r, nil
 }
 
-func (s *service) DeleteFile(k string) error {
-	v, err := s.getVolume(k)
+func (s *service) DeleteFile(ctx context.Context, k string) error {
+	v, err := s.getVolume(ctx, k)
 	if err != nil {
 		return err
 	}
-	return v.DeleteFile(k)
+	return v.DeleteFile(ctx, k)
 }
 
-func (s *service) HasFile(k string) (bool, error) {
+func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
 	for _, v := range s.localVolumes {
-		ok, err := v.HasFile(k)
+		ok, err := v.HasFile(ctx, k)
 		if err != nil {
 			return false, err
 		}
@@ -78,9 +79,9 @@ func (s *service) HasFile(k string) (bool, error) {
 	return false, nil
 }
 
-func (s *service) getVolume(k string) (volume.Volume, error) {
+func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
 	for _, v := range s.localVolumes {
-		ok, err := v.HasFile(k)
+		ok, err := v.HasFile(ctx, k)
 		if err != nil {
 			return nil, err
 		}

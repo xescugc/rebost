@@ -2,6 +2,7 @@ package volume_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -72,7 +73,8 @@ func TestCreateFile(t *testing.T) {
 				Value: ef.Signature,
 			}
 
-			mv = mock.NewManageVolume(t, rootDir)
+			mv  = mock.NewManageVolume(t, rootDir)
+			ctx = context.Background()
 		)
 
 		defer mv.Finish()
@@ -90,15 +92,15 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
 		}).Return(nil)
 
-		mv.Files.EXPECT().FindBySignature(ef.Signature).Return(nil, errors.New("not found"))
+		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(nil, errors.New("not found"))
 
-		mv.Files.EXPECT().CreateOrReplace(&ef).Return(nil)
+		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(nil, errors.New("not found"))
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
-		mv.IDXKeys.EXPECT().CreateOrReplace(&eik).Return(nil)
+		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		f, err := mv.V.CreateFile(key, buff)
+		f, err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
 		assert.Equal(t, &ef, f)
 	})
@@ -119,7 +121,8 @@ func TestCreateFile(t *testing.T) {
 				Value: ef.Signature,
 			}
 
-			mv = mock.NewManageVolume(t, rootDir)
+			mv  = mock.NewManageVolume(t, rootDir)
+			ctx = context.Background()
 		)
 
 		defer mv.Finish()
@@ -137,18 +140,18 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
 		}).Return(nil)
 
-		mv.Files.EXPECT().FindBySignature(ef.Signature).Return(&file.File{
+		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(&file.File{
 			Keys:      []string{"b"},
 			Signature: ef.Signature,
 		}, nil)
 
-		mv.Files.EXPECT().CreateOrReplace(&ef).Return(nil)
+		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(nil, errors.New("not found"))
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
-		mv.IDXKeys.EXPECT().CreateOrReplace(&eik).Return(nil)
+		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		f, err := mv.V.CreateFile(key, buff)
+		f, err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
 
 		assert.Equal(t, &ef, f)
@@ -166,7 +169,8 @@ func TestCreateFile(t *testing.T) {
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 			}
 
-			mv = mock.NewManageVolume(t, rootDir)
+			mv  = mock.NewManageVolume(t, rootDir)
+			ctx = context.Background()
 		)
 
 		defer mv.Finish()
@@ -184,12 +188,12 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
 		}).Return(nil)
 
-		mv.Files.EXPECT().FindBySignature(ef.Signature).Return(&file.File{
+		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(&file.File{
 			Keys:      ef.Keys,
 			Signature: ef.Signature,
 		}, nil)
 
-		f, err := mv.V.CreateFile(key, buff)
+		f, err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
 
 		assert.Equal(t, &ef, f)
@@ -215,7 +219,8 @@ func TestCreateFile(t *testing.T) {
 				Signature: "123123123",
 			}
 
-			mv = mock.NewManageVolume(t, rootDir)
+			mv  = mock.NewManageVolume(t, rootDir)
+			ctx = context.Background()
 		)
 
 		defer mv.Finish()
@@ -233,7 +238,7 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
 		}).Return(nil)
 
-		mv.Files.EXPECT().FindBySignature(gomock.Any()).DoAndReturn(func(sig string) (*file.File, error) {
+		mv.Files.EXPECT().FindBySignature(ctx, gomock.Any()).DoAndReturn(func(_ context.Context, sig string) (*file.File, error) {
 			if sig == ef.Signature {
 				return nil, errors.New("not found")
 			}
@@ -243,7 +248,7 @@ func TestCreateFile(t *testing.T) {
 			}, nil
 		}).Times(2)
 
-		mv.Files.EXPECT().CreateOrReplace(gomock.Any()).Do(func(fl *file.File) {
+		mv.Files.EXPECT().CreateOrReplace(ctx, gomock.Any()).Do(func(_ context.Context, fl *file.File) {
 			if fl.Signature == ef.Signature {
 				assert.Equal(t, &ef, fl)
 			} else {
@@ -252,11 +257,11 @@ func TestCreateFile(t *testing.T) {
 			}
 		}).Return(nil).Times(2)
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, foundFile.Signature), nil)
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(idxkey.New(key, foundFile.Signature), nil)
 
-		mv.IDXKeys.EXPECT().CreateOrReplace(&eik).Return(nil)
+		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		f, err := mv.V.CreateFile(key, buff)
+		f, err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
 
 		assert.Equal(t, &ef, f)
@@ -282,7 +287,8 @@ func TestCreateFile(t *testing.T) {
 				Signature: "123123123",
 			}
 
-			mv = mock.NewManageVolume(t, rootDir)
+			mv  = mock.NewManageVolume(t, rootDir)
+			ctx = context.Background()
 		)
 
 		defer mv.Finish()
@@ -300,7 +306,7 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
 		}).Return(nil)
 
-		mv.Files.EXPECT().FindBySignature(gomock.Any()).DoAndReturn(func(sig string) (*file.File, error) {
+		mv.Files.EXPECT().FindBySignature(ctx, gomock.Any()).DoAndReturn(func(_ context.Context, sig string) (*file.File, error) {
 			if sig == ef.Signature {
 				return nil, errors.New("not found")
 			}
@@ -310,19 +316,19 @@ func TestCreateFile(t *testing.T) {
 			}, nil
 		}).Times(2)
 
-		mv.Files.EXPECT().CreateOrReplace(&ef).Return(nil)
+		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
 
-		mv.Files.EXPECT().DeleteBySignature(foundFile.Signature).Return(nil)
+		mv.Files.EXPECT().DeleteBySignature(ctx, foundFile.Signature).Return(nil)
 
 		mv.Fs.EXPECT().Remove(foundFile.Path(fileDir)).Return(nil)
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, foundFile.Signature), nil)
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(idxkey.New(key, foundFile.Signature), nil)
 
-		mv.IDXKeys.EXPECT().DeleteByKey(key).Return(nil)
+		mv.IDXKeys.EXPECT().DeleteByKey(ctx, key).Return(nil)
 
-		mv.IDXKeys.EXPECT().CreateOrReplace(&eik).Return(nil)
+		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		f, err := mv.V.CreateFile(key, buff)
+		f, err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
 
 		assert.Equal(t, &ef, f)
@@ -338,12 +344,13 @@ func TestGetFile(t *testing.T) {
 			content   = "expectedcontent"
 			fileDir   = path.Join(rootDir, "file")
 
-			mv = mock.NewManageVolume(t, rootDir)
+			mv  = mock.NewManageVolume(t, rootDir)
+			ctx = context.Background()
 		)
 
 		defer mv.Finish()
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, signature), nil)
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(idxkey.New(key, signature), nil)
 
 		mv.Fs.EXPECT().Open(file.Path(fileDir, signature)).DoAndReturn(func(p string) (afero.File, error) {
 			tf := mem.NewFileHandle(mem.CreateFile(p))
@@ -355,7 +362,7 @@ func TestGetFile(t *testing.T) {
 			return tf, nil
 		})
 
-		ior, err := mv.V.GetFile(key)
+		ior, err := mv.V.GetFile(ctx, key)
 		require.NoError(t, err)
 		require.NotNil(t, ior)
 		b, err := ioutil.ReadAll(ior)
@@ -367,13 +374,14 @@ func TestGetFile(t *testing.T) {
 			rootDir = "root"
 			key     = "expectedkey"
 			mv      = mock.NewManageVolume(t, rootDir)
+			ctx     = context.Background()
 		)
 
 		defer mv.Finish()
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(nil, errors.New("not found"))
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
-		_, err := mv.V.GetFile(key)
+		_, err := mv.V.GetFile(ctx, key)
 		assert.EqualError(t, err, errors.New("not found").Error())
 	})
 }
@@ -384,13 +392,14 @@ func TestHasFile(t *testing.T) {
 			rootDir = "root"
 			key     = "expectedkey"
 			mv      = mock.NewManageVolume(t, rootDir)
+			ctx     = context.Background()
 		)
 
 		defer mv.Finish()
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, "not needed"), nil)
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(idxkey.New(key, "not needed"), nil)
 
-		ok, err := mv.V.HasFile(key)
+		ok, err := mv.V.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -398,14 +407,15 @@ func TestHasFile(t *testing.T) {
 		var (
 			rootDir = "root"
 			key     = "expectedkey"
+			ctx     = context.Background()
 			mv      = mock.NewManageVolume(t, rootDir)
 		)
 
 		defer mv.Finish()
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(nil, errors.New("not found"))
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
-		ok, err := mv.V.HasFile(key)
+		ok, err := mv.V.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -423,25 +433,26 @@ func TestDeleteFile(t *testing.T) {
 			}
 			fileDir = path.Join(rootDir, "file")
 
-			mv = mock.NewManageVolume(t, rootDir)
+			ctx = context.Background()
+			mv  = mock.NewManageVolume(t, rootDir)
 		)
 
 		defer mv.Finish()
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, signature), nil)
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(idxkey.New(key, signature), nil)
 
-		mv.Files.EXPECT().FindBySignature(signature).DoAndReturn(func(sig string) (*file.File, error) {
+		mv.Files.EXPECT().FindBySignature(ctx, signature).DoAndReturn(func(_ context.Context, sig string) (*file.File, error) {
 			aux := file.File(ef)
 			return &aux, nil
 		})
 
-		mv.Files.EXPECT().DeleteBySignature(signature).Return(nil)
+		mv.Files.EXPECT().DeleteBySignature(ctx, signature).Return(nil)
 
-		mv.IDXKeys.EXPECT().DeleteByKey(key).Return(nil)
+		mv.IDXKeys.EXPECT().DeleteByKey(ctx, key).Return(nil)
 
 		mv.Fs.EXPECT().Remove(file.Path(fileDir, signature)).Return(nil)
 
-		err := mv.V.DeleteFile(key)
+		err := mv.V.DeleteFile(ctx, key)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessWithMultipleKeys", func(t *testing.T) {
@@ -454,23 +465,24 @@ func TestDeleteFile(t *testing.T) {
 				Signature: signature,
 			}
 
-			mv = mock.NewManageVolume(t, rootDir)
+			ctx = context.Background()
+			mv  = mock.NewManageVolume(t, rootDir)
 		)
 
 		defer mv.Finish()
 
-		mv.IDXKeys.EXPECT().FindByKey(key).Return(idxkey.New(key, signature), nil)
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(idxkey.New(key, signature), nil)
 
-		mv.Files.EXPECT().FindBySignature(signature).DoAndReturn(func(sig string) (*file.File, error) {
+		mv.Files.EXPECT().FindBySignature(ctx, signature).DoAndReturn(func(_ context.Context, sig string) (*file.File, error) {
 			aux := file.File(ef)
 			return &aux, nil
 		})
 
-		mv.Files.EXPECT().CreateOrReplace(&file.File{Keys: []string{"b"}, Signature: signature}).Return(nil)
+		mv.Files.EXPECT().CreateOrReplace(ctx, &file.File{Keys: []string{"b"}, Signature: signature}).Return(nil)
 
-		mv.IDXKeys.EXPECT().DeleteByKey(key).Return(nil)
+		mv.IDXKeys.EXPECT().DeleteByKey(ctx, key).Return(nil)
 
-		err := mv.V.DeleteFile(key)
+		err := mv.V.DeleteFile(ctx, key)
 		require.NoError(t, err)
 	})
 }
