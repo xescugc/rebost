@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/xescugc/rebost/storing"
 )
 
-type client struct {
+// Client is the client structure that fulfills the storing.Service
+// interface and it's ment to be used to access to a remote node
+type Client struct {
 	createFile endpoint.Endpoint
 	getFile    endpoint.Endpoint
 	deleteFile endpoint.Endpoint
@@ -19,8 +20,8 @@ type client struct {
 }
 
 // New returns an client to connect to a remote Storing service
-func New(host string) (storing.Service, error) {
-	c := client{}
+func New(host string) (*Client, error) {
+	c := &Client{}
 	if host == "" {
 		return nil, fmt.Errorf("can't initialize the %q with an empty host", "recipeservice")
 	}
@@ -40,7 +41,8 @@ func New(host string) (storing.Service, error) {
 	return c, nil
 }
 
-func (c client) CreateFile(ctx context.Context, key string, r io.Reader) error {
+// CreateFile WIP
+func (c Client) CreateFile(ctx context.Context, key string, r io.Reader) error {
 	return nil
 }
 
@@ -53,7 +55,8 @@ type getFileResponse struct {
 	Err error
 }
 
-func (c client) GetFile(ctx context.Context, key string) (io.Reader, error) {
+// GetFile returns the requested file
+func (c Client) GetFile(ctx context.Context, key string) (io.Reader, error) {
 	response, err := c.getFile(ctx, getFileRequest{Key: key})
 	if err != nil {
 		return nil, err
@@ -73,7 +76,8 @@ type hasFileResponse struct {
 	Err error
 }
 
-func (c client) HasFile(ctx context.Context, key string) (bool, error) {
+// HasFile returns if the file exists
+func (c Client) HasFile(ctx context.Context, key string) (bool, error) {
 	response, err := c.hasFile(ctx, hasFileRequest{Key: key})
 	if err != nil {
 		return false, err
@@ -84,6 +88,7 @@ func (c client) HasFile(ctx context.Context, key string) (bool, error) {
 	return resp.Ok, resp.Err
 }
 
-func (c client) DeleteFile(ctx context.Context, key string) error {
+// DeleteFile WIP
+func (c Client) DeleteFile(ctx context.Context, key string) error {
 	return nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/xescugc/rebost/boltdb"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/fs"
+	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
@@ -60,7 +61,12 @@ var (
 				vs = append(vs, v)
 			}
 
-			s := storing.New(vs)
+			m, err := membership.New(cfg, vs, "")
+			if err != nil {
+				return err
+			}
+
+			s := storing.New(m)
 
 			mux := http.NewServeMux()
 
@@ -86,6 +92,15 @@ func createDB(p string) (*bolt.DB, error) {
 func init() {
 	serveCmd.PersistentFlags().StringSliceP("volumes", "v", []string{}, "Volumes to store the data")
 	viper.BindPFlag("volumes", serveCmd.PersistentFlags().Lookup("volumes"))
+
+	serveCmd.PersistentFlags().StringSliceP("remote", "r", []string{}, "The address of the remote node.")
+	viper.BindPFlag("remote", serveCmd.PersistentFlags().Lookup("remote"))
+
+	serveCmd.PersistentFlags().StringSlice("memberlist-bind-port", []string{}, "The port is used for both UDP and TCP gossip. It is assumed other nodes are running on this port, but they do not need to.")
+	viper.BindPFlag("memberlist-bind-port", serveCmd.PersistentFlags().Lookup("memberlist-bind-port"))
+
+	serveCmd.PersistentFlags().StringSlice("memberlist-name", []string{}, "The name of this node. This must be unique in the cluster.")
+	viper.BindPFlag("memberlist-name", serveCmd.PersistentFlags().Lookup("memberlist-name"))
 
 	RootCmd.AddCommand(serveCmd)
 }

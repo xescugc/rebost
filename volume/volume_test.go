@@ -100,9 +100,8 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		f, err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
-		assert.Equal(t, &ef, f)
 	})
 	t.Run("SuccessUpdateFileKey", func(t *testing.T) {
 		var (
@@ -151,10 +150,8 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		f, err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
-
-		assert.Equal(t, &ef, f)
 	})
 	t.Run("SuccessSame", func(t *testing.T) {
 		var (
@@ -193,10 +190,8 @@ func TestCreateFile(t *testing.T) {
 			Signature: ef.Signature,
 		}, nil)
 
-		f, err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
-
-		assert.Equal(t, &ef, f)
 	})
 	t.Run("SuccessRemoveFileKey", func(t *testing.T) {
 		var (
@@ -261,10 +256,8 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		f, err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
-
-		assert.Equal(t, &ef, f)
 	})
 	t.Run("SuccessRemoveFileKeyAndFile", func(t *testing.T) {
 		var (
@@ -328,10 +321,8 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		f, err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
-
-		assert.Equal(t, &ef, f)
 	})
 }
 

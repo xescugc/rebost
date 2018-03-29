@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -15,29 +16,23 @@ import (
 // it's the one that will be used when defining a client
 // to consume the API
 type Service interface {
-	CreateFile(ctx context.Context, key string, reader io.Reader) error
-
-	GetFile(ctx context.Context, key string) (io.Reader, error)
-
-	HasFile(ctx context.Context, key string) (bool, error)
-
-	DeleteFile(ctx context.Context, key string) error
+	volume.Volume
 }
 
 type service struct {
-	localVolumes []volume.Volume
+	members membership.Membership
 }
 
 // New returns an implementation of the Service with
 // the given parameters
-func New(lv []volume.Volume) Service {
+func New(m membership.Membership) Service {
 	return &service{
-		localVolumes: lv,
+		members: m,
 	}
 }
 
 func (s *service) CreateFile(ctx context.Context, k string, r io.Reader) error {
-	_, err := s.localVolumes[0].CreateFile(ctx, k, r)
+	err := s.members.Volumes()[0].CreateFile(ctx, k, r)
 	if err != nil {
 		return err
 	}
@@ -67,7 +62,7 @@ func (s *service) DeleteFile(ctx context.Context, k string) error {
 }
 
 func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
-	for _, v := range s.localVolumes {
+	for _, v := range s.members.Volumes() {
 		ok, err := v.HasFile(ctx, k)
 		if err != nil {
 			return false, err
@@ -80,7 +75,8 @@ func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
 }
 
 func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
-	for _, v := range s.localVolumes {
+	vls := s.members.Volumes()
+	for _, v := range vls {
 		ok, err := v.HasFile(ctx, k)
 		if err != nil {
 			return nil, err
@@ -90,5 +86,5 @@ func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error
 		}
 	}
 	rand.Seed(time.Now().UTC().UnixNano())
-	return s.localVolumes[rand.Intn(len(s.localVolumes))], nil
+	return vls[rand.Intn(len(vls))], nil
 }

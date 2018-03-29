@@ -11,6 +11,10 @@ import (
 type Config struct {
 	Port    string
 	Volumes []string
+	Remote  string
+
+	MemberlistBindPort int
+	MemberlistName     string
 }
 
 // New returns a new Config from the viper.Viper, the ENV variables
@@ -30,5 +34,9 @@ func New(v *viper.Viper) (*Config, error) {
 	return &Config{
 		Port:    v.GetString("port"),
 		Volumes: v.GetStringSlice("volumes"),
+		Remote:  v.GetString("remote"),
+
+		MemberlistBindPort: v.GetInt("memberlist-bind-port"),
+		MemberlistName:     v.GetString("memberlist-name"),
 	}, nil
 }

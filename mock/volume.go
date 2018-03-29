@@ -7,7 +7,6 @@ package mock
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	file "github.com/xescugc/rebost/file"
 	io "io"
 	reflect "reflect"
 )
@@ -36,11 +35,10 @@ func (m *Volume) EXPECT() *VolumeMockRecorder {
 }
 
 // CreateFile mocks base method
-func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.Reader) (*file.File, error) {
+func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.Reader) error {
 	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*file.File)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // CreateFile indicates an expected call of CreateFile

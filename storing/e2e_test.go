@@ -14,7 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/boltdb"
+	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/fs"
+	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
@@ -41,7 +43,10 @@ func TestE2E(t *testing.T) {
 	v, err := volume.New(vp, files, idxkeys, osfs, suow)
 	require.NoError(t, err)
 
-	s := storing.New([]volume.Volume{v})
+	m, err := membership.New(&config.Config{}, []volume.Volume{v}, "")
+	require.NoError(t, err)
+
+	s := storing.New(m)
 	h := storing.MakeHandler(s)
 
 	server = httptest.NewServer(h)

@@ -20,7 +20,7 @@ import (
 // Volume is an interface to deal with the simples actions
 // and basic ones
 type Volume interface {
-	CreateFile(ctx context.Context, key string, reader io.Reader) (*file.File, error)
+	CreateFile(ctx context.Context, key string, reader io.Reader) error
 
 	GetFile(ctx context.Context, key string) (io.Reader, error)
 
@@ -68,12 +68,12 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSyst
 	return v, nil
 }
 
-func (v *volume) CreateFile(ctx context.Context, key string, r io.Reader) (*file.File, error) {
+func (v *volume) CreateFile(ctx context.Context, key string, r io.Reader) error {
 	tmp := path.Join(v.tempDir, uuid.NewV4().String())
 
 	fh, err := v.fs.Create(tmp)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer fh.Close()
 
@@ -91,12 +91,12 @@ func (v *volume) CreateFile(ctx context.Context, key string, r io.Reader) (*file
 
 	err = v.fs.MkdirAll(dir, os.ModePerm)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = v.fs.Rename(tmp, p)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = v.startUnitOfWork(ctx, uow.Write, func(uw uow.UnitOfWork) error {
@@ -175,10 +175,10 @@ func (v *volume) CreateFile(ctx context.Context, key string, r io.Reader) (*file
 	}, v.idxkeys, v.files, v.fs)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return f, nil
+	return nil
 }
 
 func (v *volume) GetFile(ctx context.Context, k string) (io.Reader, error) {
