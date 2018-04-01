@@ -97,15 +97,13 @@ func TestRename(t *testing.T) {
 }
 
 func newSuow(t *testing.T) (*mock.Fs, uow.StartUnitOfWork, func()) {
-	uowCtrl := gomock.NewController(t)
-	fsCtrl := gomock.NewController(t)
+	ctrl := gomock.NewController(t)
 	finishFn := func() {
-		uowCtrl.Finish()
-		fsCtrl.Finish()
+		ctrl.Finish()
 	}
-	mfs := mock.NewFs(fsCtrl)
+	mfs := mock.NewFs(ctrl)
 	suow := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) error {
-		uw := mock.NewUnitOfWork(uowCtrl)
+		uw := mock.NewUnitOfWork(ctrl)
 		uw.EXPECT().Fs().Return(repos[0]).AnyTimes()
 		return uowFn(uw)
 	}

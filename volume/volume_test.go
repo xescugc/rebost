@@ -27,17 +27,13 @@ func TestNew(t *testing.T) {
 	var suow uow.StartUnitOfWork
 	var rootDir = "root"
 
-	filesCtrl := gomock.NewController(t)
-	idxKeysCtrl := gomock.NewController(t)
-	fsCtrl := gomock.NewController(t)
+	ctrl := gomock.NewController(t)
 
-	files := mock.NewFileRepository(filesCtrl)
-	idxkeys := mock.NewIDXKeyRepository(idxKeysCtrl)
-	fs := mock.NewFs(fsCtrl)
+	files := mock.NewFileRepository(ctrl)
+	idxkeys := mock.NewIDXKeyRepository(ctrl)
+	fs := mock.NewFs(ctrl)
 
-	defer filesCtrl.Finish()
-	defer idxKeysCtrl.Finish()
-	defer fsCtrl.Finish()
+	defer ctrl.Finish()
 
 	fs.EXPECT().MkdirAll(gomock.Any(), os.ModePerm).DoAndReturn(func(p string, _ os.FileMode) error {
 		switch p {

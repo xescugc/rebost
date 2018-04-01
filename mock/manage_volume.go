@@ -19,26 +19,20 @@ type ManageVolume struct {
 
 	V volume.Volume
 
-	filesCtrl   *gomock.Controller
-	idxKeysCtrl *gomock.Controller
-	fsCtrl      *gomock.Controller
-	uowCtrl     *gomock.Controller
+	ctrl *gomock.Controller
 }
 
 // NewManageVolume returns the initialization of the ManageVolume
 // with all the mocks
 func NewManageVolume(t *testing.T, root string) ManageVolume {
-	filesCtrl := gomock.NewController(t)
-	idxKeysCtrl := gomock.NewController(t)
-	fsCtrl := gomock.NewController(t)
-	uowCtrl := gomock.NewController(t)
+	ctrl := gomock.NewController(t)
 
-	files := NewFileRepository(filesCtrl)
-	idxkeys := NewIDXKeyRepository(idxKeysCtrl)
-	fs := NewFs(fsCtrl)
+	files := NewFileRepository(ctrl)
+	idxkeys := NewIDXKeyRepository(ctrl)
+	fs := NewFs(ctrl)
 
 	uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
-		uw := NewUnitOfWork(uowCtrl)
+		uw := NewUnitOfWork(ctrl)
 		uw.EXPECT().Files().Return(files).AnyTimes()
 		uw.EXPECT().IDXKeys().Return(idxkeys).AnyTimes()
 		uw.EXPECT().Fs().Return(fs).AnyTimes()
@@ -52,9 +46,6 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 	v, err := volume.New(root, files, idxkeys, fs, uowFn)
 	require.NoError(t, err)
 
-	fsCtrl.Finish()
-	fsCtrl = gomock.NewController(t)
-
 	return ManageVolume{
 		Files:   files,
 		IDXKeys: idxkeys,
@@ -62,18 +53,11 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 
 		V: v,
 
-		filesCtrl:   filesCtrl,
-		idxKeysCtrl: idxKeysCtrl,
-		fsCtrl:      fsCtrl,
-		uowCtrl:     uowCtrl,
+		ctrl: ctrl,
 	}
-
 }
 
 // Finish finishes all the *Ctrl for the 'gomock' at ones
 func (mv *ManageVolume) Finish() {
-	mv.filesCtrl.Finish()
-	mv.idxKeysCtrl.Finish()
-	mv.fsCtrl.Finish()
-	mv.uowCtrl.Finish()
+	mv.ctrl.Finish()
 }
