@@ -21,17 +21,22 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 	if err != nil {
 		panic(err)
 	}
+
+	e.members.remoteVolumesLock.Lock()
 	e.members.remoteVolumes[n.Address()] = c
+	e.members.remoteVolumesLock.Unlock()
 }
 
 func (e *eventDelegate) NotifyLeave(n *memberlist.Node) {
+	e.members.remoteVolumesLock.Lock()
 	delete(e.members.remoteVolumes, n.Address())
+	e.members.remoteVolumesLock.Unlock()
 }
 
 func (e *eventDelegate) NotifyUpdate(n *memberlist.Node) {
-	c, err := client.New(n.Address())
-	if err != nil {
-		panic(err)
-	}
-	e.members.remoteVolumes[n.Address()] = c
+	// For now we do not have any use case
+	// for update so it's basically the
+	// same logic as Join.
+	// Could potentially be IGNORED
+	e.NotifyJoin(n)
 }

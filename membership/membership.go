@@ -2,6 +2,7 @@ package membership
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/config"
@@ -24,8 +25,10 @@ type membership struct {
 	members *memberlist.Memberlist
 	events  *memberlist.EventDelegate
 
-	localVolumes  []volume.Volume
-	remoteVolumes map[string]volume.Volume
+	localVolumes []volume.Volume
+
+	remoteVolumesLock sync.RWMutex
+	remoteVolumes     map[string]volume.Volume
 }
 
 // New returns an implementation of the Membership interface
@@ -59,9 +62,13 @@ func New(cfg *config.Config, lv []volume.Volume, remote string) (Membership, err
 // for the user
 func (m *membership) Volumes() (res []volume.Volume) {
 	res = append(res, m.localVolumes...)
+
+	m.remoteVolumesLock.RLock()
 	for _, r := range m.remoteVolumes {
 		res = append(res, r)
 	}
+	m.remoteVolumesLock.RUnlock()
+
 	return
 }
 
