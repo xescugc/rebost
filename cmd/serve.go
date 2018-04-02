@@ -90,10 +90,13 @@ func createDB(p string) (*bolt.DB, error) {
 }
 
 func init() {
+	serveCmd.PersistentFlags().StringP("port", "p", "8000", "Destination port")
+	viper.BindPFlag("port", serveCmd.PersistentFlags().Lookup("port"))
+
 	serveCmd.PersistentFlags().StringSliceP("volumes", "v", []string{}, "Volumes to store the data")
 	viper.BindPFlag("volumes", serveCmd.PersistentFlags().Lookup("volumes"))
 
-	serveCmd.PersistentFlags().StringSliceP("remote", "r", []string{}, "The address of the remote node.")
+	serveCmd.PersistentFlags().StringSliceP("remote", "r", []string{}, "The address of the remote node without the Port, if the 'memberlist-bind-port' of that node is modified then this IP has to include it")
 	viper.BindPFlag("remote", serveCmd.PersistentFlags().Lookup("remote"))
 
 	serveCmd.PersistentFlags().StringSlice("memberlist-bind-port", []string{}, "The port is used for both UDP and TCP gossip. It is assumed other nodes are running on this port, but they do not need to.")

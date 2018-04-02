@@ -15,9 +15,6 @@ var (
 )
 
 func init() {
-	RootCmd.PersistentFlags().StringP("port", "p", "8000", "Destination port")
-	viper.BindPFlag("port", RootCmd.PersistentFlags().Lookup("port"))
-
 	RootCmd.PersistentFlags().StringP("config", "c", "", "Configuration path")
 	viper.BindPFlag("config", RootCmd.PersistentFlags().Lookup("config"))
 }
