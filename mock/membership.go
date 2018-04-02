@@ -43,6 +43,18 @@ func (mr *MembershipMockRecorder) Leave() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Leave", reflect.TypeOf((*Membership)(nil).Leave))
 }
 
+// LocalVolumes mocks base method
+func (m *Membership) LocalVolumes() []volume.Volume {
+	ret := m.ctrl.Call(m, "LocalVolumes")
+	ret0, _ := ret[0].([]volume.Volume)
+	return ret0
+}
+
+// LocalVolumes indicates an expected call of LocalVolumes
+func (mr *MembershipMockRecorder) LocalVolumes() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalVolumes", reflect.TypeOf((*Membership)(nil).LocalVolumes))
+}
+
 // Volumes mocks base method
 func (m *Membership) Volumes() []volume.Volume {
 	ret := m.ctrl.Call(m, "Volumes")

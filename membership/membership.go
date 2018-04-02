@@ -18,6 +18,9 @@ type Membership interface {
 	// Volumes return all the Volumes of the cluster
 	Volumes() []volume.Volume
 
+	// LocalVolumes returns only the local volumes
+	LocalVolumes() []volume.Volume
+
 	// Leave makes it leave the cluster
 	Leave()
 }
@@ -56,6 +59,11 @@ func New(cfg *config.Config, lv []volume.Volume, remote string) (Membership, err
 	}
 
 	return m, nil
+}
+
+// LocalVolumes returns all the local volumes
+func (m *membership) LocalVolumes() []volume.Volume {
+	return m.localVolumes
 }
 
 // Volumes return all the volumes/nodes of the cluester

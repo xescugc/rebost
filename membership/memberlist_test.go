@@ -23,6 +23,7 @@ func TestVolumes(t *testing.T) {
 		m, err := membership.New(&config.Config{MemberlistBindPort: 4000}, []volume.Volume{v}, "")
 		require.NoError(t, err)
 		assert.Equal(t, []volume.Volume{v}, m.Volumes())
+		assert.Equal(t, []volume.Volume{v}, m.LocalVolumes())
 	})
 	t.Run("WithRemote", func(t *testing.T) {
 		t.Run("Add", func(t *testing.T) {
@@ -40,6 +41,7 @@ func TestVolumes(t *testing.T) {
 			m, err := membership.New(&config.Config{MemberlistName: "am", MemberlistBindPort: 4002}, []volume.Volume{v}, "0.0.0.0:4001")
 			require.NoError(t, err)
 			assert.Len(t, m.Volumes(), 2)
+			assert.Equal(t, []volume.Volume{v}, m.LocalVolumes())
 		})
 		t.Run("Remove", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -56,9 +58,11 @@ func TestVolumes(t *testing.T) {
 			m, err := membership.New(&config.Config{MemberlistName: "rm", MemberlistBindPort: 4004}, []volume.Volume{v}, "0.0.0.0:4003")
 			require.NoError(t, err)
 			assert.Len(t, m.Volumes(), 2)
+			assert.Equal(t, []volume.Volume{v}, m.LocalVolumes())
 
 			m2.Leave()
 			assert.Len(t, m.Volumes(), 1)
+			assert.Equal(t, []volume.Volume{v}, m.LocalVolumes())
 		})
 	})
 }
