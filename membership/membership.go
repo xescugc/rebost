@@ -18,6 +18,7 @@ type Membership interface {
 	// Volumes return all the Volumes of the cluster
 	Volumes() []volume.Volume
 
+	// Leave makes it leave the cluster
 	Leave()
 }
 
