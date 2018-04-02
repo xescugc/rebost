@@ -2,8 +2,10 @@ package storing
 
 import (
 	"context"
+	"errors"
 	"io"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/xescugc/rebost/membership"
@@ -62,29 +64,86 @@ func (s *service) DeleteFile(ctx context.Context, k string) error {
 }
 
 func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
-	for _, v := range s.members.Volumes() {
-		ok, err := v.HasFile(ctx, k)
-		if err != nil {
-			return false, err
-		}
-		if ok {
-			return ok, nil
-		}
+	v, err := s.findVolume(ctx, s.members.LocalVolumes(), k)
+	if err != nil && err.Error() != "not found" {
+		return false, err
 	}
+
+	if v != nil {
+		return true, nil
+	}
+
 	return false, nil
 }
 
 func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
-	vls := s.members.Volumes()
-	for _, v := range vls {
-		ok, err := v.HasFile(ctx, k)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			return v, nil
-		}
+	v, err := s.findVolume(ctx, s.members.Volumes(), k)
+	if err != nil && err.Error() != "not found" {
+		return nil, err
 	}
+
+	if v != nil {
+		return v, nil
+	}
+
+	vls := s.members.Volumes()
+
 	rand.Seed(time.Now().UTC().UnixNano())
 	return vls[rand.Intn(len(vls))], nil
+}
+
+// findVolume finds the volume that has the key (k) within the volumes (vls) in parallel
+func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string) (volume.Volume, error) {
+	var wg sync.WaitGroup
+	cctx, cfn := context.WithCancel(ctx)
+
+	// doneC is used to notify which is the volume found
+	doneC := make(chan volume.Volume)
+
+	wg.Add(len(vls))
+
+	for _, v := range vls {
+		go func(v volume.Volume) {
+			defer wg.Done()
+			ok, err := v.HasFile(cctx, k)
+			if err != nil {
+				// TODO: Log the error?
+				// remember that when the ctx is canceled, it
+				// makes the volume.Volume return "context canceled"
+				// if it's a node
+				return
+			}
+			if ok {
+				select {
+				case <-cctx.Done():
+				case doneC <- v:
+				}
+				return
+			}
+		}(v)
+	}
+
+	go func() {
+		wg.Wait()
+		close(doneC)
+	}()
+
+	var (
+		v   volume.Volume
+		err error
+	)
+	select {
+	case v = <-doneC:
+		if v == nil {
+			// If it's done without a value, means
+			// that the doneC has ben closed and that
+			// no volume was found
+			err = errors.New("not found")
+		}
+		// Cancel all the possible still running
+		// request to the volumes
+		cfn()
+	}
+
+	return v, err
 }
