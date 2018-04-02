@@ -20,7 +20,7 @@ func TestVolumes(t *testing.T) {
 		defer ctrl.Finish()
 		v := mock.NewVolume(ctrl)
 
-		m, err := membership.New(&config.Config{MemberlistBindPort: 5000}, []volume.Volume{v}, "")
+		m, err := membership.New(&config.Config{MemberlistBindPort: 4000}, []volume.Volume{v}, "")
 		require.NoError(t, err)
 		assert.Equal(t, []volume.Volume{v}, m.Volumes())
 	})
@@ -31,12 +31,13 @@ func TestVolumes(t *testing.T) {
 			v := mock.NewVolume(ctrl)
 
 			v2 := mock.NewVolume(ctrl)
-			m2, err := membership.New(&config.Config{MemberlistName: "am2", MemberlistBindPort: 5001}, []volume.Volume{v2}, "")
+			m2, err := membership.New(&config.Config{MemberlistName: "am2", MemberlistBindPort: 4001}, []volume.Volume{v2}, "")
 			require.NoError(t, err)
 			s := storing.New(m2)
-			_ = httptest.NewServer(storing.MakeHandler(s))
+			server := httptest.NewServer(storing.MakeHandler(s))
+			defer server.Close()
 
-			m, err := membership.New(&config.Config{MemberlistName: "am", MemberlistBindPort: 5002}, []volume.Volume{v}, "0.0.0.0:5001")
+			m, err := membership.New(&config.Config{MemberlistName: "am", MemberlistBindPort: 4002}, []volume.Volume{v}, "0.0.0.0:4001")
 			require.NoError(t, err)
 			assert.Len(t, m.Volumes(), 2)
 		})
@@ -46,12 +47,13 @@ func TestVolumes(t *testing.T) {
 			v := mock.NewVolume(ctrl)
 
 			v2 := mock.NewVolume(ctrl)
-			m2, err := membership.New(&config.Config{MemberlistName: "rm2", MemberlistBindPort: 5003}, []volume.Volume{v2}, "")
+			m2, err := membership.New(&config.Config{MemberlistName: "rm2", MemberlistBindPort: 4003}, []volume.Volume{v2}, "")
 			require.NoError(t, err)
 			s := storing.New(m2)
-			_ = httptest.NewServer(storing.MakeHandler(s))
+			server := httptest.NewServer(storing.MakeHandler(s))
+			defer server.Close()
 
-			m, err := membership.New(&config.Config{MemberlistName: "rm", MemberlistBindPort: 5004}, []volume.Volume{v}, "0.0.0.0:5003")
+			m, err := membership.New(&config.Config{MemberlistName: "rm", MemberlistBindPort: 4004}, []volume.Volume{v}, "0.0.0.0:4003")
 			require.NoError(t, err)
 			assert.Len(t, m.Volumes(), 2)
 

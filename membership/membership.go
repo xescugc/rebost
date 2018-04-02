@@ -26,6 +26,7 @@ type membership struct {
 	events  *memberlist.EventDelegate
 
 	localVolumes []volume.Volume
+	cfg          *config.Config
 
 	remoteVolumesLock sync.RWMutex
 	remoteVolumes     map[string]volume.Volume
@@ -36,6 +37,7 @@ func New(cfg *config.Config, lv []volume.Volume, remote string) (Membership, err
 	m := &membership{
 		localVolumes:  lv,
 		remoteVolumes: make(map[string]volume.Volume),
+		cfg:           cfg,
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
@@ -85,5 +87,6 @@ func (m *membership) buildConfig(cfg *config.Config) *memberlist.Config {
 		mcfg.Name = cfg.MemberlistName
 	}
 	mcfg.Events = &eventDelegate{members: m}
+	mcfg.Delegate = &delegate{members: m}
 	return mcfg
 }

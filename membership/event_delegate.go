@@ -1,6 +1,10 @@
 package membership
 
 import (
+	"encoding/json"
+	"net"
+	"strconv"
+
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/client"
 )
@@ -17,7 +21,14 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 	if e.members.members == nil {
 		return
 	}
-	c, err := client.New(n.Address())
+
+	var meta metadata
+	err := json.Unmarshal(n.Meta, &meta)
+	if err != nil {
+		panic(err)
+	}
+
+	c, err := client.New(net.JoinHostPort(n.Addr.String(), strconv.Itoa(meta.Port)))
 	if err != nil {
 		panic(err)
 	}
@@ -37,6 +48,7 @@ func (e *eventDelegate) NotifyUpdate(n *memberlist.Node) {
 	// For now we do not have any use case
 	// for update so it's basically the
 	// same logic as Join.
-	// Could potentially be IGNORED
+	// The update it's only triggered when
+	// the node.Meta has changed
 	e.NotifyJoin(n)
 }

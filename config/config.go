@@ -9,7 +9,7 @@ import (
 // Config represents the struct whith all the possible
 // configuration options
 type Config struct {
-	Port    string
+	Port    int
 	Volumes []string
 	Remote  string
 
@@ -32,7 +32,7 @@ func New(v *viper.Viper) (*Config, error) {
 	}
 
 	return &Config{
-		Port:    v.GetString("port"),
+		Port:    v.GetInt("port"),
 		Volumes: v.GetStringSlice("volumes"),
 		Remote:  v.GetString("remote"),
 
