@@ -53,7 +53,7 @@ func TestGetFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().Volumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v.EXPECT().GetFile(gomock.Any(), key).Return(bytes.NewBufferString("expectedcontent"), nil)
@@ -77,7 +77,8 @@ func TestGetFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().Volumes().Return([]volume.Volume{v, v2})
+		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().RemoteVolumes().Return([]volume.Volume{v2})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
@@ -104,7 +105,7 @@ func TestDeleteFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().Volumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
@@ -125,7 +126,8 @@ func TestDeleteFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().Volumes().Return([]volume.Volume{v, v2})
+		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().RemoteVolumes().Return([]volume.Volume{v2})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)

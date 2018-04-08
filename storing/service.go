@@ -84,7 +84,16 @@ func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
 }
 
 func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
-	v, err := s.findVolume(ctx, s.members.Volumes(), k)
+	v, err := s.findVolume(ctx, s.members.LocalVolumes(), k)
+	if err != nil && err.Error() != "not found" {
+		return nil, err
+	}
+
+	if v != nil {
+		return v, nil
+	}
+
+	v, err = s.findVolume(ctx, s.members.RemoteVolumes(), k)
 	if err != nil && err.Error() != "not found" {
 		return nil, err
 	}

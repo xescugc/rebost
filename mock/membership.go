@@ -55,14 +55,14 @@ func (mr *MembershipMockRecorder) LocalVolumes() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalVolumes", reflect.TypeOf((*Membership)(nil).LocalVolumes))
 }
 
-// Volumes mocks base method
-func (m *Membership) Volumes() []volume.Volume {
-	ret := m.ctrl.Call(m, "Volumes")
+// RemoteVolumes mocks base method
+func (m *Membership) RemoteVolumes() []volume.Volume {
+	ret := m.ctrl.Call(m, "RemoteVolumes")
 	ret0, _ := ret[0].([]volume.Volume)
 	return ret0
 }
 
-// Volumes indicates an expected call of Volumes
-func (mr *MembershipMockRecorder) Volumes() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Volumes", reflect.TypeOf((*Membership)(nil).Volumes))
+// RemoteVolumes indicates an expected call of RemoteVolumes
+func (mr *MembershipMockRecorder) RemoteVolumes() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoteVolumes", reflect.TypeOf((*Membership)(nil).RemoteVolumes))
 }
