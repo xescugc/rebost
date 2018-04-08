@@ -61,7 +61,7 @@ var (
 				vs = append(vs, v)
 			}
 
-			m, err := membership.New(cfg, vs, "")
+			m, err := membership.New(cfg, vs, cfg.Remote)
 			if err != nil {
 				return err
 			}
@@ -90,7 +90,7 @@ func createDB(p string) (*bolt.DB, error) {
 }
 
 func init() {
-	serveCmd.PersistentFlags().StringP("port", "p", "8000", "Destination port")
+	serveCmd.PersistentFlags().StringP("port", "p", "3805", "Destination port")
 	viper.BindPFlag("port", serveCmd.PersistentFlags().Lookup("port"))
 
 	serveCmd.PersistentFlags().StringSliceP("volumes", "v", []string{}, "Volumes to store the data")
