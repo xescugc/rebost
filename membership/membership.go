@@ -15,8 +15,8 @@ import (
 // cluseter members. In this "domain" (rebost), the members
 // are considered volume.Volume.
 type Membership interface {
-	// Volumes return all the Volumes of the cluster
-	Volumes() []volume.Volume
+	// RemoteVolumes return all the Volumes of the cluster
+	RemoteVolumes() []volume.Volume
 
 	// LocalVolumes returns only the local volumes
 	LocalVolumes() []volume.Volume
@@ -67,13 +67,7 @@ func (m *membership) LocalVolumes() []volume.Volume {
 }
 
 // Volumes return all the volumes/nodes of the cluester
-// it'll return the "localVolumes" first and then
-// the "removeVolumes" but all will fulfill the
-// volume.Volume interface so it's transparent for
-// for the user
-func (m *membership) Volumes() (res []volume.Volume) {
-	res = append(res, m.localVolumes...)
-
+func (m *membership) RemoteVolumes() (res []volume.Volume) {
 	m.remoteVolumesLock.RLock()
 	for _, r := range m.remoteVolumes {
 		res = append(res, r)
