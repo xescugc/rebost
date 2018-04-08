@@ -34,7 +34,7 @@ func New(m membership.Membership) Service {
 }
 
 func (s *service) CreateFile(ctx context.Context, k string, r io.Reader) error {
-	err := s.members.Volumes()[0].CreateFile(ctx, k, r)
+	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r)
 	if err != nil {
 		return err
 	}
@@ -76,6 +76,13 @@ func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
 	return false, nil
 }
 
+func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
+	vls := s.members.LocalVolumes()
+
+	rand.Seed(time.Now().UTC().UnixNano())
+	return vls[rand.Intn(len(vls))]
+}
+
 func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
 	v, err := s.findVolume(ctx, s.members.Volumes(), k)
 	if err != nil && err.Error() != "not found" {
@@ -86,10 +93,7 @@ func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error
 		return v, nil
 	}
 
-	vls := s.members.Volumes()
-
-	rand.Seed(time.Now().UTC().UnixNano())
-	return vls[rand.Intn(len(vls))], nil
+	return nil, nil
 }
 
 // findVolume finds the volume that has the key (k) within the volumes (vls) in parallel

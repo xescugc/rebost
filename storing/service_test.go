@@ -29,7 +29,7 @@ func TestCreateFile(t *testing.T) {
 
 		v.EXPECT().CreateFile(gomock.Any(), key, buff).Return(nil)
 
-		m.EXPECT().Volumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
 
 		s := storing.New(m)
 
