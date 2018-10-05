@@ -129,7 +129,7 @@ func newNode(t *testing.T, cfg *config.Config, remote string) *node {
 	m, err := membership.New(cfg, []volume.Volume{v}, remote)
 	require.NoError(t, err)
 
-	s := storing.New(m)
+	s := storing.New(cfg, m)
 	h := storing.MakeHandler(s)
 
 	server.Config.Handler = h

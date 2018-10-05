@@ -9,6 +9,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
@@ -31,7 +32,7 @@ func TestCreateFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
 
-		s := storing.New(m)
+		s := storing.New(&config.Config{}, m)
 
 		err := s.CreateFile(ctx, key, buff)
 		require.NoError(t, err)
@@ -58,7 +59,7 @@ func TestGetFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v.EXPECT().GetFile(gomock.Any(), key).Return(bytes.NewBufferString("expectedcontent"), nil)
 
-		s := storing.New(m)
+		s := storing.New(&config.Config{}, m)
 		ior, err := s.GetFile(ctx, key)
 
 		require.NoError(t, err)
@@ -84,7 +85,7 @@ func TestGetFile(t *testing.T) {
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v2.EXPECT().GetFile(gomock.Any(), key).Return(bytes.NewBufferString("expectedcontent"), nil)
 
-		s := storing.New(m)
+		s := storing.New(&config.Config{}, m)
 
 		ior, err := s.GetFile(ctx, key)
 		require.NoError(t, err)
@@ -110,7 +111,7 @@ func TestDeleteFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		s := storing.New(m)
+		s := storing.New(&config.Config{}, m)
 
 		err := s.DeleteFile(ctx, key)
 		require.NoError(t, err)
@@ -133,7 +134,7 @@ func TestDeleteFile(t *testing.T) {
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		s := storing.New(m)
+		s := storing.New(&config.Config{}, m)
 
 		err := s.DeleteFile(ctx, key)
 		require.NoError(t, err)
@@ -155,7 +156,7 @@ func TestHasFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 
-		s := storing.New(m)
+		s := storing.New(&config.Config{}, m)
 
 		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
@@ -177,7 +178,7 @@ func TestHasFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 
-		s := storing.New(m)
+		s := storing.New(&config.Config{}, m)
 
 		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
@@ -197,7 +198,7 @@ func TestHasFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 
-		s := storing.New(m)
+		s := storing.New(&config.Config{}, m)
 
 		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)

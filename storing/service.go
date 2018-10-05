@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/volume"
 )
@@ -23,13 +24,15 @@ type Service interface {
 
 type service struct {
 	members membership.Membership
+	cfg     *config.Config
 }
 
 // New returns an implementation of the Service with
 // the given parameters
-func New(m membership.Membership) Service {
+func New(cfg *config.Config, m membership.Membership) Service {
 	return &service{
 		members: m,
+		cfg:     cfg,
 	}
 }
 

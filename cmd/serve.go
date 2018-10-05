@@ -66,7 +66,7 @@ var (
 				return err
 			}
 
-			s := storing.New(m)
+			s := storing.New(cfg, m)
 
 			mux := http.NewServeMux()
 
