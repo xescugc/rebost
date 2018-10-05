@@ -2,7 +2,7 @@ GO_FILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -pa
 
 .PHONY: help
 help: ## Show this help
-	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
+	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/:.*##/:##/' | column -t -s '##'
 
 .PHONY: ci
 ci:	lint vet fmt test ## Run all the CI targets
