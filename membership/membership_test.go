@@ -32,13 +32,15 @@ func TestVolumes(t *testing.T) {
 			v := mock.NewVolume(ctrl)
 
 			v2 := mock.NewVolume(ctrl)
-			m2, err := membership.New(&config.Config{MemberlistName: "am2", MemberlistBindPort: 4001}, []volume.Volume{v2}, "")
+			cfg2 := &config.Config{MemberlistName: "am2", MemberlistBindPort: 4001}
+			m2, err := membership.New(cfg2, []volume.Volume{v2}, "")
 			require.NoError(t, err)
-			s := storing.New(m2)
+			s := storing.New(cfg2, m2)
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
 
-			m, err := membership.New(&config.Config{MemberlistName: "am", MemberlistBindPort: 4002}, []volume.Volume{v}, "0.0.0.0:4001")
+			cfg := &config.Config{MemberlistName: "am", MemberlistBindPort: 4002}
+			m, err := membership.New(cfg, []volume.Volume{v}, "0.0.0.0:4001")
 			require.NoError(t, err)
 			assert.Len(t, m.RemoteVolumes(), 1)
 			assert.Equal(t, []volume.Volume{v}, m.LocalVolumes())
@@ -49,13 +51,15 @@ func TestVolumes(t *testing.T) {
 			v := mock.NewVolume(ctrl)
 
 			v2 := mock.NewVolume(ctrl)
-			m2, err := membership.New(&config.Config{MemberlistName: "rm2", MemberlistBindPort: 4003}, []volume.Volume{v2}, "")
+			cfg2 := &config.Config{MemberlistName: "rm2", MemberlistBindPort: 4003}
+			m2, err := membership.New(cfg2, []volume.Volume{v2}, "")
 			require.NoError(t, err)
-			s := storing.New(m2)
+			s := storing.New(cfg2, m2)
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
 
-			m, err := membership.New(&config.Config{MemberlistName: "rm", MemberlistBindPort: 4004}, []volume.Volume{v}, "0.0.0.0:4003")
+			cfg := &config.Config{MemberlistName: "rm", MemberlistBindPort: 4004}
+			m, err := membership.New(cfg, []volume.Volume{v}, "0.0.0.0:4003")
 			require.NoError(t, err)
 			assert.Len(t, m.RemoteVolumes(), 1)
 			assert.Equal(t, []volume.Volume{v}, m.LocalVolumes())
