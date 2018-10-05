@@ -1,6 +1,8 @@
 package config
 
 import (
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -22,6 +24,22 @@ type Config struct {
 func New(v *viper.Viper) (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	v.AutomaticEnv()
+
+	// Opens a TCP connection to a free port on the host
+	// and closes the connection but getting the port from it
+	// so the 'memberlist-bind-port' can be setted to a free
+	// random port each time if no one is specified
+	l, err := net.Listen("tcp", "")
+	if err != nil {
+		return nil, err
+	}
+	l.Close()
+	sl := strings.Split(l.Addr().String(), ":")
+	mbp, err := strconv.Atoi(sl[len(sl)-1])
+	if err != nil {
+		return nil, err
+	}
+	v.SetDefault("memberlist-bind-port", mbp)
 
 	if v.GetString("config") != "" {
 		v.SetConfigFile(v.GetString("config"))
