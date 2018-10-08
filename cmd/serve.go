@@ -74,9 +74,7 @@ var (
 
 			http.Handle("/", handlers.LoggingHandler(os.Stdout, mux))
 
-			http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil)
-
-			return nil
+			return http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil)
 		},
 	}
 )
