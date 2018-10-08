@@ -29,10 +29,10 @@ func TestE2E(t *testing.T) {
 	n1 := newNode(t, &config.Config{Port: 5011, MemberlistName: "n1", MemberlistBindPort: 5001}, "")
 	defer n1.Finish()
 
-	n2 := newNode(t, &config.Config{Port: 5012, MemberlistName: "n2", MemberlistBindPort: 5002}, "localhost:5001")
+	n2 := newNode(t, &config.Config{Port: 5012, MemberlistName: "n2", MemberlistBindPort: 5002}, "http://localhost:5011")
 	defer n2.Finish()
 
-	n3 := newNode(t, &config.Config{Port: 5013, MemberlistName: "n3", MemberlistBindPort: 5003}, "localhost:5002")
+	n3 := newNode(t, &config.Config{Port: 5013, MemberlistName: "n3", MemberlistBindPort: 5003}, "http://localhost:5012")
 	defer n3.Finish()
 
 	key := "xescugc"

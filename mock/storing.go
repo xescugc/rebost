@@ -7,6 +7,7 @@ package mock
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
+	config "github.com/xescugc/rebost/config"
 	io "io"
 	reflect "reflect"
 )
@@ -32,6 +33,19 @@ func NewStoring(ctrl *gomock.Controller) *Storing {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *Storing) EXPECT() *StoringMockRecorder {
 	return m.recorder
+}
+
+// Config mocks base method
+func (m *Storing) Config(arg0 context.Context) (*config.Config, error) {
+	ret := m.ctrl.Call(m, "Config", arg0)
+	ret0, _ := ret[0].(*config.Config)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Config indicates an expected call of Config
+func (mr *StoringMockRecorder) Config(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Config", reflect.TypeOf((*Storing)(nil).Config), arg0)
 }
 
 // CreateFile mocks base method

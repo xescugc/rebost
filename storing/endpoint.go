@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/xescugc/rebost/storing/model"
 )
 
 type createFileRequest struct {
@@ -79,5 +80,19 @@ func makeHasFileEndpoint(s Service) endpoint.Endpoint {
 		req := request.(hasFileRequest)
 		ok, err := s.HasFile(ctx, req.Key)
 		return hasFileResponse{Ok: ok, Err: err}, nil
+	}
+}
+
+type response struct {
+	Data interface{} `json:"data,omitempty"`
+	Err  error       `json:"error,omitempty"`
+}
+
+func (r *response) error() error { return r.Err }
+
+func makeGetConfigEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		cfg, err := s.Config(ctx)
+		return response{Data: model.Config(*cfg), Err: err}, nil
 	}
 }

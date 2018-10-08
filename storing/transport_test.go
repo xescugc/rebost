@@ -12,6 +12,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
 )
@@ -21,6 +22,7 @@ func TestMakeHandler(t *testing.T) {
 		key     = "fileName"
 		content = []byte("content")
 		ctrl    = gomock.NewController(t)
+		cfg     = config.Config{MemberlistName: "Pepito"}
 	)
 
 	st := mock.NewStoring(ctrl)
@@ -43,6 +45,7 @@ func TestMakeHandler(t *testing.T) {
 		}
 		return false, nil
 	}).AnyTimes()
+	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
 
 	tests := []struct {
 		Name        string
@@ -85,6 +88,15 @@ func TestMakeHandler(t *testing.T) {
 			URL:         "/files/file",
 			Method:      http.MethodHead,
 			EStatusCode: http.StatusNotFound,
+		},
+		{
+			Name:        "Config",
+			URL:         "/config",
+			Method:      http.MethodGet,
+			EStatusCode: http.StatusOK,
+			EBody: func() []byte {
+				return []byte(`{"data":{"port":0,"volumes":null,"remote":"","memberlist_bind_port":0,"memberlist_name":"Pepito"}}`)
+			},
 		},
 	}
 

@@ -205,3 +205,21 @@ func TestHasFile(t *testing.T) {
 		assert.False(t, ok)
 	})
 }
+
+func TestConfig(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			ctrl   = gomock.NewController(t)
+			ctx    = context.Background()
+			expcfg = config.Config{MemberlistName: "Pepito"}
+		)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		s := storing.New(&expcfg, m)
+
+		cfg, err := s.Config(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, &expcfg, cfg)
+	})
+}

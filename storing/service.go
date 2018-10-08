@@ -20,6 +20,8 @@ import (
 // to consume the API
 type Service interface {
 	volume.Volume
+
+	Config(context.Context) (*config.Config, error)
 }
 
 type service struct {
@@ -34,6 +36,10 @@ func New(cfg *config.Config, m membership.Membership) Service {
 		members: m,
 		cfg:     cfg,
 	}
+}
+
+func (s *service) Config(_ context.Context) (*config.Config, error) {
+	return s.cfg, nil
 }
 
 func (s *service) CreateFile(ctx context.Context, k string, r io.Reader) error {
