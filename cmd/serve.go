@@ -96,13 +96,13 @@ func init() {
 	serveCmd.PersistentFlags().StringSliceP("volumes", "v", []string{}, "Volumes to store the data")
 	viper.BindPFlag("volumes", serveCmd.PersistentFlags().Lookup("volumes"))
 
-	serveCmd.PersistentFlags().StringSliceP("remote", "r", []string{}, "The address of the remote node without the Port, if the 'memberlist-bind-port' of that node is modified then this IP has to include it")
+	serveCmd.PersistentFlags().StringP("remote", "r", "", "The URL of a remote Node to join on the cluster")
 	viper.BindPFlag("remote", serveCmd.PersistentFlags().Lookup("remote"))
 
-	serveCmd.PersistentFlags().StringSlice("memberlist-bind-port", []string{}, "The port is used for both UDP and TCP gossip. It is assumed other nodes are running on this port, but they do not need to.")
+	serveCmd.PersistentFlags().String("memberlist-bind-port", "", "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist-bind-port", serveCmd.PersistentFlags().Lookup("memberlist-bind-port"))
 
-	serveCmd.PersistentFlags().StringSlice("memberlist-name", []string{}, "The name of this node. This must be unique in the cluster.")
+	serveCmd.PersistentFlags().String("memberlist-name", "", "The name of this node. This must be unique in the cluster.")
 	viper.BindPFlag("memberlist-name", serveCmd.PersistentFlags().Lookup("memberlist-name"))
 
 	RootCmd.AddCommand(serveCmd)

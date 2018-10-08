@@ -40,7 +40,7 @@ func TestVolumes(t *testing.T) {
 			defer server.Close()
 
 			cfg := &config.Config{MemberlistName: "am", MemberlistBindPort: 4002}
-			m, err := membership.New(cfg, []volume.Volume{v}, "0.0.0.0:4001")
+			m, err := membership.New(cfg, []volume.Volume{v}, server.URL)
 			require.NoError(t, err)
 			assert.Len(t, m.RemoteVolumes(), 1)
 			assert.Equal(t, []volume.Volume{v}, m.LocalVolumes())
@@ -59,7 +59,7 @@ func TestVolumes(t *testing.T) {
 			defer server.Close()
 
 			cfg := &config.Config{MemberlistName: "rm", MemberlistBindPort: 4004}
-			m, err := membership.New(cfg, []volume.Volume{v}, "0.0.0.0:4003")
+			m, err := membership.New(cfg, []volume.Volume{v}, server.URL)
 			require.NoError(t, err)
 			assert.Len(t, m.RemoteVolumes(), 1)
 			assert.Equal(t, []volume.Volume{v}, m.LocalVolumes())

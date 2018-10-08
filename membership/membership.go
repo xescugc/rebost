@@ -1,10 +1,15 @@
 package membership
 
 import (
+	"context"
 	"fmt"
+	"net"
+	"net/url"
+	"strconv"
 	"sync"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/volume"
 )
@@ -52,7 +57,31 @@ func New(cfg *config.Config, lv []volume.Volume, remote string) (Membership, err
 	m.members = list
 
 	if remote != "" {
-		_, err = list.Join([]string{remote})
+		u, err := url.Parse(remote)
+		if err != nil {
+			return nil, err
+		}
+
+		if u.Scheme == "" {
+			u.Scheme = "http"
+		}
+
+		c, err := client.New(u.String())
+		if err != nil {
+			return nil, err
+		}
+
+		cfg, err := c.Config(context.TODO())
+		if err != nil {
+			return nil, err
+		}
+
+		host, _, err := net.SplitHostPort(u.Host)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = list.Join([]string{net.JoinHostPort(host, strconv.Itoa(cfg.MemberlistBindPort))})
 		if err != nil {
 			return nil, fmt.Errorf("Failed to join cluster: %s", err.Error())
 		}
