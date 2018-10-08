@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 )
@@ -35,4 +36,14 @@ func decodeGetFileResponse(_ context.Context, r *http.Response) (interface{}, er
 	}()
 
 	return getFileResponse{IOR: pr}, nil
+}
+
+func encodeGetConfigRequest(_ context.Context, r *http.Request, request interface{}) error { return nil }
+
+func decodeGetConfigResponse(_ context.Context, r *http.Response) (interface{}, error) {
+	var response getConfigResponse
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
 }

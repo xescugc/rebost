@@ -48,3 +48,13 @@ func makeHasFileEndpoint(u url.URL) endpoint.Endpoint {
 		decodeHasFileResponse,
 	).Endpoint()
 }
+
+func makeGetConfigEndpoint(u url.URL) endpoint.Endpoint {
+	u.Path = "/config"
+	return kithttp.NewClient(
+		http.MethodGet,
+		&u,
+		encodeGetConfigRequest,
+		decodeGetConfigResponse,
+	).Endpoint()
+}

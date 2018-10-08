@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/xescugc/rebost/config"
+	"github.com/xescugc/rebost/storing/model"
 )
 
 // Client is the client structure that fulfills the storing.Service
@@ -17,6 +19,7 @@ type Client struct {
 	getFile    endpoint.Endpoint
 	deleteFile endpoint.Endpoint
 	hasFile    endpoint.Endpoint
+	getConfig  endpoint.Endpoint
 }
 
 // New returns an client to connect to a remote Storing service
@@ -37,8 +40,30 @@ func New(host string) (*Client, error) {
 	c.getFile = makeGetFileEndpoint(*u)
 	//c.deleteFile = makeDeleteFileEndpoint(*u)
 	c.hasFile = makeHasFileEndpoint(*u)
+	c.getConfig = makeGetConfigEndpoint(*u)
 
 	return c, nil
+}
+
+type getConfigResponse struct {
+	Data model.Config `json:"data,omitempty"`
+	Err  error        `json:"error,omitempty"`
+}
+
+// Config returns the config of the Node
+func (c Client) Config(ctx context.Context) (*config.Config, error) {
+	response, err := c.getConfig(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := response.(getConfigResponse)
+	if resp.Err != nil {
+		return nil, resp.Err
+	}
+
+	cfg := config.Config(resp.Data)
+	return &cfg, nil
 }
 
 // CreateFile WIP

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/client"
+	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
 )
@@ -79,5 +80,25 @@ func TestHasFile(t *testing.T) {
 		ok, err := c.HasFile(context.Background(), key)
 		require.NoError(t, err)
 		assert.False(t, ok)
+	})
+}
+
+func TestGetConfig(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		st := mock.NewStoring(ctrl)
+		defer ctrl.Finish()
+		ecfg := &config.Config{MemberlistName: "Pepito"}
+
+		st.EXPECT().Config(gomock.Any()).Return(ecfg, nil)
+
+		h := storing.MakeHandler(st)
+		server := httptest.NewServer(h)
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		cfg, err := c.Config(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, ecfg, cfg)
 	})
 }
