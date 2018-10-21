@@ -23,6 +23,7 @@ func TestMakeHandler(t *testing.T) {
 		content = []byte("content")
 		ctrl    = gomock.NewController(t)
 		cfg     = config.Config{MemberlistName: "Pepito"}
+		rep     = 2
 	)
 
 	st := mock.NewStoring(ctrl)
@@ -32,7 +33,7 @@ func TestMakeHandler(t *testing.T) {
 	server := httptest.NewServer(h)
 	client := server.Client()
 
-	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, r io.Reader) {
+	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep).Do(func(_ context.Context, _ string, r io.Reader, _ int) {
 		b, err := ioutil.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
@@ -57,7 +58,7 @@ func TestMakeHandler(t *testing.T) {
 	}{
 		{
 			Name:        "CreateFile",
-			URL:         "/files/fileName",
+			URL:         "/files/fileName?replica=2",
 			Method:      http.MethodPut,
 			Body:        []byte("content"),
 			EStatusCode: http.StatusCreated,

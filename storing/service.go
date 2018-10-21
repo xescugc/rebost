@@ -42,8 +42,8 @@ func (s *service) Config(_ context.Context) (*config.Config, error) {
 	return s.cfg, nil
 }
 
-func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser) error {
-	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r)
+func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep int) error {
+	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r, rep)
 	if err != nil {
 		return err
 	}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -91,9 +92,17 @@ func decodeCreateFileRequest(_ context.Context, r *http.Request) (interface{}, e
 		iorc = r.Body
 	}
 
+	rep, err := strconv.Atoi(r.URL.Query().Get("replica"))
+	if err != nil {
+		// If we can not transform the replica to an Int, we
+		// just use the default value of int, which is 1
+		rep = 1
+	}
+
 	return createFileRequest{
-		Key:  mux.Vars(r)["key"],
-		Body: iorc,
+		Key:     mux.Vars(r)["key"],
+		Body:    iorc,
+		Replica: rep,
 	}, nil
 }
 

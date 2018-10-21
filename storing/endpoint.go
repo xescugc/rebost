@@ -9,8 +9,9 @@ import (
 )
 
 type createFileRequest struct {
-	Key  string
-	Body io.ReadCloser
+	Key     string
+	Body    io.ReadCloser
+	Replica int
 }
 
 type createFileResponse struct {
@@ -22,7 +23,7 @@ func (r createFileResponse) error() error { return r.Err }
 func makeCreateFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createFileRequest)
-		err := s.CreateFile(ctx, req.Key, req.Body)
+		err := s.CreateFile(ctx, req.Key, req.Body, req.Replica)
 		return createFileResponse{Err: err}, nil
 	}
 }

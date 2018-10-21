@@ -22,19 +22,20 @@ func TestCreateFile(t *testing.T) {
 			buff = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			rep  = 2
 		)
 
 		v := mock.NewVolume(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().CreateFile(gomock.Any(), key, buff).Return(nil)
+		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep).Return(nil)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
 
 		s := storing.New(&config.Config{}, m)
 
-		err := s.CreateFile(ctx, key, buff)
+		err := s.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
