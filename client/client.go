@@ -67,7 +67,7 @@ func (c Client) Config(ctx context.Context) (*config.Config, error) {
 }
 
 // CreateFile WIP
-func (c Client) CreateFile(ctx context.Context, key string, r io.ReadCloser) error {
+func (c Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
 	return nil
 }
 
