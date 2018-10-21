@@ -98,6 +98,7 @@ func TestCreateFile(t *testing.T) {
 		var (
 			tempuuid string
 			rootDir  = "root"
+			rep      = 2
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
@@ -105,6 +106,7 @@ func TestCreateFile(t *testing.T) {
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   2,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
@@ -138,7 +140,7 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessUpdateFileKey", func(t *testing.T) {
@@ -149,9 +151,11 @@ func TestCreateFile(t *testing.T) {
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
 			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			rep      = 2
 			ef       = file.File{
 				Keys:      []string{"b", key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   rep,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
@@ -180,6 +184,7 @@ func TestCreateFile(t *testing.T) {
 		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(&file.File{
 			Keys:      []string{"b"},
 			Signature: ef.Signature,
+			Replica:   rep,
 		}, nil)
 
 		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
@@ -188,7 +193,7 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessSame", func(t *testing.T) {
@@ -198,10 +203,12 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
+			rep      = 2
 			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   rep,
 			}
 
 			mv  = mock.NewManageVolume(t, rootDir)
@@ -228,7 +235,7 @@ func TestCreateFile(t *testing.T) {
 			Signature: ef.Signature,
 		}, nil)
 
-		err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessRemoveFileKey", func(t *testing.T) {
@@ -239,9 +246,11 @@ func TestCreateFile(t *testing.T) {
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
 			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			rep      = 2
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   rep,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
@@ -294,7 +303,7 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessRemoveFileKeyAndFile", func(t *testing.T) {
@@ -305,9 +314,11 @@ func TestCreateFile(t *testing.T) {
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
 			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			rep      = 2
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   rep,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
@@ -359,7 +370,7 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		err := mv.V.CreateFile(ctx, key, buff)
+		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
 }

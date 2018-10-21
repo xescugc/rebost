@@ -26,7 +26,7 @@ type Volume interface {
 	// * New key with already known reader
 	// * Already known key with new reader
 	// * Already known key and reader
-	CreateFile(ctx context.Context, key string, reader io.ReadCloser) error
+	CreateFile(ctx context.Context, key string, reader io.ReadCloser, replica int) error
 
 	// GetFile search for the file with the key
 	GetFile(ctx context.Context, key string) (io.ReadCloser, error)
@@ -126,7 +126,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSyst
 
 func (l *local) ID() string { return l.id }
 
-func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser) error {
+func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
 	tmp := path.Join(l.tempDir, uuid.NewV4().String())
 
 	fh, err := l.fs.Create(tmp)
@@ -143,6 +143,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser) err
 	f := &file.File{
 		Keys:      []string{key},
 		Signature: fmt.Sprintf("%x", sh1.Sum(nil)),
+		Replica:   rep,
 	}
 
 	p := f.Path(l.fileDir)
