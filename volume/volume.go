@@ -20,12 +20,23 @@ import (
 // Volume is an interface to deal with the simples actions
 // and basic ones
 type Volume interface {
+	// CreateFile creates a new file from the reader with the key, there are
+	// 4 different use cases to consider:
+	// * New key and reader
+	// * New key with already known reader
+	// * Already known key with new reader
+	// * Already known key and reader
 	CreateFile(ctx context.Context, key string, reader io.ReadCloser) error
 
+	// GetFile search for the file with the key
 	GetFile(ctx context.Context, key string) (io.ReadCloser, error)
 
+	// HasFile checks if a file with the key exists
 	HasFile(ctx context.Context, key string) (bool, error)
 
+	// DeleteFile deletes the key, if the key points to a
+	// file with 2 keys, then just the key will be deleted
+	// and not the content
 	DeleteFile(ctx context.Context, key string) error
 }
 
@@ -52,7 +63,7 @@ type local struct {
 
 // New returns an implementation of the volume.Local interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
-// if they are missing which are $root/file and $root/tmps
+// if they are missing which are $root/file and $root/tmps and also the ID
 func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
 	l := &local{
 		fileDir: path.Join(root, "file"),
