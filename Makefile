@@ -32,3 +32,7 @@ install-lint: ## Install the golint
 .PHONY: install-goimports
 install-goimports: ## Intall the goimports
 	@go get golang.org/x/tools/cmd/goimports
+
+.PHONY: generate
+generate: ## Generates the code generators
+	@go generate ./...
