@@ -67,7 +67,7 @@ func (c Client) Config(ctx context.Context) (*config.Config, error) {
 }
 
 // CreateFile WIP
-func (c Client) CreateFile(ctx context.Context, key string, r io.Reader) error {
+func (c Client) CreateFile(ctx context.Context, key string, r io.ReadCloser) error {
 	return nil
 }
 
@@ -76,12 +76,12 @@ type getFileRequest struct {
 }
 
 type getFileResponse struct {
-	IOR io.Reader
-	Err error
+	IORC io.ReadCloser
+	Err  error
 }
 
 // GetFile returns the requested file
-func (c Client) GetFile(ctx context.Context, key string) (io.Reader, error) {
+func (c Client) GetFile(ctx context.Context, key string) (io.ReadCloser, error) {
 	response, err := c.getFile(ctx, getFileRequest{Key: key})
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func (c Client) GetFile(ctx context.Context, key string) (io.Reader, error) {
 
 	resp := response.(getFileResponse)
 
-	return resp.IOR, resp.Err
+	return resp.IORC, resp.Err
 }
 
 type hasFileRequest struct {
