@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/afero"
 	"github.com/spf13/afero/mem"
 	"github.com/stretchr/testify/assert"
@@ -24,31 +26,71 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	var suow uow.StartUnitOfWork
-	var rootDir = "root"
+	t.Run("Success", func(t *testing.T) {
+		var suow uow.StartUnitOfWork
+		var rootDir = "root"
 
-	ctrl := gomock.NewController(t)
+		ctrl := gomock.NewController(t)
 
-	files := mock.NewFileRepository(ctrl)
-	idxkeys := mock.NewIDXKeyRepository(ctrl)
-	fs := mock.NewFs(ctrl)
+		files := mock.NewFileRepository(ctrl)
+		idxkeys := mock.NewIDXKeyRepository(ctrl)
+		fs := mock.NewFs(ctrl)
+		idPath := path.Join(rootDir, "id")
+		fh := mem.NewFileHandle(mem.CreateFile(idPath))
 
-	defer ctrl.Finish()
+		defer ctrl.Finish()
 
-	fs.EXPECT().MkdirAll(gomock.Any(), os.ModePerm).DoAndReturn(func(p string, _ os.FileMode) error {
-		switch p {
-		case path.Join(rootDir, "file"):
-			return nil
-		case path.Join(rootDir, "tmps"):
-			return nil
-		default:
-			return fmt.Errorf("test error for path: %q", p)
-		}
-	}).Times(2)
+		fs.EXPECT().MkdirAll(path.Join(rootDir, "file"), os.ModePerm).Return(nil)
+		fs.EXPECT().MkdirAll(path.Join(rootDir, "tmps"), os.ModePerm).Return(nil)
 
-	v, err := volume.New(rootDir, files, idxkeys, fs, suow)
-	require.NoError(t, err)
-	assert.NotNil(t, v)
+		fs.EXPECT().Stat(idPath).Return(nil, os.ErrNotExist)
+		fs.EXPECT().Create(idPath).Return(fh, nil)
+
+		v, err := volume.New(rootDir, files, idxkeys, fs, suow)
+		require.NoError(t, err)
+		assert.NotNil(t, v)
+
+		// As the FH is closed on the tests,
+		// we have to open it again
+		err = fh.Open()
+		require.NoError(t, err)
+
+		id, err := ioutil.ReadAll(fh)
+		require.NoError(t, err)
+
+		_, err = uuid.FromString(string(id))
+		fmt.Println(id)
+		require.NoError(t, err, "Validates that it's a UUID")
+	})
+	t.Run("SuccessWithAlreadyID", func(t *testing.T) {
+		var suow uow.StartUnitOfWork
+		var rootDir = "root"
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		files := mock.NewFileRepository(ctrl)
+		idxkeys := mock.NewIDXKeyRepository(ctrl)
+		fs := mock.NewFs(ctrl)
+		idPath := path.Join(rootDir, "id")
+		fh := mem.NewFileHandle(mem.CreateFile(idPath))
+		id := uuid.NewV4().String()
+		_, err := io.WriteString(fh, id)
+		require.NoError(t, err)
+		_, err = fh.Seek(0, 0)
+		require.NoError(t, err)
+
+		fs.EXPECT().MkdirAll(path.Join(rootDir, "file"), os.ModePerm).Return(nil)
+		fs.EXPECT().MkdirAll(path.Join(rootDir, "tmps"), os.ModePerm).Return(nil)
+
+		fs.EXPECT().Stat(idPath).Return(nil, nil)
+		fs.EXPECT().Open(idPath).Return(fh, nil)
+
+		v, err := volume.New(rootDir, files, idxkeys, fs, suow)
+		require.NoError(t, err)
+		assert.NotNil(t, v)
+		assert.Equal(t, id, v.ID())
+	})
 }
 
 func TestCreateFile(t *testing.T) {

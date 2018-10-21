@@ -29,9 +29,19 @@ type Volume interface {
 	DeleteFile(ctx context.Context, key string) error
 }
 
-type volume struct {
+// Local is the definition of a Local volume which
+// is an extension of the volume.Volume
+type Local interface {
+	Volume
+
+	// ID returns the ID of the Volume
+	ID() string
+}
+
+type local struct {
 	fileDir string
 	tempDir string
+	id      string
 
 	fs      afero.Fs
 	files   file.Repository
@@ -40,11 +50,11 @@ type volume struct {
 	startUnitOfWork uow.StartUnitOfWork
 }
 
-// New returns an implementation of the volume.Volume interface using the provided parameters
+// New returns an implementation of the volume.Local interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps
-func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Volume, error) {
-	v := &volume{
+func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
+	l := &local{
 		fileDir: path.Join(root, "file"),
 		tempDir: path.Join(root, "tmps"),
 
@@ -55,23 +65,60 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSyst
 		startUnitOfWork: suow,
 	}
 
-	err := v.fs.MkdirAll(v.fileDir, os.ModePerm)
+	err := l.fs.MkdirAll(l.fileDir, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
 
-	err = v.fs.MkdirAll(v.tempDir, os.ModePerm)
+	err = l.fs.MkdirAll(l.tempDir, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
 
-	return v, nil
+	var id string
+	idPath := path.Join(root, "id")
+	// Creates or reads the id from the idPath as a Volume
+	// must have always the same ID
+	if _, err = l.fs.Stat(idPath); os.IsNotExist(err) {
+		id = uuid.NewV4().String()
+		fh, err := l.fs.Create(idPath)
+		if err != nil {
+			return nil, err
+		}
+		defer fh.Close()
+
+		_, err = io.WriteString(fh, id)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		fh, err := l.fs.Open(idPath)
+		if err != nil {
+			return nil, err
+		}
+		defer fh.Close()
+
+		// This 36 is the length is the length of
+		// a UUID string: https://github.com/satori/go.uuid/blob/master/uuid.go#L116
+		bid := make([]byte, 36)
+		_, err = io.ReadFull(fh, bid)
+		if err != nil {
+			return nil, err
+		}
+		id = string(bid)
+	}
+
+	l.id = id
+
+	return l, nil
 }
 
-func (v *volume) CreateFile(ctx context.Context, key string, r io.ReadCloser) error {
-	tmp := path.Join(v.tempDir, uuid.NewV4().String())
+func (l *local) ID() string { return l.id }
 
-	fh, err := v.fs.Create(tmp)
+func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser) error {
+	tmp := path.Join(l.tempDir, uuid.NewV4().String())
+
+	fh, err := l.fs.Create(tmp)
 	if err != nil {
 		return err
 	}
@@ -87,20 +134,20 @@ func (v *volume) CreateFile(ctx context.Context, key string, r io.ReadCloser) er
 		Signature: fmt.Sprintf("%x", sh1.Sum(nil)),
 	}
 
-	p := f.Path(v.fileDir)
+	p := f.Path(l.fileDir)
 	dir, _ := path.Split(p)
 
-	err = v.fs.MkdirAll(dir, os.ModePerm)
+	err = l.fs.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		return err
 	}
 
-	err = v.fs.Rename(tmp, p)
+	err = l.fs.Rename(tmp, p)
 	if err != nil {
 		return err
 	}
 
-	err = v.startUnitOfWork(ctx, uow.Write, func(uw uow.UnitOfWork) error {
+	err = l.startUnitOfWork(ctx, uow.Write, func(uw uow.UnitOfWork) error {
 		dbf, err := uw.Files().FindBySignature(ctx, f.Signature)
 		if err != nil && err.Error() != "not found" {
 			return err
@@ -148,7 +195,7 @@ func (v *volume) CreateFile(ctx context.Context, key string, r io.ReadCloser) er
 					return err
 				}
 
-				err = uw.Fs().Remove(file.Path(v.fileDir, ik.Value))
+				err = uw.Fs().Remove(file.Path(l.fileDir, ik.Value))
 				if err != nil {
 					return err
 				}
@@ -173,7 +220,7 @@ func (v *volume) CreateFile(ctx context.Context, key string, r io.ReadCloser) er
 		}
 
 		return nil
-	}, v.idxkeys, v.files, v.fs)
+	}, l.idxkeys, l.files, l.fs)
 
 	if err != nil {
 		return err
@@ -182,25 +229,25 @@ func (v *volume) CreateFile(ctx context.Context, key string, r io.ReadCloser) er
 	return nil
 }
 
-func (v *volume) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
+func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 	var (
 		idk *idxkey.IDXKey
 		err error
 	)
 
-	err = v.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+	err = l.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
 		idk, err = uw.IDXKeys().FindByKey(ctx, k)
 		if err != nil {
 			return err
 		}
 		return nil
-	}, v.idxkeys)
+	}, l.idxkeys)
 
 	if err != nil {
 		return nil, err
 	}
 
-	fh, err := v.fs.Open(file.Path(v.fileDir, idk.Value))
+	fh, err := l.fs.Open(file.Path(l.fileDir, idk.Value))
 	if err != nil {
 		return nil, err
 	}
@@ -208,8 +255,8 @@ func (v *volume) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 	return fh, nil
 }
 
-func (v *volume) DeleteFile(ctx context.Context, key string) error {
-	return v.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+func (l *local) DeleteFile(ctx context.Context, key string) error {
+	return l.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
 		ik, err := uw.IDXKeys().FindByKey(ctx, key)
 		if err != nil {
 			return err
@@ -231,7 +278,7 @@ func (v *volume) DeleteFile(ctx context.Context, key string) error {
 				return err
 			}
 
-			err = uw.Fs().Remove(file.Path(v.fileDir, ik.Value))
+			err = uw.Fs().Remove(file.Path(l.fileDir, ik.Value))
 			if err != nil {
 				return err
 			}
@@ -245,17 +292,17 @@ func (v *volume) DeleteFile(ctx context.Context, key string) error {
 		}
 
 		return uw.IDXKeys().DeleteByKey(ctx, key)
-	}, v.idxkeys, v.files, v.fs)
+	}, l.idxkeys, l.files, l.fs)
 }
 
-func (v *volume) HasFile(ctx context.Context, k string) (bool, error) {
-	err := v.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+func (l *local) HasFile(ctx context.Context, k string) (bool, error) {
+	err := l.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
 		_, err := uw.IDXKeys().FindByKey(ctx, k)
 		if err != nil {
 			return err
 		}
 		return nil
-	}, v.idxkeys)
+	}, l.idxkeys)
 
 	if err != nil {
 		if err.Error() == "not found" {

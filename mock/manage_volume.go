@@ -2,9 +2,11 @@ package mock
 
 import (
 	context "context"
+	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/spf13/afero/mem"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/uow"
 	"github.com/xescugc/rebost/volume"
@@ -42,6 +44,8 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 	// This first implementation is already tested
 	// so we do not need it
 	fs.EXPECT().MkdirAll(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+	fs.EXPECT().Stat(gomock.Any()).Return(nil, os.ErrNotExist)
+	fs.EXPECT().Create(gomock.Any()).Return(mem.NewFileHandle(mem.CreateFile("")), nil)
 
 	v, err := volume.New(root, files, idxkeys, fs, uowFn)
 	require.NoError(t, err)
