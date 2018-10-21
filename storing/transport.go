@@ -67,7 +67,6 @@ func MakeHandler(s Service) http.Handler {
 
 func decodeCreateFileRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	var iorc io.ReadCloser
-	pr, pw := io.Pipe()
 
 	if mr, _ := r.MultipartReader(); mr != nil {
 		ppr, ppw := io.Pipe()
@@ -92,15 +91,9 @@ func decodeCreateFileRequest(_ context.Context, r *http.Request) (interface{}, e
 		iorc = r.Body
 	}
 
-	go func() {
-		defer iorc.Close()
-		defer pw.Close()
-		io.Copy(pw, iorc)
-	}()
-
 	return createFileRequest{
 		Key:  mux.Vars(r)["key"],
-		Body: pr,
+		Body: iorc,
 	}, nil
 }
 
@@ -124,8 +117,10 @@ func encodeGetFileResponse(ctx context.Context, w http.ResponseWriter, response 
 		encodeError(ctx, e.error(), w)
 		return nil
 	}
+
 	gfr := response.(getFileResponse)
-	_, err := io.Copy(w, gfr.IOR)
+	defer gfr.IORC.Close()
+	_, err := io.Copy(w, gfr.IORC)
 	return err
 }
 

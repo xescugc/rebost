@@ -42,7 +42,7 @@ func (s *service) Config(_ context.Context) (*config.Config, error) {
 	return s.cfg, nil
 }
 
-func (s *service) CreateFile(ctx context.Context, k string, r io.Reader) error {
+func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser) error {
 	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r)
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func (s *service) CreateFile(ctx context.Context, k string, r io.Reader) error {
 	return nil
 }
 
-func (s *service) GetFile(ctx context.Context, k string) (io.Reader, error) {
+func (s *service) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 	v, err := s.getVolume(ctx, k)
 	if err != nil {
 		return nil, err
@@ -92,6 +92,8 @@ func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
 	return vls[rand.Intn(len(vls))]
 }
 
+// getVolume returns a volume that may have k in his index. It tries first with
+// the LocalVolumes and then with the RemoteVolumes
 func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
 	v, err := s.findVolume(ctx, s.members.LocalVolumes(), k)
 	if err != nil && err.Error() != "not found" {

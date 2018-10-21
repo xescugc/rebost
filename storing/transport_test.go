@@ -37,7 +37,7 @@ func TestMakeHandler(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
 	}).Return(nil).AnyTimes()
-	st.EXPECT().GetFile(gomock.Any(), key).Return(bytes.NewBuffer(content), nil).AnyTimes()
+	st.EXPECT().GetFile(gomock.Any(), key).Return(ClosingBuffer{Buffer: bytes.NewBuffer(content)}, nil).AnyTimes()
 	st.EXPECT().DeleteFile(gomock.Any(), key).Return(nil).AnyTimes()
 	st.EXPECT().HasFile(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, k string) (bool, error) {
 		if k == key {
