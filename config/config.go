@@ -14,6 +14,7 @@ type Config struct {
 	Port    int
 	Volumes []string
 	Remote  string
+	Replica int
 
 	MemberlistBindPort int
 	MemberlistName     string
@@ -53,6 +54,7 @@ func New(v *viper.Viper) (*Config, error) {
 		Port:    v.GetInt("port"),
 		Volumes: v.GetStringSlice("volumes"),
 		Remote:  v.GetString("remote"),
+		Replica: v.GetInt("replica"),
 
 		MemberlistBindPort: v.GetInt("memberlist-bind-port"),
 		MemberlistName:     v.GetString("memberlist-name"),
