@@ -35,7 +35,7 @@ func (m *Volume) EXPECT() *VolumeMockRecorder {
 }
 
 // CreateFile mocks base method
-func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.Reader) error {
+func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser) error {
 	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -59,9 +59,9 @@ func (mr *VolumeMockRecorder) DeleteFile(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetFile mocks base method
-func (m *Volume) GetFile(arg0 context.Context, arg1 string) (io.Reader, error) {
+func (m *Volume) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, error) {
 	ret := m.ctrl.Call(m, "GetFile", arg0, arg1)
-	ret0, _ := ret[0].(io.Reader)
+	ret0, _ := ret[0].(io.ReadCloser)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
