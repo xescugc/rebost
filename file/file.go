@@ -5,9 +5,12 @@ import "path"
 // File represents the structure of a stored File with the Signature (SHA1 of the content of the File)
 // and the key which is the name of the file
 type File struct {
-	Keys      []string
+	// Keys has all the keys that point to this file
+	Keys []string
+	// Signature is the SHA1 of the file
 	Signature string
-	Replicas  []string
+	// Replica number of replicas for that file
+	Replica int
 }
 
 // Path calculates the storage path for the File with the Signature
