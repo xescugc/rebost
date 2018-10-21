@@ -43,6 +43,9 @@ func (s *service) Config(_ context.Context) (*config.Config, error) {
 }
 
 func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep int) error {
+	if rep == 0 {
+		rep = s.cfg.Replica
+	}
 	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r, rep)
 	if err != nil {
 		return err

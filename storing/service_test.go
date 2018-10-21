@@ -38,6 +38,28 @@ func TestCreateFile(t *testing.T) {
 		err := s.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
+	t.Run("SuccessWithConfigReplica", func(t *testing.T) {
+		var (
+			key  = "expectedkey"
+			buff = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			rep  = 2
+		)
+
+		v := mock.NewVolume(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep).Return(nil)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+
+		s := storing.New(&config.Config{Replica: rep}, m)
+
+		err := s.CreateFile(ctx, key, buff, 0)
+		require.NoError(t, err)
+	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		t.Skip("Not yet thought")
 	})

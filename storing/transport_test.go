@@ -3,6 +3,8 @@ package storing_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
+	"github.com/xescugc/rebost/storing/model"
 )
 
 func TestMakeHandler(t *testing.T) {
@@ -96,7 +99,9 @@ func TestMakeHandler(t *testing.T) {
 			Method:      http.MethodGet,
 			EStatusCode: http.StatusOK,
 			EBody: func() []byte {
-				return []byte(`{"data":{"port":0,"volumes":null,"remote":"","memberlist_bind_port":0,"memberlist_name":"Pepito"}}`)
+				cfg := model.Config{MemberlistName: "Pepito"}
+				b, _ := json.Marshal(cfg)
+				return []byte(fmt.Sprintf(`{"data":%s}`, b))
 			},
 		},
 	}
