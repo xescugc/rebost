@@ -35,15 +35,15 @@ func (m *Volume) EXPECT() *VolumeMockRecorder {
 }
 
 // CreateFile mocks base method
-func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser) error {
-	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2)
+func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 int) error {
+	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateFile indicates an expected call of CreateFile
-func (mr *VolumeMockRecorder) CreateFile(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*Volume)(nil).CreateFile), arg0, arg1, arg2)
+func (mr *VolumeMockRecorder) CreateFile(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*Volume)(nil).CreateFile), arg0, arg1, arg2, arg3)
 }
 
 // DeleteFile mocks base method
