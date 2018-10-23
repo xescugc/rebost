@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/ioutil"
 	"net/http/httptest"
 	"testing"
 
@@ -26,7 +27,7 @@ func TestGetFile(t *testing.T) {
 	st := mock.NewStoring(ctrl)
 	defer ctrl.Finish()
 
-	st.EXPECT().GetFile(gomock.Any(), key).Return(ClosingBuffer{Buffer: bytes.NewBuffer(content)}, nil)
+	st.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBuffer(content)), nil)
 
 	h := storing.MakeHandler(st)
 	server := httptest.NewServer(h)
@@ -101,15 +102,4 @@ func TestGetConfig(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, ecfg, cfg)
 	})
-}
-
-type ClosingBuffer struct {
-	*bytes.Buffer
-}
-
-func (cb ClosingBuffer) Close() (err error) {
-	//we don't actually have to do anything here, since the buffer is
-	//just some data in memory
-	//and the error is initialized to no-error
-	return nil
 }
