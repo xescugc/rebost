@@ -43,3 +43,7 @@
 [[constraint]]
   name = "github.com/golang/mock"
   branch = "master"
+
+[[constraint]]
+  name = "github.com/go-kit/kit"
+  revision = "ec0cc13a9b00d1214c9b7ae63d7b750626b54c6d"
