@@ -9,6 +9,7 @@ import (
 	afero "github.com/spf13/afero"
 	file "github.com/xescugc/rebost/file"
 	idxkey "github.com/xescugc/rebost/idxkey"
+	replica "github.com/xescugc/rebost/replica"
 	reflect "reflect"
 )
 
@@ -69,4 +70,16 @@ func (m *UnitOfWork) IDXKeys() idxkey.Repository {
 // IDXKeys indicates an expected call of IDXKeys
 func (mr *UnitOfWorkMockRecorder) IDXKeys() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXKeys", reflect.TypeOf((*UnitOfWork)(nil).IDXKeys))
+}
+
+// ReplicaPendent mocks base method
+func (m *UnitOfWork) ReplicaPendent() replica.PendentRepository {
+	ret := m.ctrl.Call(m, "ReplicaPendent")
+	ret0, _ := ret[0].(replica.PendentRepository)
+	return ret0
+}
+
+// ReplicaPendent indicates an expected call of ReplicaPendent
+func (mr *UnitOfWorkMockRecorder) ReplicaPendent() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplicaPendent", reflect.TypeOf((*UnitOfWork)(nil).ReplicaPendent))
 }

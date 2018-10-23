@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
 )
 
@@ -15,9 +16,10 @@ type unitOfWork struct {
 	tx *bolt.Tx
 	t  uow.Type
 
-	fileRepository   file.Repository
-	idxkeyRepository idxkey.Repository
-	fs               afero.Fs
+	fileRepository           file.Repository
+	idxkeyRepository         idxkey.Repository
+	fs                       afero.Fs
+	replicaPendentRepository replica.PendentRepository
 }
 
 // NewUOW returns an implementation of the interface uow.StartUnitOfWork
@@ -70,6 +72,10 @@ func (uw *unitOfWork) IDXKeys() idxkey.Repository {
 
 func (uw *unitOfWork) Fs() afero.Fs {
 	return uw.fs
+}
+
+func (uw *unitOfWork) ReplicaPendent() replica.PendentRepository {
+	return uw.replicaPendentRepository
 }
 
 func newUnitOfWork(t uow.Type) *unitOfWork {
@@ -133,6 +139,15 @@ func (uw *unitOfWork) add(r interface{}) error {
 		}
 		r.bucket = b
 		uw.idxkeyRepository = &r
+		return nil
+	case *replicaPendentRepository:
+		r := *rep
+		b := uw.tx.Bucket(r.bucketName)
+		if b == nil {
+			return fmt.Errorf("bucker for %q not found", r.bucketName)
+		}
+		r.bucket = b
+		uw.replicaPendentRepository = &r
 		return nil
 	default:
 		if v, ok := r.(afero.Fs); ok {

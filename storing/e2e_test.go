@@ -158,9 +158,12 @@ func newNode(t *testing.T, cfg *config.Config, remote string) *node {
 	idxkeys, err := boltdb.NewIDXKeyRepository(bdb)
 	require.NoError(t, err)
 
+	replicaPendent, err := boltdb.NewReplicaPendentRepository(bdb)
+	require.NoError(t, err)
+
 	suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-	v, err := volume.New(tmpDir, files, idxkeys, osfs, suow)
+	v, err := volume.New(tmpDir, files, idxkeys, replicaPendent, osfs, suow)
 	require.NoError(t, err)
 
 	m, err := membership.New(cfg, []volume.Volume{v}, remote)

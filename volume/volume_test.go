@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -21,6 +20,7 @@ import (
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/mock"
+	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
 	"github.com/xescugc/rebost/volume"
 )
@@ -35,6 +35,7 @@ func TestNew(t *testing.T) {
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
 		fs := mock.NewFs(ctrl)
+		rp := mock.NewReplicaPendentRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
 
@@ -46,7 +47,7 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, os.ErrNotExist)
 		fs.EXPECT().Create(idPath).Return(fh, nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, fs, suow)
+		v, err := volume.New(rootDir, files, idxkeys, rp, fs, suow)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 
@@ -59,7 +60,6 @@ func TestNew(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = uuid.FromString(string(id))
-		fmt.Println(id)
 		require.NoError(t, err, "Validates that it's a UUID")
 	})
 	t.Run("SuccessWithAlreadyID", func(t *testing.T) {
@@ -72,6 +72,7 @@ func TestNew(t *testing.T) {
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
 		fs := mock.NewFs(ctrl)
+		rp := mock.NewReplicaPendentRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
 		id := uuid.NewV4().String()
@@ -86,7 +87,7 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, nil)
 		fs.EXPECT().Open(idPath).Return(fh, nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, fs, suow)
+		v, err := volume.New(rootDir, files, idxkeys, rp, fs, suow)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		assert.Equal(t, id, v.ID())
@@ -111,6 +112,11 @@ func TestCreateFile(t *testing.T) {
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
+			}
+			eRepPendent = replica.Pendent{
+				Key:       key,
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   2,
 			}
 
 			mv  = mock.NewManageVolume(t, rootDir)
@@ -140,6 +146,13 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
+		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(func(_ context.Context, rp *replica.Pendent) {
+			_, err := uuid.FromString(string(rp.ID))
+			require.NoError(t, err, "Validates that it's a UUID")
+			rp.ID = ""
+			assert.Equal(t, rp, &eRepPendent)
+		}).Return(nil)
+
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
@@ -160,6 +173,11 @@ func TestCreateFile(t *testing.T) {
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
+			}
+			eRepPendent = replica.Pendent{
+				Key:       key,
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   2,
 			}
 
 			mv  = mock.NewManageVolume(t, rootDir)
@@ -192,6 +210,13 @@ func TestCreateFile(t *testing.T) {
 		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
+
+		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(func(_ context.Context, rp *replica.Pendent) {
+			_, err := uuid.FromString(string(rp.ID))
+			require.NoError(t, err, "Validates that it's a UUID")
+			rp.ID = ""
+			assert.Equal(t, rp, &eRepPendent)
+		}).Return(nil)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
@@ -260,6 +285,11 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key, "b"},
 				Signature: "123123123",
 			}
+			eRepPendent = replica.Pendent{
+				Key:       key,
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   2,
+			}
 
 			mv  = mock.NewManageVolume(t, rootDir)
 			ctx = context.Background()
@@ -303,6 +333,13 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
+		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(func(_ context.Context, rp *replica.Pendent) {
+			_, err := uuid.FromString(string(rp.ID))
+			require.NoError(t, err, "Validates that it's a UUID")
+			rp.ID = ""
+			assert.Equal(t, rp, &eRepPendent)
+		}).Return(nil)
+
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
@@ -327,6 +364,11 @@ func TestCreateFile(t *testing.T) {
 			foundFile = file.File{
 				Keys:      []string{key},
 				Signature: "123123123",
+			}
+			eRepPendent = replica.Pendent{
+				Key:       key,
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   2,
 			}
 
 			mv  = mock.NewManageVolume(t, rootDir)
@@ -369,6 +411,13 @@ func TestCreateFile(t *testing.T) {
 		mv.IDXKeys.EXPECT().DeleteByKey(ctx, key).Return(nil)
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
+
+		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(func(_ context.Context, rp *replica.Pendent) {
+			_, err := uuid.FromString(string(rp.ID))
+			require.NoError(t, err, "Validates that it's a UUID")
+			rp.ID = ""
+			assert.Equal(t, rp, &eRepPendent)
+		}).Return(nil)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)

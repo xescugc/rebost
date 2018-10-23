@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
 )
 
@@ -54,9 +55,10 @@ type local struct {
 	tempDir string
 	id      string
 
-	fs      afero.Fs
-	files   file.Repository
-	idxkeys idxkey.Repository
+	fs             afero.Fs
+	files          file.Repository
+	idxkeys        idxkey.Repository
+	replicaPendent replica.PendentRepository
 
 	startUnitOfWork uow.StartUnitOfWork
 }
@@ -64,14 +66,15 @@ type local struct {
 // New returns an implementation of the volume.Local interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
-func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, replicaPendent replica.PendentRepository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
 	l := &local{
 		fileDir: path.Join(root, "file"),
 		tempDir: path.Join(root, "tmps"),
 
-		files:   files,
-		fs:      fileSystem,
-		idxkeys: idxkeys,
+		files:          files,
+		fs:             fileSystem,
+		idxkeys:        idxkeys,
+		replicaPendent: replicaPendent,
 
 		startUnitOfWork: suow,
 	}
@@ -165,6 +168,8 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			return err
 		}
 
+		// If the File already exists on the DB with that signature
+		// we have to add another key if it's not already there
 		if dbf != nil {
 			ok := false
 			for _, k := range dbf.Keys {
@@ -189,6 +194,12 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			return err
 		}
 
+		// If we have an IDXKey with the same key we are storing
+		// means that we have a name colision. We will:
+		// * Remove the new key from the File.Keys
+		// * If the len(File.Keys) == 0 we'll remove that File/IDXKey
+		// * If the len(File.Keys) != 0 we'll update that File
+		// At the end the new key will replace the old one found
 		if ik != nil {
 			dbf, err := uw.Files().FindBySignature(ctx, ik.Value)
 			if err != nil && err.Error() != "not found" {
@@ -202,6 +213,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 				newKeys = append(newKeys, k)
 			}
 			if len(newKeys) == 0 {
+				// If no keys we remove the File
 				err = uw.Files().DeleteBySignature(ctx, ik.Value)
 				if err != nil {
 					return err
@@ -217,6 +229,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 					return err
 				}
 			} else {
+				// If some keys left we update the File
 				dbf.Keys = newKeys
 
 				err = uw.Files().CreateOrReplace(ctx, dbf)
@@ -231,8 +244,18 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			return err
 		}
 
+		err = uw.ReplicaPendent().Create(ctx, &replica.Pendent{
+			ID:  uuid.NewV4().String(),
+			Key: key,
+			// TODO: For now we are ignoring the fact
+			// that if the file exists the replicas may
+			// chage and be less or more
+			Replica:   rep,
+			Signature: f.Signature,
+		})
+
 		return nil
-	}, l.idxkeys, l.files, l.fs)
+	}, l.idxkeys, l.files, l.fs, l.replicaPendent)
 
 	if err != nil {
 		return err
