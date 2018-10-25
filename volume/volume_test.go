@@ -113,13 +113,14 @@ func TestCreateFile(t *testing.T) {
 				Key:   key,
 				Value: ef.Signature,
 			}
+			mv          = mock.NewManageVolume(t, rootDir)
 			eRepPendent = replica.Pendent{
 				Key:       key,
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   2,
+				VolumeID:  mv.V.ID(),
 			}
 
-			mv  = mock.NewManageVolume(t, rootDir)
 			ctx = context.Background()
 		)
 
@@ -174,13 +175,14 @@ func TestCreateFile(t *testing.T) {
 				Key:   key,
 				Value: ef.Signature,
 			}
+			mv          = mock.NewManageVolume(t, rootDir)
 			eRepPendent = replica.Pendent{
 				Key:       key,
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   2,
+				VolumeID:  mv.V.ID(),
 			}
 
-			mv  = mock.NewManageVolume(t, rootDir)
 			ctx = context.Background()
 		)
 
@@ -285,13 +287,14 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key, "b"},
 				Signature: "123123123",
 			}
+			mv          = mock.NewManageVolume(t, rootDir)
 			eRepPendent = replica.Pendent{
 				Key:       key,
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   2,
+				VolumeID:  mv.V.ID(),
 			}
 
-			mv  = mock.NewManageVolume(t, rootDir)
 			ctx = context.Background()
 		)
 
@@ -365,13 +368,14 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key},
 				Signature: "123123123",
 			}
+			mv          = mock.NewManageVolume(t, rootDir)
 			eRepPendent = replica.Pendent{
 				Key:       key,
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   2,
+				VolumeID:  mv.V.ID(),
 			}
 
-			mv  = mock.NewManageVolume(t, rootDir)
 			ctx = context.Background()
 		)
 

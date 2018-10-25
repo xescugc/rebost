@@ -13,4 +13,7 @@ type Pendent struct {
 
 	// Signature is the signature of the file
 	Signature string
+
+	// VolumeID that stores the original replica
+	VolumeID string
 }

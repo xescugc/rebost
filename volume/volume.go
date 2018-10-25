@@ -252,6 +252,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			// chage and be less or more
 			Replica:   rep,
 			Signature: f.Signature,
+			VolumeID:  l.id,
 		})
 
 		return nil

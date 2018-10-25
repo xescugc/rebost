@@ -20,7 +20,7 @@ type ManageVolume struct {
 	Fs             *Fs
 	ReplicaPendent *ReplicaPendentRepository
 
-	V volume.Volume
+	V volume.Local
 
 	ctrl *gomock.Controller
 }
