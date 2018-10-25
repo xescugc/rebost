@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/ioutil"
 	"net/http/httptest"
 	"testing"
 
@@ -18,14 +19,15 @@ import (
 
 func TestGetFile(t *testing.T) {
 	var (
-		key     = "fileName"
-		content = []byte("content")
+		key = "fileName"
+		// Kind of a big content just to test
+		content = make([]byte, 6000)
 		ctrl    = gomock.NewController(t)
 	)
 	st := mock.NewStoring(ctrl)
 	defer ctrl.Finish()
 
-	st.EXPECT().GetFile(gomock.Any(), key).Return(bytes.NewBuffer(content), nil)
+	st.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBuffer(content)), nil)
 
 	h := storing.MakeHandler(st)
 	server := httptest.NewServer(h)
@@ -36,7 +38,6 @@ func TestGetFile(t *testing.T) {
 	require.NoError(t, err)
 
 	bu := new(bytes.Buffer)
-	//b, err := ioutil.ReadAll(ior)
 	require.NoError(t, err)
 	io.Copy(bu, ior)
 	assert.Equal(t, content, bu.Bytes())

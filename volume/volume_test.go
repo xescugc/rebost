@@ -59,7 +59,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = bytes.NewBufferString("content of the file")
+			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
@@ -106,7 +106,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = bytes.NewBufferString("content of the file")
+			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{"b", key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
@@ -156,7 +156,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = bytes.NewBufferString("content of the file")
+			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
@@ -196,7 +196,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = bytes.NewBufferString("content of the file")
+			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
@@ -262,7 +262,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = bytes.NewBufferString("content of the file")
+			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",

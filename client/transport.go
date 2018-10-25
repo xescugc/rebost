@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 )
 
@@ -26,16 +25,7 @@ func encodeGetFileRequest(_ context.Context, r *http.Request, request interface{
 }
 
 func decodeGetFileResponse(_ context.Context, r *http.Response) (interface{}, error) {
-	iorc := r.Body
-	pr, pw := io.Pipe()
-
-	go func() {
-		defer iorc.Close()
-		defer pw.Close()
-		io.Copy(pw, iorc)
-	}()
-
-	return getFileResponse{IOR: pr}, nil
+	return getFileResponse{IORC: r.Body}, nil
 }
 
 func encodeGetConfigRequest(_ context.Context, r *http.Request, request interface{}) error { return nil }

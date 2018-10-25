@@ -10,7 +10,7 @@ import (
 
 type createFileRequest struct {
 	Key  string
-	Body io.Reader
+	Body io.ReadCloser
 }
 
 type createFileResponse struct {
@@ -32,8 +32,8 @@ type getFileRequest struct {
 }
 
 type getFileResponse struct {
-	IOR io.Reader
-	Err error
+	IORC io.ReadCloser
+	Err  error
 }
 
 func (r getFileResponse) error() error { return r.Err }
@@ -41,8 +41,8 @@ func (r getFileResponse) error() error { return r.Err }
 func makeGetFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getFileRequest)
-		ior, err := s.GetFile(ctx, req.Key)
-		return getFileResponse{IOR: ior, Err: err}, nil
+		iorc, err := s.GetFile(ctx, req.Key)
+		return getFileResponse{IORC: iorc, Err: err}, nil
 	}
 }
 

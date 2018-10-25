@@ -20,9 +20,9 @@ import (
 // Volume is an interface to deal with the simples actions
 // and basic ones
 type Volume interface {
-	CreateFile(ctx context.Context, key string, reader io.Reader) error
+	CreateFile(ctx context.Context, key string, reader io.ReadCloser) error
 
-	GetFile(ctx context.Context, key string) (io.Reader, error)
+	GetFile(ctx context.Context, key string) (io.ReadCloser, error)
 
 	HasFile(ctx context.Context, key string) (bool, error)
 
@@ -68,7 +68,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, fileSyst
 	return v, nil
 }
 
-func (v *volume) CreateFile(ctx context.Context, key string, r io.Reader) error {
+func (v *volume) CreateFile(ctx context.Context, key string, r io.ReadCloser) error {
 	tmp := path.Join(v.tempDir, uuid.NewV4().String())
 
 	fh, err := v.fs.Create(tmp)
@@ -80,6 +80,7 @@ func (v *volume) CreateFile(ctx context.Context, key string, r io.Reader) error 
 	sh1 := sha1.New()
 	w := io.MultiWriter(fh, sh1)
 	io.Copy(w, r)
+	r.Close()
 
 	f := &file.File{
 		Keys:      []string{key},
@@ -181,7 +182,7 @@ func (v *volume) CreateFile(ctx context.Context, key string, r io.Reader) error 
 	return nil
 }
 
-func (v *volume) GetFile(ctx context.Context, k string) (io.Reader, error) {
+func (v *volume) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 	var (
 		idk *idxkey.IDXKey
 		err error
@@ -199,20 +200,12 @@ func (v *volume) GetFile(ctx context.Context, k string) (io.Reader, error) {
 		return nil, err
 	}
 
-	pr, pw := io.Pipe()
-
 	fh, err := v.fs.Open(file.Path(v.fileDir, idk.Value))
 	if err != nil {
 		return nil, err
 	}
 
-	go func() {
-		defer fh.Close()
-		defer pw.Close()
-		io.Copy(pw, fh)
-	}()
-
-	return pr, nil
+	return fh, nil
 }
 
 func (v *volume) DeleteFile(ctx context.Context, key string) error {

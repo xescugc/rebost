@@ -19,7 +19,7 @@ func TestCreateFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			key  = "expectedkey"
-			buff = bytes.NewBufferString("expectedcontent")
+			buff = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 		)
@@ -57,7 +57,7 @@ func TestGetFile(t *testing.T) {
 		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
-		v.EXPECT().GetFile(gomock.Any(), key).Return(bytes.NewBufferString("expectedcontent"), nil)
+		v.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
 		s := storing.New(&config.Config{}, m)
 		ior, err := s.GetFile(ctx, key)
@@ -83,7 +83,7 @@ func TestGetFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
-		v2.EXPECT().GetFile(gomock.Any(), key).Return(bytes.NewBufferString("expectedcontent"), nil)
+		v2.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
 		s := storing.New(&config.Config{}, m)
 
