@@ -37,7 +37,7 @@ var (
 
 			osfs := afero.NewOsFs()
 
-			vs := make([]volume.Volume, 0, len(cfg.Volumes))
+			vs := make([]volume.Local, 0, len(cfg.Volumes))
 			for _, vp := range cfg.Volumes {
 				bdb, err := createDB(vp)
 				if err != nil {

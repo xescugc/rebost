@@ -24,7 +24,7 @@ type Membership interface {
 	RemoteVolumes() []volume.Volume
 
 	// LocalVolumes returns only the local volumes
-	LocalVolumes() []volume.Volume
+	LocalVolumes() []volume.Local
 
 	// Leave makes it leave the cluster
 	Leave()
@@ -34,7 +34,7 @@ type membership struct {
 	members *memberlist.Memberlist
 	events  *memberlist.EventDelegate
 
-	localVolumes []volume.Volume
+	localVolumes []volume.Local
 	cfg          *config.Config
 
 	remoteVolumesLock sync.RWMutex
@@ -42,7 +42,7 @@ type membership struct {
 }
 
 // New returns an implementation of the Membership interface
-func New(cfg *config.Config, lv []volume.Volume, remote string) (Membership, error) {
+func New(cfg *config.Config, lv []volume.Local, remote string) (Membership, error) {
 	m := &membership{
 		localVolumes:  lv,
 		remoteVolumes: make(map[string]volume.Volume),
@@ -91,7 +91,7 @@ func New(cfg *config.Config, lv []volume.Volume, remote string) (Membership, err
 }
 
 // LocalVolumes returns all the local volumes
-func (m *membership) LocalVolumes() []volume.Volume {
+func (m *membership) LocalVolumes() []volume.Local {
 	return m.localVolumes
 }
 

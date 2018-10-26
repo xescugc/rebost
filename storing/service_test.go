@@ -25,13 +25,13 @@ func TestCreateFile(t *testing.T) {
 			rep  = 2
 		)
 
-		v := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
 		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep).Return(nil)
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		s := storing.New(&config.Config{}, m)
 
@@ -47,13 +47,13 @@ func TestCreateFile(t *testing.T) {
 			rep  = 2
 		)
 
-		v := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
 		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep).Return(nil)
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		s := storing.New(&config.Config{Replica: rep}, m)
 
@@ -73,11 +73,11 @@ func TestGetFile(t *testing.T) {
 			ctx  = context.Background()
 		)
 
-		v := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
@@ -96,12 +96,12 @@ func TestGetFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 		)
-		v := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
 		v2 := mock.NewVolume(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 		m.EXPECT().RemoteVolumes().Return([]volume.Volume{v2})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
@@ -125,11 +125,11 @@ func TestDeleteFile(t *testing.T) {
 			key  = "expectedkey"
 			ctx  = context.Background()
 		)
-		v := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
@@ -145,12 +145,12 @@ func TestDeleteFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 		)
-		v := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
 		v2 := mock.NewVolume(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 		m.EXPECT().RemoteVolumes().Return([]volume.Volume{v2})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
@@ -171,11 +171,11 @@ func TestHasFile(t *testing.T) {
 			key  = "expectedkey"
 			ctx  = context.Background()
 		)
-		v := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 
@@ -191,12 +191,12 @@ func TestHasFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 		)
-		v := mock.NewVolume(ctrl)
-		v2 := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
+		v2 := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v, v2})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v, v2})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
@@ -213,11 +213,11 @@ func TestHasFile(t *testing.T) {
 			key  = "expectedkey"
 			ctx  = context.Background()
 		)
-		v := mock.NewVolume(ctrl)
+		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		m.EXPECT().LocalVolumes().Return([]volume.Volume{v})
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 

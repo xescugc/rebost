@@ -44,9 +44,9 @@ func (mr *MembershipMockRecorder) Leave() *gomock.Call {
 }
 
 // LocalVolumes mocks base method
-func (m *Membership) LocalVolumes() []volume.Volume {
+func (m *Membership) LocalVolumes() []volume.Local {
 	ret := m.ctrl.Call(m, "LocalVolumes")
-	ret0, _ := ret[0].([]volume.Volume)
+	ret0, _ := ret[0].([]volume.Local)
 	return ret0
 }
 

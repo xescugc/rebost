@@ -166,7 +166,7 @@ func newNode(t *testing.T, cfg *config.Config, remote string) *node {
 	v, err := volume.New(tmpDir, files, idxkeys, replicaPendent, osfs, suow)
 	require.NoError(t, err)
 
-	m, err := membership.New(cfg, []volume.Volume{v}, remote)
+	m, err := membership.New(cfg, []volume.Local{v}, remote)
 	require.NoError(t, err)
 
 	s := storing.New(cfg, m)

@@ -41,6 +41,8 @@ type Volume interface {
 	DeleteFile(ctx context.Context, key string) error
 }
 
+//go:generate mockgen -destination=../mock/volume_local.go -mock_names=Local=VolumeLocal -package=mock github.com/xescugc/rebost/volume Local
+
 // Local is the definition of a Local volume which
 // is an extension of the volume.Volume
 type Local interface {

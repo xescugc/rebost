@@ -76,7 +76,7 @@ func (s *service) DeleteFile(ctx context.Context, k string) error {
 }
 
 func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
-	v, err := s.findVolume(ctx, s.members.LocalVolumes(), k)
+	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
 	if err != nil && err.Error() != "not found" {
 		return false, err
 	}
@@ -98,7 +98,7 @@ func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
 // getVolume returns a volume that may have k in his index. It tries first with
 // the LocalVolumes and then with the RemoteVolumes
 func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
-	v, err := s.findVolume(ctx, s.members.LocalVolumes(), k)
+	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
 	if err != nil && err.Error() != "not found" {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error
 	return nil, nil
 }
 
-// findVolume finds the volume that has the key (k) within the volumes (vls) in parallel
+// findVolume finds the volume that has the key k within the volumes vls in parallel
 func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string) (volume.Volume, error) {
 	var wg sync.WaitGroup
 	cctx, cfn := context.WithCancel(ctx)
@@ -173,4 +173,13 @@ func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string)
 	}
 
 	return v, err
+}
+
+// localVolumesToVolumes convert []volume.Local to []volume.Volume
+func localVolumesToVolumes(lvs []volume.Local) []volume.Volume {
+	rvs := make([]volume.Volume, 0, len(lvs))
+	for _, v := range lvs {
+		rvs = append(rvs, v)
+	}
+	return rvs
 }
