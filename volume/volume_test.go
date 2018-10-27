@@ -151,6 +151,8 @@ func TestCreateFile(t *testing.T) {
 			_, err := uuid.FromString(string(rp.ID))
 			require.NoError(t, err, "Validates that it's a UUID")
 			rp.ID = ""
+			assert.NotNil(t, rp.VolumeReplicaID)
+			rp.VolumeReplicaID = nil
 			assert.Equal(t, rp, &eRepPendent)
 		}).Return(nil)
 
@@ -217,6 +219,8 @@ func TestCreateFile(t *testing.T) {
 			_, err := uuid.FromString(string(rp.ID))
 			require.NoError(t, err, "Validates that it's a UUID")
 			rp.ID = ""
+			assert.NotNil(t, rp.VolumeReplicaID)
+			rp.VolumeReplicaID = nil
 			assert.Equal(t, rp, &eRepPendent)
 		}).Return(nil)
 
@@ -340,6 +344,8 @@ func TestCreateFile(t *testing.T) {
 			_, err := uuid.FromString(string(rp.ID))
 			require.NoError(t, err, "Validates that it's a UUID")
 			rp.ID = ""
+			assert.NotNil(t, rp.VolumeReplicaID)
+			rp.VolumeReplicaID = nil
 			assert.Equal(t, rp, &eRepPendent)
 		}).Return(nil)
 
@@ -420,6 +426,8 @@ func TestCreateFile(t *testing.T) {
 			_, err := uuid.FromString(string(rp.ID))
 			require.NoError(t, err, "Validates that it's a UUID")
 			rp.ID = ""
+			assert.NotNil(t, rp.VolumeReplicaID)
+			rp.VolumeReplicaID = nil
 			assert.Equal(t, rp, &eRepPendent)
 		}).Return(nil)
 

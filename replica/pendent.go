@@ -16,4 +16,9 @@ type Pendent struct {
 
 	// VolumeID that stores the original replica
 	VolumeID string
+
+	// VolumeReplicaID represents the unique ID of the replica
+	// inside the Volume. It's used to index the Pendent in a
+	// uinique incress order on the DB
+	VolumeReplicaID []byte
 }

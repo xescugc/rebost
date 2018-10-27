@@ -50,6 +50,17 @@ type Local interface {
 
 	// ID returns the ID of the Volume
 	ID() string
+
+	// ReplicaPendent is a channel that recieves replica.Pendent
+	// when a new file needs replica
+	//ReplicaPendent() <-chan replica.Pendent
+
+	// ReplicaRetry is a channel that returns if some expected
+	// replica did still not happen and it has to be validated
+	//ReplicaRetry() <-chan replica.Retry
+
+	// CreateReplicaRetry creates the rr
+	//CreateReplicaRetry(ctx context.Context, rr *replica.Retry) error
 }
 
 type local struct {
@@ -61,6 +72,8 @@ type local struct {
 	files          file.Repository
 	idxkeys        idxkey.Repository
 	replicaPendent replica.PendentRepository
+
+	key keyGenerator
 
 	startUnitOfWork uow.StartUnitOfWork
 }
@@ -247,11 +260,12 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		}
 
 		err = uw.ReplicaPendent().Create(ctx, &replica.Pendent{
-			ID:  uuid.NewV4().String(),
-			Key: key,
+			ID:              uuid.NewV4().String(),
+			Key:             key,
+			VolumeReplicaID: l.key.new(),
 			// TODO: For now we are ignoring the fact
 			// that if the file exists the replicas may
-			// chage and be less or more
+			// chage and be more or lesss
 			Replica:   rep,
 			Signature: f.Signature,
 			VolumeID:  l.id,
