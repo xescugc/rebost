@@ -48,12 +48,15 @@ type Volume interface {
 type Local interface {
 	Volume
 
+	// Close will try to make a clean shutdown
+	io.Closer
+
 	// ID returns the ID of the Volume
 	ID() string
 
 	// ReplicaPendent is a channel that recieves replica.Pendent
 	// when a new file needs replica
-	//ReplicaPendent() <-chan replica.Pendent
+	ReplicaPendent() <-chan replica.Pendent
 
 	// ReplicaRetry is a channel that returns if some expected
 	// replica did still not happen and it has to be validated
@@ -61,6 +64,7 @@ type Local interface {
 
 	// CreateReplicaRetry creates the rr
 	//CreateReplicaRetry(ctx context.Context, rr *replica.Retry) error
+
 }
 
 type local struct {
@@ -75,13 +79,19 @@ type local struct {
 
 	key keyGenerator
 
+	replicaPendentChan chan replica.Pendent
+
 	startUnitOfWork uow.StartUnitOfWork
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // New returns an implementation of the volume.Local interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
 func New(root string, files file.Repository, idxkeys idxkey.Repository, replicaPendent replica.PendentRepository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	l := &local{
 		fileDir: path.Join(root, "file"),
 		tempDir: path.Join(root, "tmps"),
@@ -91,7 +101,14 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, replicaP
 		idxkeys:        idxkeys,
 		replicaPendent: replicaPendent,
 
+		key: keyGenerator{},
+
+		replicaPendentChan: make(chan replica.Pendent),
+
 		startUnitOfWork: suow,
+
+		ctx:    ctx,
+		cancel: cancel,
 	}
 
 	err := l.fs.MkdirAll(l.fileDir, os.ModePerm)
@@ -139,10 +156,17 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, replicaP
 
 	l.id = id
 
+	go l.loopFromReplicaPendent()
+
 	return l, nil
 }
 
 func (l *local) ID() string { return l.id }
+
+func (l *local) Close() error {
+	l.cancel()
+	return nil
+}
 
 func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
 	tmp := path.Join(l.tempDir, uuid.NewV4().String())
@@ -364,4 +388,8 @@ func (l *local) HasFile(ctx context.Context, k string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (l *local) ReplicaPendent() <-chan replica.Pendent {
+	return l.replicaPendentChan
 }

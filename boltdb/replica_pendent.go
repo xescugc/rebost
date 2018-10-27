@@ -3,6 +3,7 @@ package boltdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/boltdb/bolt"
 	"github.com/xescugc/rebost/replica"
@@ -31,5 +32,22 @@ func (r *replicaPendentRepository) Create(ctx context.Context, rp *replica.Pende
 	if err != nil {
 		return err
 	}
-	return r.bucket.Put([]byte(rp.ID), b)
+	return r.bucket.Put(rp.VolumeReplicaID, b)
+}
+
+func (r *replicaPendentRepository) First(ctx context.Context) (*replica.Pendent, error) {
+	var p replica.Pendent
+	_, b := r.bucket.Cursor().First()
+	if b == nil {
+		return nil, errors.New("not found")
+	}
+	err := json.Unmarshal(b, &p)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *replicaPendentRepository) Delete(ctx context.Context, rp *replica.Pendent) error {
+	return r.bucket.Delete(rp.VolumeReplicaID)
 }

@@ -7,6 +7,7 @@ package mock
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
+	replica "github.com/xescugc/rebost/replica"
 	io "io"
 	reflect "reflect"
 )
@@ -32,6 +33,18 @@ func NewVolumeLocal(ctrl *gomock.Controller) *VolumeLocal {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *VolumeLocal) EXPECT() *VolumeLocalMockRecorder {
 	return m.recorder
+}
+
+// Close mocks base method
+func (m *VolumeLocal) Close() error {
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close
+func (mr *VolumeLocalMockRecorder) Close() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*VolumeLocal)(nil).Close))
 }
 
 // CreateFile mocks base method
@@ -94,4 +107,16 @@ func (m *VolumeLocal) ID() string {
 // ID indicates an expected call of ID
 func (mr *VolumeLocalMockRecorder) ID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*VolumeLocal)(nil).ID))
+}
+
+// ReplicaPendent mocks base method
+func (m *VolumeLocal) ReplicaPendent() <-chan replica.Pendent {
+	ret := m.ctrl.Call(m, "ReplicaPendent")
+	ret0, _ := ret[0].(<-chan replica.Pendent)
+	return ret0
+}
+
+// ReplicaPendent indicates an expected call of ReplicaPendent
+func (mr *VolumeLocalMockRecorder) ReplicaPendent() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplicaPendent", reflect.TypeOf((*VolumeLocal)(nil).ReplicaPendent))
 }

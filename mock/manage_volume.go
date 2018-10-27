@@ -50,6 +50,10 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 	fs.EXPECT().Stat(gomock.Any()).Return(nil, os.ErrNotExist)
 	fs.EXPECT().Create(gomock.Any()).Return(mem.NewFileHandle(mem.CreateFile("")), nil)
 
+	// With this the loop of the goroutine will never end untils volume.Close
+	// and it'll not require any change on the test to use it
+	rp.EXPECT().First(gomock.Any()).Return(nil, nil).AnyTimes()
+
 	v, err := volume.New(root, files, idxkeys, rp, fs, uowFn)
 	require.NoError(t, err)
 
@@ -68,4 +72,5 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 // Finish finishes all the *Ctrl for the 'gomock' at ones
 func (mv *ManageVolume) Finish() {
 	mv.ctrl.Finish()
+	mv.V.Close()
 }

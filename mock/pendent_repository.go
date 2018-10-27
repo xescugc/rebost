@@ -45,3 +45,28 @@ func (m *ReplicaPendentRepository) Create(arg0 context.Context, arg1 *replica.Pe
 func (mr *ReplicaPendentRepositoryMockRecorder) Create(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*ReplicaPendentRepository)(nil).Create), arg0, arg1)
 }
+
+// Delete mocks base method
+func (m *ReplicaPendentRepository) Delete(arg0 context.Context, arg1 *replica.Pendent) error {
+	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete
+func (mr *ReplicaPendentRepositoryMockRecorder) Delete(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*ReplicaPendentRepository)(nil).Delete), arg0, arg1)
+}
+
+// First mocks base method
+func (m *ReplicaPendentRepository) First(arg0 context.Context) (*replica.Pendent, error) {
+	ret := m.ctrl.Call(m, "First", arg0)
+	ret0, _ := ret[0].(*replica.Pendent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// First indicates an expected call of First
+func (mr *ReplicaPendentRepositoryMockRecorder) First(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "First", reflect.TypeOf((*ReplicaPendentRepository)(nil).First), arg0)
+}

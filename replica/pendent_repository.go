@@ -7,5 +7,12 @@ import "context"
 // PendentRepository is the interface that defines which actions
 // can be done to the Pendent struct
 type PendentRepository interface {
+	// Create stores the Pendent
 	Create(ctx context.Context, p *Pendent) error
+
+	// First gets the first element
+	First(ctx context.Context) (*Pendent, error)
+
+	// Delete removes the Pendent
+	Delete(ctx context.Context, p *Pendent) error
 }

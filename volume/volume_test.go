@@ -10,6 +10,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	uuid "github.com/satori/go.uuid"
@@ -50,6 +51,7 @@ func TestNew(t *testing.T) {
 		v, err := volume.New(rootDir, files, idxkeys, rp, fs, suow)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
+		defer v.Close()
 
 		// As the FH is closed on the tests,
 		// we have to open it again
@@ -90,6 +92,7 @@ func TestNew(t *testing.T) {
 		v, err := volume.New(rootDir, files, idxkeys, rp, fs, suow)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
+		defer v.Close()
 		assert.Equal(t, id, v.ID())
 	})
 }
@@ -586,4 +589,17 @@ func TestDeleteFile(t *testing.T) {
 		err := mv.V.DeleteFile(ctx, key)
 		require.NoError(t, err)
 	})
+}
+
+func expectVolumeReplicaPendent(t *testing.T, v volume.Local, eRepPendent replica.Pendent) {
+	t.Helper()
+
+	toctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	select {
+	case rp := <-v.ReplicaPendent():
+		cancel()
+		assert.Equal(t, rp, eRepPendent)
+	case <-toctx.Done():
+		assert.Fail(t, "The ReplicaPendent queue did not recieve any event in 2s")
+	}
 }
