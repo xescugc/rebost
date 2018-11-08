@@ -45,4 +45,4 @@ type StartUnitOfWork func(ctx context.Context, t Type, uowFn UnitOfWorkFn, repos
 
 // UnitOfWorkFn is the signature of the function
 // that is the callback of the StartUnitOfWork
-type UnitOfWorkFn func(uw UnitOfWork) error
+type UnitOfWorkFn func(ctx context.Context, uw UnitOfWork) error
