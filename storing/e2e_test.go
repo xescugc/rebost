@@ -163,7 +163,8 @@ func newNode(t *testing.T, cfg *config.Config, remote string) *node {
 
 	suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-	v, err := volume.New(tmpDir, files, idxkeys, replicaPendent, osfs, suow)
+	rl := volume.NewReplica(replicaPendent, suow)
+	v, err := volume.New(tmpDir, rl, files, idxkeys, osfs, suow)
 	require.NoError(t, err)
 
 	m, err := membership.New(cfg, []volume.Local{v}, remote)

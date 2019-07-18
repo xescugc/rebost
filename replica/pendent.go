@@ -14,11 +14,11 @@ type Pendent struct {
 	// Signature is the signature of the file
 	Signature string
 
-	// VolumeID that stores the original replica
+	// VolumeID that stored the original replica
 	VolumeID string
 
 	// VolumeReplicaID represents the unique ID of the replica
-	// inside the Volume. It's used to index the Pendent in a
+	// inside the Volume. It's used to index  in a
 	// uinique incress order on the DB
 	VolumeReplicaID []byte
 }

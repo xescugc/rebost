@@ -36,6 +36,7 @@ func (m *Volume) EXPECT() *VolumeMockRecorder {
 
 // CreateFile mocks base method
 func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 int) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -43,11 +44,13 @@ func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadClose
 
 // CreateFile indicates an expected call of CreateFile
 func (mr *VolumeMockRecorder) CreateFile(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*Volume)(nil).CreateFile), arg0, arg1, arg2, arg3)
 }
 
 // DeleteFile mocks base method
 func (m *Volume) DeleteFile(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteFile", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -55,11 +58,13 @@ func (m *Volume) DeleteFile(arg0 context.Context, arg1 string) error {
 
 // DeleteFile indicates an expected call of DeleteFile
 func (mr *VolumeMockRecorder) DeleteFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFile", reflect.TypeOf((*Volume)(nil).DeleteFile), arg0, arg1)
 }
 
 // GetFile mocks base method
 func (m *Volume) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFile", arg0, arg1)
 	ret0, _ := ret[0].(io.ReadCloser)
 	ret1, _ := ret[1].(error)
@@ -68,11 +73,13 @@ func (m *Volume) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, erro
 
 // GetFile indicates an expected call of GetFile
 func (mr *VolumeMockRecorder) GetFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*Volume)(nil).GetFile), arg0, arg1)
 }
 
 // HasFile mocks base method
 func (m *Volume) HasFile(arg0 context.Context, arg1 string) (bool, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasFile", arg0, arg1)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
@@ -81,5 +88,6 @@ func (m *Volume) HasFile(arg0 context.Context, arg1 string) (bool, error) {
 
 // HasFile indicates an expected call of HasFile
 func (mr *VolumeMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*Volume)(nil).HasFile), arg0, arg1)
 }

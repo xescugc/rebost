@@ -37,6 +37,7 @@ func (m *VolumeLocal) EXPECT() *VolumeLocalMockRecorder {
 
 // Close mocks base method
 func (m *VolumeLocal) Close() error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -44,11 +45,13 @@ func (m *VolumeLocal) Close() error {
 
 // Close indicates an expected call of Close
 func (mr *VolumeLocalMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*VolumeLocal)(nil).Close))
 }
 
 // CreateFile mocks base method
 func (m *VolumeLocal) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 int) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -56,11 +59,27 @@ func (m *VolumeLocal) CreateFile(arg0 context.Context, arg1 string, arg2 io.Read
 
 // CreateFile indicates an expected call of CreateFile
 func (mr *VolumeLocalMockRecorder) CreateFile(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*VolumeLocal)(nil).CreateFile), arg0, arg1, arg2, arg3)
+}
+
+// CreateReplicaRetry mocks base method
+func (m *VolumeLocal) CreateReplicaRetry(arg0 context.Context, arg1 *replica.Retry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateReplicaRetry", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateReplicaRetry indicates an expected call of CreateReplicaRetry
+func (mr *VolumeLocalMockRecorder) CreateReplicaRetry(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateReplicaRetry", reflect.TypeOf((*VolumeLocal)(nil).CreateReplicaRetry), arg0, arg1)
 }
 
 // DeleteFile mocks base method
 func (m *VolumeLocal) DeleteFile(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteFile", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -68,11 +87,13 @@ func (m *VolumeLocal) DeleteFile(arg0 context.Context, arg1 string) error {
 
 // DeleteFile indicates an expected call of DeleteFile
 func (mr *VolumeLocalMockRecorder) DeleteFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFile", reflect.TypeOf((*VolumeLocal)(nil).DeleteFile), arg0, arg1)
 }
 
 // GetFile mocks base method
 func (m *VolumeLocal) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFile", arg0, arg1)
 	ret0, _ := ret[0].(io.ReadCloser)
 	ret1, _ := ret[1].(error)
@@ -81,11 +102,13 @@ func (m *VolumeLocal) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser,
 
 // GetFile indicates an expected call of GetFile
 func (mr *VolumeLocalMockRecorder) GetFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*VolumeLocal)(nil).GetFile), arg0, arg1)
 }
 
 // HasFile mocks base method
 func (m *VolumeLocal) HasFile(arg0 context.Context, arg1 string) (bool, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasFile", arg0, arg1)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
@@ -94,11 +117,13 @@ func (m *VolumeLocal) HasFile(arg0 context.Context, arg1 string) (bool, error) {
 
 // HasFile indicates an expected call of HasFile
 func (mr *VolumeLocalMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*VolumeLocal)(nil).HasFile), arg0, arg1)
 }
 
 // ID mocks base method
 func (m *VolumeLocal) ID() string {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ID")
 	ret0, _ := ret[0].(string)
 	return ret0
@@ -106,17 +131,34 @@ func (m *VolumeLocal) ID() string {
 
 // ID indicates an expected call of ID
 func (mr *VolumeLocalMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*VolumeLocal)(nil).ID))
 }
 
-// ReplicaPendent mocks base method
-func (m *VolumeLocal) ReplicaPendent() <-chan replica.Pendent {
-	ret := m.ctrl.Call(m, "ReplicaPendent")
+// ReplicasPendent mocks base method
+func (m *VolumeLocal) ReplicasPendent() <-chan replica.Pendent {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReplicasPendent")
 	ret0, _ := ret[0].(<-chan replica.Pendent)
 	return ret0
 }
 
-// ReplicaPendent indicates an expected call of ReplicaPendent
-func (mr *VolumeLocalMockRecorder) ReplicaPendent() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplicaPendent", reflect.TypeOf((*VolumeLocal)(nil).ReplicaPendent))
+// ReplicasPendent indicates an expected call of ReplicasPendent
+func (mr *VolumeLocalMockRecorder) ReplicasPendent() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplicasPendent", reflect.TypeOf((*VolumeLocal)(nil).ReplicasPendent))
+}
+
+// ReplicasRetry mocks base method
+func (m *VolumeLocal) ReplicasRetry() <-chan replica.Retry {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReplicasRetry")
+	ret0, _ := ret[0].(<-chan replica.Retry)
+	return ret0
+}
+
+// ReplicasRetry indicates an expected call of ReplicasRetry
+func (mr *VolumeLocalMockRecorder) ReplicasRetry() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplicasRetry", reflect.TypeOf((*VolumeLocal)(nil).ReplicasRetry))
 }

@@ -11,42 +11,27 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
+	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
 
-//go:generate mockgen -destination=../mock/membership.go -mock_names=Membership=Membership -package=mock github.com/xescugc/rebost/membership Membership
-
-// Membership is the interface that hides the logic behind the
-// cluseter members. In this "domain" (rebost), the members
-// are considered volume.Volume.
-type Membership interface {
-	// RemoteVolumes return all the Volumes of the cluster
-	RemoteVolumes() []volume.Volume
-
-	// LocalVolumes returns only the local volumes
-	LocalVolumes() []volume.Local
-
-	// Leave makes it leave the cluster
-	Leave()
-}
-
-type membership struct {
+type Membership struct {
 	members *memberlist.Memberlist
 	events  *memberlist.EventDelegate
 
 	localVolumes []volume.Local
 	cfg          *config.Config
 
-	remoteVolumesLock sync.RWMutex
-	remoteVolumes     map[string]volume.Volume
+	nodesLock sync.RWMutex
+	nodes     map[string]storing.Service
 }
 
 // New returns an implementation of the Membership interface
-func New(cfg *config.Config, lv []volume.Local, remote string) (Membership, error) {
-	m := &membership{
-		localVolumes:  lv,
-		remoteVolumes: make(map[string]volume.Volume),
-		cfg:           cfg,
+func New(cfg *config.Config, lv []volume.Local, remote string) (*Membership, error) {
+	m := &Membership{
+		localVolumes: lv,
+		nodes:        make(map[string]storing.Service),
+		cfg:          cfg,
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
@@ -91,33 +76,31 @@ func New(cfg *config.Config, lv []volume.Local, remote string) (Membership, erro
 }
 
 // LocalVolumes returns all the local volumes
-func (m *membership) LocalVolumes() []volume.Local {
+func (m *Membership) LocalVolumes() []volume.Local {
 	return m.localVolumes
 }
 
-// Volumes return all the volumes/nodes of the cluester
-func (m *membership) RemoteVolumes() (res []volume.Volume) {
-	m.remoteVolumesLock.RLock()
-	for _, r := range m.remoteVolumes {
+// Services return all the nodes of the Cluster
+func (m *Membership) Nodes() (res []storing.Service) {
+	m.nodesLock.RLock()
+	for _, r := range m.nodes {
 		res = append(res, r)
 	}
-	m.remoteVolumesLock.RUnlock()
+	m.nodesLock.RUnlock()
 
 	return
 }
 
-func (m *membership) Leave() {
+func (m *Membership) Leave() {
 	m.members.Leave(0)
 }
 
-func (m *membership) buildConfig(cfg *config.Config) *memberlist.Config {
+func (m *Membership) buildConfig(cfg *config.Config) *memberlist.Config {
 	mcfg := memberlist.DefaultLocalConfig()
 	if cfg.MemberlistBindPort != 0 {
 		mcfg.BindPort = cfg.MemberlistBindPort
 	}
-	if cfg.MemberlistName != "" {
-		mcfg.Name = cfg.MemberlistName
-	}
+	mcfg.Name = cfg.MemberlistName
 	mcfg.Events = &eventDelegate{members: m}
 	mcfg.Delegate = &delegate{members: m}
 	return mcfg

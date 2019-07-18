@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/xescugc/rebost/config"
-	"github.com/xescugc/rebost/membership"
+	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -20,21 +20,38 @@ import (
 // to consume the API
 type Service interface {
 	volume.Volume
+	replica.Node
 
+	// Config returns the current Service configuration
 	Config(context.Context) (*config.Config, error)
 }
 
 type service struct {
-	members membership.Membership
+	members Membership
 	cfg     *config.Config
+
+	replicasPendentCha chan replica.Pendent
+
+	replicasPendentMapLock sync.RWMutex
+	replicasPendentMap     map[string]struct{}
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-// New returns an implementation of the Service with
+// New returns an implementation of the Node with
 // the given parameters
-func New(cfg *config.Config, m membership.Membership) Service {
+func New(cfg *config.Config, m Membership) Service {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &service{
 		members: m,
 		cfg:     cfg,
+
+		replicasPendentCha: make(chan replica.Pendent, cfg.MaxReplicaPendent),
+		replicasPendentMap: make(map[string]struct{}),
+
+		ctx:    ctx,
+		cancel: cancel,
 	}
 }
 
@@ -88,6 +105,25 @@ func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
 	return false, nil
 }
 
+func (s *service) CreateReplicaPendent(ctx context.Context, rp replica.Pendent) error {
+	select {
+	case s.replicasPendentCha <- rp:
+		s.replicasPendentMapLock.Lock()
+		s.replicasPendentMap[rp.ID] = struct{}{}
+		s.replicasPendentMapLock.Unlock()
+		return nil
+	default:
+		return errors.New("too busy to replicate")
+	}
+}
+
+func (s *service) HasReplicaPendent(ctx context.Context, ID string) (bool, error) {
+	s.replicasPendentMapLock.RLock()
+	_, ok := s.replicasPendentMap[ID]
+	s.replicasPendentMapLock.RUnlock()
+	return ok, nil
+}
+
 func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
 	vls := s.members.LocalVolumes()
 
@@ -96,7 +132,7 @@ func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
 }
 
 // getVolume returns a volume that may have k in his index. It tries first with
-// the LocalVolumes and then with the RemoteVolumes
+// the LocalVolumes and then with the Nodes
 func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
 	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
 	if err != nil && err.Error() != "not found" {
@@ -107,7 +143,7 @@ func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error
 		return v, nil
 	}
 
-	v, err = s.findVolume(ctx, s.members.RemoteVolumes(), k)
+	v, err = s.findVolume(ctx, servicesToVolumes(s.members.Nodes()), k)
 	if err != nil && err.Error() != "not found" {
 		return nil, err
 	}
@@ -179,6 +215,15 @@ func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string)
 func localVolumesToVolumes(lvs []volume.Local) []volume.Volume {
 	rvs := make([]volume.Volume, 0, len(lvs))
 	for _, v := range lvs {
+		rvs = append(rvs, v)
+	}
+	return rvs
+}
+
+// servicesToVolumes convert []Service to []volume.Volume
+func servicesToVolumes(ns []Service) []volume.Volume {
+	rvs := make([]volume.Volume, 0, len(ns))
+	for _, v := range ns {
 		rvs = append(rvs, v)
 	}
 	return rvs

@@ -11,10 +11,23 @@ import (
 // Config represents the struct whith all the possible
 // configuration options
 type Config struct {
-	Port    int
+	// Port is the port to open to the public
+	Port int
+
+	// Volumes is th list of the local volumes
 	Volumes []string
-	Remote  string
+
+	// Remote is the URL of another Node
+	Remote string
+
+	// Replica is the default number of replicas
+	// that each file will have if none specified
 	Replica int
+
+	// MaxReplicaPendent is the max number of
+	// replications that it can be holding/accept
+	// at a given time
+	MaxReplicaPendent int
 
 	MemberlistBindPort int
 	MemberlistName     string
@@ -51,10 +64,11 @@ func New(v *viper.Viper) (*Config, error) {
 	}
 
 	return &Config{
-		Port:    v.GetInt("port"),
-		Volumes: v.GetStringSlice("volumes"),
-		Remote:  v.GetString("remote"),
-		Replica: v.GetInt("replica"),
+		Port:              v.GetInt("port"),
+		Volumes:           v.GetStringSlice("volumes"),
+		Remote:            v.GetString("remote"),
+		Replica:           v.GetInt("replica"),
+		MaxReplicaPendent: v.GetInt("max-replica-pendent"),
 
 		MemberlistBindPort: v.GetInt("memberlist-bind-port"),
 		MemberlistName:     v.GetString("memberlist-name"),

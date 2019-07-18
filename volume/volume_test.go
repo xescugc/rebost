@@ -10,7 +10,6 @@ import (
 	"path"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	uuid "github.com/satori/go.uuid"
@@ -28,7 +27,6 @@ import (
 
 func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		var suow uow.StartUnitOfWork
 		var rootDir = "root"
 
 		ctrl := gomock.NewController(t)
@@ -36,11 +34,26 @@ func TestNew(t *testing.T) {
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
 		fs := mock.NewFs(ctrl)
+		rr := mock.NewReplicaRetryRepository(ctrl)
 		rp := mock.NewReplicaPendentRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
 
+		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
+			uw := mock.NewUnitOfWork(ctrl)
+			uw.EXPECT().ReplicaRetry().Return(rr).AnyTimes()
+			uw.EXPECT().ReplicaPendent().Return(rp).AnyTimes()
+			return uowFn(ctx, uw)
+		}
+
 		defer ctrl.Finish()
+
+		// As the volume.New starts a goroutine we have to use this mock to
+		// always returns the 'nil' object so it does nothing on it and the
+		// test do not fail, this function could or could not be called as it's
+		// inside a goroutine
+		rr.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+		rp.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 
 		fs.EXPECT().MkdirAll(path.Join(rootDir, "file"), os.ModePerm).Return(nil)
 		fs.EXPECT().MkdirAll(path.Join(rootDir, "tmps"), os.ModePerm).Return(nil)
@@ -48,7 +61,7 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, os.ErrNotExist)
 		fs.EXPECT().Create(idPath).Return(fh, nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, rp, fs, suow)
+		v, err := volume.New(rootDir, files, idxkeys, rp, rr, fs, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -65,7 +78,6 @@ func TestNew(t *testing.T) {
 		require.NoError(t, err, "Validates that it's a UUID")
 	})
 	t.Run("SuccessWithAlreadyID", func(t *testing.T) {
-		var suow uow.StartUnitOfWork
 		var rootDir = "root"
 
 		ctrl := gomock.NewController(t)
@@ -74,6 +86,7 @@ func TestNew(t *testing.T) {
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
 		fs := mock.NewFs(ctrl)
+		rr := mock.NewReplicaRetryRepository(ctrl)
 		rp := mock.NewReplicaPendentRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
@@ -83,13 +96,27 @@ func TestNew(t *testing.T) {
 		_, err = fh.Seek(0, 0)
 		require.NoError(t, err)
 
+		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
+			uw := mock.NewUnitOfWork(ctrl)
+			uw.EXPECT().ReplicaRetry().Return(rr).AnyTimes()
+			uw.EXPECT().ReplicaPendent().Return(rp).AnyTimes()
+			return uowFn(ctx, uw)
+		}
+
+		// As the volume.New starts a goroutine we have to use this mock to
+		// always returns the 'nil' object so it does nothing on it and the
+		// test do not fail, this function could or could not be called as it's
+		// inside a goroutine
+		rr.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+		rp.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+
 		fs.EXPECT().MkdirAll(path.Join(rootDir, "file"), os.ModePerm).Return(nil)
 		fs.EXPECT().MkdirAll(path.Join(rootDir, "tmps"), os.ModePerm).Return(nil)
 
 		fs.EXPECT().Stat(idPath).Return(nil, nil)
 		fs.EXPECT().Open(idPath).Return(fh, nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, rp, fs, suow)
+		v, err := volume.New(rootDir, files, idxkeys, rp, rr, fs, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -116,13 +143,7 @@ func TestCreateFile(t *testing.T) {
 				Key:   key,
 				Value: ef.Signature,
 			}
-			mv          = mock.NewManageVolume(t, rootDir)
-			eRepPendent = replica.Pendent{
-				Key:       key,
-				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-				Replica:   2,
-				VolumeID:  mv.V.ID(),
-			}
+			mv = mock.NewManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -150,14 +171,15 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(func(_ context.Context, rp *replica.Pendent) {
-			_, err := uuid.FromString(string(rp.ID))
-			require.NoError(t, err, "Validates that it's a UUID")
-			rp.ID = ""
-			assert.NotNil(t, rp.VolumeReplicaID)
-			rp.VolumeReplicaID = nil
-			assert.Equal(t, rp, &eRepPendent)
-		}).Return(nil)
+		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Pendent) error {
+				assert.Equal(t, mv.V.ID(), rp.VolumeID)
+				assert.Equal(t, key, rp.Key)
+				assert.Equal(t, ef.Signature, rp.Signature)
+				assert.Equal(t, rep, rp.Replica)
+				return nil
+			},
+		).Return(nil)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
@@ -180,13 +202,7 @@ func TestCreateFile(t *testing.T) {
 				Key:   key,
 				Value: ef.Signature,
 			}
-			mv          = mock.NewManageVolume(t, rootDir)
-			eRepPendent = replica.Pendent{
-				Key:       key,
-				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-				Replica:   2,
-				VolumeID:  mv.V.ID(),
-			}
+			mv = mock.NewManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -218,14 +234,15 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(func(_ context.Context, rp *replica.Pendent) {
-			_, err := uuid.FromString(string(rp.ID))
-			require.NoError(t, err, "Validates that it's a UUID")
-			rp.ID = ""
-			assert.NotNil(t, rp.VolumeReplicaID)
-			rp.VolumeReplicaID = nil
-			assert.Equal(t, rp, &eRepPendent)
-		}).Return(nil)
+		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Pendent) error {
+				assert.Equal(t, mv.V.ID(), rp.VolumeID)
+				assert.Equal(t, key, rp.Key)
+				assert.Equal(t, ef.Signature, rp.Signature)
+				assert.Equal(t, rep, rp.Replica)
+				return nil
+			},
+		).Return(nil)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
@@ -294,13 +311,7 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key, "b"},
 				Signature: "123123123",
 			}
-			mv          = mock.NewManageVolume(t, rootDir)
-			eRepPendent = replica.Pendent{
-				Key:       key,
-				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-				Replica:   2,
-				VolumeID:  mv.V.ID(),
-			}
+			mv = mock.NewManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -343,14 +354,15 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(func(_ context.Context, rp *replica.Pendent) {
-			_, err := uuid.FromString(string(rp.ID))
-			require.NoError(t, err, "Validates that it's a UUID")
-			rp.ID = ""
-			assert.NotNil(t, rp.VolumeReplicaID)
-			rp.VolumeReplicaID = nil
-			assert.Equal(t, rp, &eRepPendent)
-		}).Return(nil)
+		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Pendent) error {
+				assert.Equal(t, mv.V.ID(), rp.VolumeID)
+				assert.Equal(t, key, rp.Key)
+				assert.Equal(t, ef.Signature, rp.Signature)
+				assert.Equal(t, rep, rp.Replica)
+				return nil
+			},
+		).Return(nil)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
@@ -377,13 +389,7 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key},
 				Signature: "123123123",
 			}
-			mv          = mock.NewManageVolume(t, rootDir)
-			eRepPendent = replica.Pendent{
-				Key:       key,
-				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
-				Replica:   2,
-				VolumeID:  mv.V.ID(),
-			}
+			mv = mock.NewManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -425,14 +431,15 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(func(_ context.Context, rp *replica.Pendent) {
-			_, err := uuid.FromString(string(rp.ID))
-			require.NoError(t, err, "Validates that it's a UUID")
-			rp.ID = ""
-			assert.NotNil(t, rp.VolumeReplicaID)
-			rp.VolumeReplicaID = nil
-			assert.Equal(t, rp, &eRepPendent)
-		}).Return(nil)
+		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Pendent) error {
+				assert.Equal(t, mv.V.ID(), rp.VolumeID)
+				assert.Equal(t, key, rp.Key)
+				assert.Equal(t, ef.Signature, rp.Signature)
+				assert.Equal(t, rep, rp.Replica)
+				return nil
+			},
+		).Return(nil)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
@@ -591,15 +598,17 @@ func TestDeleteFile(t *testing.T) {
 	})
 }
 
-func expectVolumeReplicaPendent(t *testing.T, v volume.Local, eRepPendent replica.Pendent) {
-	t.Helper()
+func TestCreateReplicaRetry(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			rootDir = "root"
+			ctx     = context.Background()
+			mv      = mock.NewManageVolume(t, rootDir)
+		)
 
-	toctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-	select {
-	case rp := <-v.ReplicaPendent():
-		cancel()
-		assert.Equal(t, rp, eRepPendent)
-	case <-toctx.Done():
-		assert.Fail(t, "The ReplicaPendent queue did not recieve any event in 2s")
-	}
+		mv.ReplicaRetry.EXPECT().Create(ctx, &replica.Retry{NodeName: "Name"}).Return(nil)
+
+		err := mv.V.CreateReplicaRetry(ctx, &replica.Retry{NodeName: "Name"})
+		require.NoError(t, err)
+	})
 }

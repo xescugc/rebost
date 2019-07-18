@@ -54,11 +54,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:718dbab642c6d914aff8fedee621bb4f017acaa75a13dcb84af8ecf354d11585"
+  digest = "1:2f67b503dde27117f143dd696717fa3aa676bb142d8edd74ab06d0a91df4e1f0"
   name = "github.com/golang/mock"
   packages = ["gomock"]
   pruneopts = ""
-  revision = "600781dde9cca80734169b9e969d9054ccc57937"
+  revision = "e698a2ea17fee71b248fc2bba82fc544c2017f93"
 
 [[projects]]
   digest = "1:dbbeb8ddb0be949954c8157ee8439c2adfd8dc1c9510eb44a6e58cb68c3dce28"
@@ -310,7 +310,6 @@
   name = "golang.org/x/net"
   packages = [
     "bpf",
-    "context",
     "internal/iana",
     "internal/socket",
     "ipv4",

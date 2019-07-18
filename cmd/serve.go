@@ -34,6 +34,9 @@ var (
 			if len(cfg.Volumes) == 0 {
 				return errors.New("at last one volume is required")
 			}
+			if cfg.MemberlistName == "" {
+				return errors.New("the 'memberlist-name' is required")
+			}
 
 			osfs := afero.NewOsFs()
 
@@ -57,7 +60,8 @@ var (
 				}
 				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-				v, err := volume.New(vp, files, idxkeys, replicaPendent, osfs, suow)
+				rl := volume.NewReplica(replicaPendent, suow)
+				v, err := volume.New(vp, rl, files, idxkeys, osfs, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
@@ -103,6 +107,9 @@ func init() {
 
 	serveCmd.PersistentFlags().IntP("replica", "rep", 2, "The default number of replicas used if none specified on the requests")
 	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("replica"))
+
+	serveCmd.PersistentFlags().Int("max-replica-pendent", 50, "Replica is the default number of replicas that each file will have if none specified")
+	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("max-replica-pendent"))
 
 	serveCmd.PersistentFlags().String("memberlist-bind-port", "", "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist-bind-port", serveCmd.PersistentFlags().Lookup("memberlist-bind-port"))

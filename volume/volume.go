@@ -14,6 +14,7 @@ import (
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
+	"github.com/xescugc/rebost/volume/internal"
 )
 
 //go:generate mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
@@ -54,17 +55,16 @@ type Local interface {
 	// ID returns the ID of the Volume
 	ID() string
 
-	// ReplicaPendent is a channel that recieves replica.Pendent
+	// ReplicasPendent is a channel that recieves replica.Pendent
 	// when a new file needs replica
-	ReplicaPendent() <-chan replica.Pendent
+	ReplicasPendent() <-chan replica.Pendent
 
-	// ReplicaRetry is a channel that returns if some expected
+	// ReplicasRetry is a channel that returns if some expected
 	// replica did still not happen and it has to be validated
-	//ReplicaRetry() <-chan replica.Retry
+	ReplicasRetry() <-chan replica.Retry
 
 	// CreateReplicaRetry creates the rr
-	//CreateReplicaRetry(ctx context.Context, rr *replica.Retry) error
-
+	CreateReplicaRetry(ctx context.Context, rr *replica.Retry) error
 }
 
 type local struct {
@@ -72,14 +72,11 @@ type local struct {
 	tempDir string
 	id      string
 
-	fs             afero.Fs
-	files          file.Repository
-	idxkeys        idxkey.Repository
-	replicaPendent replica.PendentRepository
+	fs      afero.Fs
+	files   file.Repository
+	idxkeys idxkey.Repository
 
-	key keyGenerator
-
-	replicaPendentChan chan replica.Pendent
+	replica *internal.Replica
 
 	startUnitOfWork uow.StartUnitOfWork
 
@@ -90,20 +87,18 @@ type local struct {
 // New returns an implementation of the volume.Local interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
-func New(root string, files file.Repository, idxkeys idxkey.Repository, replicaPendent replica.PendentRepository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, rp replica.PendentRepository, rr replica.RetryRepository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	rep := internal.NewReplica(rp, rr, suow)
 	l := &local{
 		fileDir: path.Join(root, "file"),
 		tempDir: path.Join(root, "tmps"),
 
-		files:          files,
-		fs:             fileSystem,
-		idxkeys:        idxkeys,
-		replicaPendent: replicaPendent,
+		files:   files,
+		fs:      fileSystem,
+		idxkeys: idxkeys,
 
-		key: keyGenerator{},
-
-		replicaPendentChan: make(chan replica.Pendent),
+		replica: rep,
 
 		startUnitOfWork: suow,
 
@@ -157,8 +152,41 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, replicaP
 	l.id = id
 
 	go l.loopFromReplicaPendent()
+	go l.loopFromReplicaRetry()
 
 	return l, nil
+}
+
+// loopFromReplicaPendent loops until the l.ctx is canceled
+func (l *local) loopFromReplicaPendent() {
+	for {
+		select {
+		case <-l.ctx.Done():
+			break
+		default:
+			err := l.replica.PopFromReplicaPendent(l.ctx)
+			if err != nil {
+				// TODO: logs
+				fmt.Println(err)
+			}
+		}
+	}
+}
+
+// loopFromReplicaRetry loops until the l.ctx is canceled
+func (l *local) loopFromReplicaRetry() {
+	for {
+		select {
+		case <-l.ctx.Done():
+			break
+		default:
+			err := l.replica.PopFromReplicaRetry(l.ctx)
+			if err != nil {
+				// TODO: logs
+				fmt.Println(err)
+			}
+		}
+	}
 }
 
 func (l *local) ID() string { return l.id }
@@ -201,7 +229,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		return err
 	}
 
-	err = l.startUnitOfWork(ctx, uow.Write, func(uw uow.UnitOfWork) error {
+	err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		dbf, err := uw.Files().FindBySignature(ctx, f.Signature)
 		if err != nil && err.Error() != "not found" {
 			return err
@@ -283,20 +311,13 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			return err
 		}
 
-		err = uw.ReplicaPendent().Create(ctx, &replica.Pendent{
-			ID:              uuid.NewV4().String(),
-			Key:             key,
-			VolumeReplicaID: l.key.new(),
-			// TODO: For now we are ignoring the fact
-			// that if the file exists the replicas may
-			// chage and be more or lesss
-			Replica:   rep,
-			Signature: f.Signature,
-			VolumeID:  l.id,
-		})
+		err = l.replica.CreateReplicaPendent(ctx, l.id, key, f.Signature, rep)
+		if err != nil {
+			return err
+		}
 
 		return nil
-	}, l.idxkeys, l.files, l.fs, l.replicaPendent)
+	}, l.idxkeys, l.files, l.fs)
 
 	if err != nil {
 		return err
@@ -311,7 +332,7 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 		err error
 	)
 
-	err = l.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+	err = l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
 		idk, err = uw.IDXKeys().FindByKey(ctx, k)
 		if err != nil {
 			return err
@@ -332,7 +353,7 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 }
 
 func (l *local) DeleteFile(ctx context.Context, key string) error {
-	return l.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+	return l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
 		ik, err := uw.IDXKeys().FindByKey(ctx, key)
 		if err != nil {
 			return err
@@ -372,7 +393,7 @@ func (l *local) DeleteFile(ctx context.Context, key string) error {
 }
 
 func (l *local) HasFile(ctx context.Context, k string) (bool, error) {
-	err := l.startUnitOfWork(ctx, uow.Read, func(uw uow.UnitOfWork) error {
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
 		_, err := uw.IDXKeys().FindByKey(ctx, k)
 		if err != nil {
 			return err
@@ -390,6 +411,14 @@ func (l *local) HasFile(ctx context.Context, k string) (bool, error) {
 	return true, nil
 }
 
-func (l *local) ReplicaPendent() <-chan replica.Pendent {
-	return l.replicaPendentChan
+func (l *local) ReplicasPendent() <-chan replica.Pendent {
+	return l.replica.ReplicasPendent()
+}
+
+func (l *local) ReplicasRetry() <-chan replica.Retry {
+	return l.replica.ReplicasRetry()
+}
+
+func (l *local) CreateReplicaRetry(ctx context.Context, r *replica.Retry) error {
+	return l.replica.CreateReplicaRetry(ctx, r)
 }

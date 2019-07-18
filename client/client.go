@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/xescugc/rebost/config"
+	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/storing/model"
 )
 
@@ -20,6 +21,9 @@ type Client struct {
 	deleteFile endpoint.Endpoint
 	hasFile    endpoint.Endpoint
 	getConfig  endpoint.Endpoint
+
+	createReplicaPendnt endpoint.Endpoint
+	hasReplicaPendent   endpoint.Endpoint
 }
 
 // New returns an client to connect to a remote Storing service
@@ -69,6 +73,16 @@ func (c Client) Config(ctx context.Context) (*config.Config, error) {
 // CreateFile WIP
 func (c Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
 	return nil
+}
+
+// CreateReplicaPendent WIP
+func (c Client) CreateReplicaPendent(ctx context.Context, rp replica.Pendent) error {
+	return nil
+}
+
+// HasReplicaPendent WIP
+func (c Client) HasReplicaPendent(ctx context.Context, ID string) (bool, error) {
+	return false, nil
 }
 
 type getFileRequest struct {

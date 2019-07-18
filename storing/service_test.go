@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
+	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
@@ -97,16 +98,16 @@ func TestGetFile(t *testing.T) {
 			ctx  = context.Background()
 		)
 		v := mock.NewVolumeLocal(ctrl)
-		v2 := mock.NewVolume(ctrl)
+		s2 := mock.NewStoring(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
-		m.EXPECT().RemoteVolumes().Return([]volume.Volume{v2})
+		m.EXPECT().Nodes().Return([]storing.Service{s2})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
-		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
-		v2.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
+		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		s2.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
 		s := storing.New(&config.Config{}, m)
 
@@ -146,16 +147,16 @@ func TestDeleteFile(t *testing.T) {
 			ctx  = context.Background()
 		)
 		v := mock.NewVolumeLocal(ctrl)
-		v2 := mock.NewVolume(ctrl)
+		s2 := mock.NewStoring(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
-		m.EXPECT().RemoteVolumes().Return([]volume.Volume{v2})
+		m.EXPECT().Nodes().Return([]storing.Service{s2})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
-		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
-		v2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
+		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
 		s := storing.New(&config.Config{}, m)
 
@@ -245,4 +246,31 @@ func TestConfig(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &expcfg, cfg)
 	})
+}
+
+func TestReplica(t *testing.T) {
+	var (
+		ctrl = gomock.NewController(t)
+		ctx  = context.Background()
+		ID   = "123"
+	)
+	m := mock.NewMembership(ctrl)
+	defer ctrl.Finish()
+
+	s := storing.New(&config.Config{MaxReplicaPendent: 2}, m)
+	err := s.CreateReplicaPendent(ctx, replica.Pendent{ID: ID})
+	require.NoError(t, err)
+
+	ok, err := s.HasReplicaPendent(ctx, ID)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	ok, err = s.HasReplicaPendent(ctx, "not-a-valid-id")
+	require.NoError(t, err)
+	assert.False(t, ok)
+
+	err = s.CreateReplicaPendent(ctx, replica.Pendent{ID: ID})
+	require.NoError(t, err)
+	err = s.CreateReplicaPendent(ctx, replica.Pendent{ID: ID})
+	require.EqualError(t, err, "too busy to replicate")
 }

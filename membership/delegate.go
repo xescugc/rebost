@@ -3,7 +3,7 @@ package membership
 import "encoding/json"
 
 type delegate struct {
-	members *membership
+	members *Membership
 }
 
 func (d *delegate) NodeMeta(limit int) []byte {

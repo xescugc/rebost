@@ -10,7 +10,7 @@ import (
 )
 
 type eventDelegate struct {
-	members *membership
+	members *Membership
 }
 
 func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
@@ -33,15 +33,15 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 		panic(err)
 	}
 
-	e.members.remoteVolumesLock.Lock()
-	e.members.remoteVolumes[n.Address()] = c
-	e.members.remoteVolumesLock.Unlock()
+	e.members.nodesLock.Lock()
+	e.members.nodes[n.Name] = c
+	e.members.nodesLock.Unlock()
 }
 
 func (e *eventDelegate) NotifyLeave(n *memberlist.Node) {
-	e.members.remoteVolumesLock.Lock()
-	delete(e.members.remoteVolumes, n.Address())
-	e.members.remoteVolumesLock.Unlock()
+	e.members.nodesLock.Lock()
+	delete(e.members.nodes, n.Name)
+	e.members.nodesLock.Unlock()
 }
 
 func (e *eventDelegate) NotifyUpdate(n *memberlist.Node) {

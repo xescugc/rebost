@@ -22,11 +22,27 @@ type unitOfWork struct {
 	replicaPendentRepository replica.PendentRepository
 }
 
+type key int
+
+var uowKey key
+
 // NewUOW returns an implementation of the interface uow.StartUnitOfWork
 // that will track all the boltDB repositories
 func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 	return func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) (err error) {
 		uw := newUnitOfWork(t)
+
+		if ctxUOW, ok := ctx.Value(uowKey).(*unitOfWork); ok {
+			for _, r := range repos {
+				if err = ctxUOW.add(r); err != nil {
+					return fmt.Errorf("could not add repository: %s", err)
+				}
+			}
+			ctx = context.WithValue(ctx, uowKey, ctxUOW)
+			return uowFn(ctx, ctxUOW)
+		} else {
+			ctx = context.WithValue(ctx, uowKey, uw)
+		}
 
 		err = uw.begin(db)
 		if err != nil {
@@ -58,7 +74,7 @@ func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 			return
 		}()
 
-		return uowFn(uw)
+		return uowFn(ctx, uw)
 	}
 }
 
@@ -123,31 +139,37 @@ func (uw *unitOfWork) commit() error {
 func (uw *unitOfWork) add(r interface{}) error {
 	switch rep := r.(type) {
 	case *fileRepository:
-		r := *rep
-		b := uw.tx.Bucket(r.bucketName)
-		if b == nil {
-			return fmt.Errorf("bucker for %q not found", r.bucketName)
+		if uw.fileRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.fileRepository = &r
 		}
-		r.bucket = b
-		uw.fileRepository = &r
 		return nil
 	case *idxkeyRepository:
-		r := *rep
-		b := uw.tx.Bucket(r.bucketName)
-		if b == nil {
-			return fmt.Errorf("bucker for %q not found", r.bucketName)
+		if uw.idxkeyRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.idxkeyRepository = &r
 		}
-		r.bucket = b
-		uw.idxkeyRepository = &r
 		return nil
 	case *replicaPendentRepository:
-		r := *rep
-		b := uw.tx.Bucket(r.bucketName)
-		if b == nil {
-			return fmt.Errorf("bucker for %q not found", r.bucketName)
+		if uw.replicaPendentRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.replicaPendentRepository = &r
 		}
-		r.bucket = b
-		uw.replicaPendentRepository = &r
 		return nil
 	default:
 		if v, ok := r.(afero.Fs); ok {

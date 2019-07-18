@@ -13,6 +13,7 @@ type replicaPendentRepository struct {
 	client     *bolt.DB
 	bucketName []byte
 	bucket     *bolt.Bucket
+	key        keyGenerator
 }
 
 // NewReplicaPendentRepository returns an implementation of the interface replica.PendentRepository
@@ -24,10 +25,12 @@ func NewReplicaPendentRepository(c *bolt.DB) (replica.PendentRepository, error) 
 	return &replicaPendentRepository{
 		client:     c,
 		bucketName: bn,
+		key:        keyGenerator{},
 	}, nil
 }
 
 func (r *replicaPendentRepository) Create(ctx context.Context, rp *replica.Pendent) error {
+	rp.VolumeReplicaID = r.key.new()
 	b, err := json.Marshal(rp)
 	if err != nil {
 		return err

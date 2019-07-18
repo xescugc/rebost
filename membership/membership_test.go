@@ -15,17 +15,17 @@ import (
 )
 
 func TestVolumes(t *testing.T) {
-	t.Run("WithoutRemote", func(t *testing.T) {
+	t.Run("WithoutNodes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		v := mock.NewVolumeLocal(ctrl)
 
 		m, err := membership.New(&config.Config{MemberlistBindPort: 4000}, []volume.Local{v}, "")
 		require.NoError(t, err)
-		assert.Len(t, m.RemoteVolumes(), 0)
+		assert.Len(t, m.Nodes(), 0)
 		assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
 	})
-	t.Run("WithRemote", func(t *testing.T) {
+	t.Run("WithNodes", func(t *testing.T) {
 		t.Run("Add", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -42,7 +42,7 @@ func TestVolumes(t *testing.T) {
 			cfg := &config.Config{MemberlistName: "am", MemberlistBindPort: 4002}
 			m, err := membership.New(cfg, []volume.Local{v}, server.URL)
 			require.NoError(t, err)
-			assert.Len(t, m.RemoteVolumes(), 1)
+			assert.Len(t, m.Nodes(), 1)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
 		})
 		t.Run("Remove", func(t *testing.T) {
@@ -61,11 +61,11 @@ func TestVolumes(t *testing.T) {
 			cfg := &config.Config{MemberlistName: "rm", MemberlistBindPort: 4004}
 			m, err := membership.New(cfg, []volume.Local{v}, server.URL)
 			require.NoError(t, err)
-			assert.Len(t, m.RemoteVolumes(), 1)
+			assert.Len(t, m.Nodes(), 1)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
 
 			m2.Leave()
-			assert.Len(t, m.RemoteVolumes(), 0)
+			assert.Len(t, m.Nodes(), 0)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
 		})
 	})

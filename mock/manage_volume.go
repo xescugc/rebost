@@ -2,6 +2,7 @@ package mock
 
 import (
 	context "context"
+	"errors"
 	"os"
 	"testing"
 
@@ -19,6 +20,7 @@ type ManageVolume struct {
 	IDXKeys        *IDXKeyRepository
 	Fs             *Fs
 	ReplicaPendent *ReplicaPendentRepository
+	ReplicaRetry   *ReplicaRetryRepository
 
 	V volume.Local
 
@@ -33,6 +35,7 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 	files := NewFileRepository(ctrl)
 	idxkeys := NewIDXKeyRepository(ctrl)
 	fs := NewFs(ctrl)
+	rr := NewReplicaRetryRepository(ctrl)
 	rp := NewReplicaPendentRepository(ctrl)
 
 	uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
@@ -41,7 +44,8 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 		uw.EXPECT().IDXKeys().Return(idxkeys).AnyTimes()
 		uw.EXPECT().Fs().Return(fs).AnyTimes()
 		uw.EXPECT().ReplicaPendent().Return(rp).AnyTimes()
-		return uowFn(uw)
+		uw.EXPECT().ReplicaRetry().Return(rr).AnyTimes()
+		return uowFn(ctx, uw)
 	}
 
 	// This first implementation is already tested
@@ -50,11 +54,14 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 	fs.EXPECT().Stat(gomock.Any()).Return(nil, os.ErrNotExist)
 	fs.EXPECT().Create(gomock.Any()).Return(mem.NewFileHandle(mem.CreateFile("")), nil)
 
-	// With this the loop of the goroutine will never end untils volume.Close
-	// and it'll not require any change on the test to use it
-	rp.EXPECT().First(gomock.Any()).Return(nil, nil).AnyTimes()
+	// As the volume.New starts a goroutine we have to use this mock to
+	// always returns the 'nil' object so it does nothing on it and the
+	// test do not fail, this function could or could not be called as it's
+	// inside a goroutine
+	rr.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+	rp.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 
-	v, err := volume.New(root, files, idxkeys, rp, fs, uowFn)
+	v, err := volume.New(root, files, idxkeys, rp, rr, fs, uowFn)
 	require.NoError(t, err)
 
 	return ManageVolume{
@@ -62,6 +69,7 @@ func NewManageVolume(t *testing.T, root string) ManageVolume {
 		IDXKeys:        idxkeys,
 		Fs:             fs,
 		ReplicaPendent: rp,
+		ReplicaRetry:   rr,
 
 		V: v,
 
