@@ -1,48 +1,67 @@
 package storing
 
 import (
-	"fmt"
+	"log"
+	"time"
 
-	"github.com/xescugc/rebost/replica"
+	"github.com/davecgh/go-spew/spew"
 )
 
-// loopVolumesReplicaPendent checks if any of the local
-// volumes has any replicas pendent, if they do then
+// loopVolumesReplicas checks if any of the local
+// volumes has any replicas, if they do then
 // it checks if any of the nodes wants to replicate
-// it after that pushes it to the Retry
-func (s *service) loopVolumesReplicaPendent() {
+func (s *service) loopVolumesReplicas() {
 	for {
-		for _, v := range s.members.LocalVolumes() {
-			select {
-			case rp, closed := <-v.ReplicasPendent():
-				if !closed {
-					for _, n := range s.members.Nodes() {
-						err := n.CreateReplicaPendent(s.ctx, rp)
-						if err != nil {
-							// TODO: logs
-							fmt.Println(err)
-						}
+		var noReplica bool
+		select {
+		case <-s.ctx.Done():
+			goto end
+		default:
+			for _, v := range s.members.LocalVolumes() {
+				rp, err := v.NextReplica(s.ctx)
+				if err != nil {
+					noReplica = true
+					log.Println(s.cfg.MemberlistName, err)
+					continue
+				}
+				spew.Dump(rp)
+				for _, n := range s.members.Nodes() {
+					ok, err := n.HasFile(s.ctx, rp.Key)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+					//If the volume already has this key we ignore it
+					//It means the replica is already on that Node
+					//Or that it has a file with that name
+					if ok {
+						continue
+					}
+					iorc, err := v.GetFile(s.ctx, rp.Key)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+					vID, err := n.CreateReplica(s.ctx, rp.Key, iorc, v.ID(), rp.OriginalCount)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
 
-						ncfg, err := n.Config(s.ctx)
-						if err != nil {
-							// TODO: logs
-							fmt.Println(err)
-						}
-
-						err = v.CreateReplicaRetry(s.ctx, replica.NewRetryFromPendent(rp, ncfg.MemberlistName))
-						if err != nil {
-							// TODO: logs
-							fmt.Println(err)
-							continue
-						}
-						// Once one of the nodes accepts the
-						// ReplicaPendent we can exit
-						break
+					err = v.UpdateReplica(s.ctx, rp, vID)
+					if err != nil {
+						log.Println(err)
+						continue
 					}
 				}
-			default:
-				continue
 			}
 		}
+		// If nothing was replicated on one run sleep
+		// to give a delay
+		if noReplica {
+			time.Sleep(time.Second)
+		}
 	}
+end:
+	return
 }

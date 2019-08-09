@@ -8,7 +8,6 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	config "github.com/xescugc/rebost/config"
-	replica "github.com/xescugc/rebost/replica"
 	io "io"
 	reflect "reflect"
 )
@@ -65,18 +64,19 @@ func (mr *StoringMockRecorder) CreateFile(arg0, arg1, arg2, arg3 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*Storing)(nil).CreateFile), arg0, arg1, arg2, arg3)
 }
 
-// CreateReplicaPendent mocks base method
-func (m *Storing) CreateReplicaPendent(arg0 context.Context, arg1 replica.Pendent) error {
+// CreateReplica mocks base method
+func (m *Storing) CreateReplica(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 string, arg4 int) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateReplicaPendent", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "CreateReplica", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// CreateReplicaPendent indicates an expected call of CreateReplicaPendent
-func (mr *StoringMockRecorder) CreateReplicaPendent(arg0, arg1 interface{}) *gomock.Call {
+// CreateReplica indicates an expected call of CreateReplica
+func (mr *StoringMockRecorder) CreateReplica(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateReplicaPendent", reflect.TypeOf((*Storing)(nil).CreateReplicaPendent), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateReplica", reflect.TypeOf((*Storing)(nil).CreateReplica), arg0, arg1, arg2, arg3, arg4)
 }
 
 // DeleteFile mocks base method
@@ -121,19 +121,4 @@ func (m *Storing) HasFile(arg0 context.Context, arg1 string) (bool, error) {
 func (mr *StoringMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*Storing)(nil).HasFile), arg0, arg1)
-}
-
-// HasReplicaPendent mocks base method
-func (m *Storing) HasReplicaPendent(arg0 context.Context, arg1 string) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HasReplicaPendent", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HasReplicaPendent indicates an expected call of HasReplicaPendent
-func (mr *StoringMockRecorder) HasReplicaPendent(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasReplicaPendent", reflect.TypeOf((*Storing)(nil).HasReplicaPendent), arg0, arg1)
 }

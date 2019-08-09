@@ -34,26 +34,16 @@ func TestNew(t *testing.T) {
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
 		fs := mock.NewFs(ctrl)
-		rr := mock.NewReplicaRetryRepository(ctrl)
-		rp := mock.NewReplicaPendentRepository(ctrl)
+		rp := mock.NewReplicaRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
 
 		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
 			uw := mock.NewUnitOfWork(ctrl)
-			uw.EXPECT().ReplicaRetry().Return(rr).AnyTimes()
-			uw.EXPECT().ReplicaPendent().Return(rp).AnyTimes()
 			return uowFn(ctx, uw)
 		}
 
 		defer ctrl.Finish()
-
-		// As the volume.New starts a goroutine we have to use this mock to
-		// always returns the 'nil' object so it does nothing on it and the
-		// test do not fail, this function could or could not be called as it's
-		// inside a goroutine
-		rr.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
-		rp.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 
 		fs.EXPECT().MkdirAll(path.Join(rootDir, "file"), os.ModePerm).Return(nil)
 		fs.EXPECT().MkdirAll(path.Join(rootDir, "tmps"), os.ModePerm).Return(nil)
@@ -61,7 +51,7 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, os.ErrNotExist)
 		fs.EXPECT().Create(idPath).Return(fh, nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, rp, rr, fs, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, rp, fs, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -86,29 +76,21 @@ func TestNew(t *testing.T) {
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
 		fs := mock.NewFs(ctrl)
-		rr := mock.NewReplicaRetryRepository(ctrl)
-		rp := mock.NewReplicaPendentRepository(ctrl)
+		rp := mock.NewReplicaRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
 		id := uuid.NewV4().String()
+
 		_, err := io.WriteString(fh, id)
 		require.NoError(t, err)
+
 		_, err = fh.Seek(0, 0)
 		require.NoError(t, err)
 
 		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
 			uw := mock.NewUnitOfWork(ctrl)
-			uw.EXPECT().ReplicaRetry().Return(rr).AnyTimes()
-			uw.EXPECT().ReplicaPendent().Return(rp).AnyTimes()
 			return uowFn(ctx, uw)
 		}
-
-		// As the volume.New starts a goroutine we have to use this mock to
-		// always returns the 'nil' object so it does nothing on it and the
-		// test do not fail, this function could or could not be called as it's
-		// inside a goroutine
-		rr.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
-		rp.EXPECT().First(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 
 		fs.EXPECT().MkdirAll(path.Join(rootDir, "file"), os.ModePerm).Return(nil)
 		fs.EXPECT().MkdirAll(path.Join(rootDir, "tmps"), os.ModePerm).Return(nil)
@@ -116,7 +98,7 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, nil)
 		fs.EXPECT().Open(idPath).Return(fh, nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, rp, rr, fs, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, rp, fs, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -143,7 +125,7 @@ func TestCreateFile(t *testing.T) {
 				Key:   key,
 				Value: ef.Signature,
 			}
-			mv = mock.NewManageVolume(t, rootDir)
+			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -171,12 +153,13 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(
-			func(_ context.Context, rp *replica.Pendent) error {
+		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Replica) error {
 				assert.Equal(t, mv.V.ID(), rp.VolumeID)
 				assert.Equal(t, key, rp.Key)
 				assert.Equal(t, ef.Signature, rp.Signature)
-				assert.Equal(t, rep, rp.Replica)
+				assert.Equal(t, rep-1, rp.Count)
+				assert.Equal(t, rep, rp.OriginalCount)
 				return nil
 			},
 		).Return(nil)
@@ -202,7 +185,7 @@ func TestCreateFile(t *testing.T) {
 				Key:   key,
 				Value: ef.Signature,
 			}
-			mv = mock.NewManageVolume(t, rootDir)
+			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -234,12 +217,13 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(
-			func(_ context.Context, rp *replica.Pendent) error {
+		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Replica) error {
 				assert.Equal(t, mv.V.ID(), rp.VolumeID)
 				assert.Equal(t, key, rp.Key)
 				assert.Equal(t, ef.Signature, rp.Signature)
-				assert.Equal(t, rep, rp.Replica)
+				assert.Equal(t, rep-1, rp.Count)
+				assert.Equal(t, rep, rp.OriginalCount)
 				return nil
 			},
 		).Return(nil)
@@ -262,7 +246,7 @@ func TestCreateFile(t *testing.T) {
 				Replica:   rep,
 			}
 
-			mv  = mock.NewManageVolume(t, rootDir)
+			mv  = newManageVolume(t, rootDir)
 			ctx = context.Background()
 		)
 
@@ -311,7 +295,7 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key, "b"},
 				Signature: "123123123",
 			}
-			mv = mock.NewManageVolume(t, rootDir)
+			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -354,12 +338,13 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(
-			func(_ context.Context, rp *replica.Pendent) error {
+		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Replica) error {
 				assert.Equal(t, mv.V.ID(), rp.VolumeID)
 				assert.Equal(t, key, rp.Key)
 				assert.Equal(t, ef.Signature, rp.Signature)
-				assert.Equal(t, rep, rp.Replica)
+				assert.Equal(t, rep-1, rp.Count)
+				assert.Equal(t, rep, rp.OriginalCount)
 				return nil
 			},
 		).Return(nil)
@@ -389,7 +374,7 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key},
 				Signature: "123123123",
 			}
-			mv = mock.NewManageVolume(t, rootDir)
+			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -431,15 +416,65 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
-		mv.ReplicaPendent.EXPECT().Create(ctx, gomock.Any()).Do(
-			func(_ context.Context, rp *replica.Pendent) error {
+		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Replica) error {
 				assert.Equal(t, mv.V.ID(), rp.VolumeID)
 				assert.Equal(t, key, rp.Key)
 				assert.Equal(t, ef.Signature, rp.Signature)
-				assert.Equal(t, rep, rp.Replica)
+				assert.Equal(t, rep-1, rp.Count)
+				assert.Equal(t, rep, rp.OriginalCount)
 				return nil
 			},
 		).Return(nil)
+
+		err := mv.V.CreateFile(ctx, key, buff, rep)
+		require.NoError(t, err)
+	})
+	t.Run("SuccessWithNoReplica", func(t *testing.T) {
+		var (
+			tempuuid string
+			rootDir  = "root"
+			rep      = 1
+			tmpsDir  = path.Join(rootDir, "tmps")
+			fileDir  = path.Join(rootDir, "file")
+			key      = "expectedkey"
+			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			ef       = file.File{
+				Keys:      []string{key},
+				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
+				Replica:   1,
+			}
+			eik = idxkey.IDXKey{
+				Key:   key,
+				Value: ef.Signature,
+			}
+			mv = newManageVolume(t, rootDir)
+
+			ctx = context.Background()
+		)
+
+		defer mv.Finish()
+
+		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
+			assert.True(t, strings.HasPrefix(p, tmpsDir))
+			_, tempuuid = path.Split(p)
+			return mem.NewFileHandle(mem.CreateFile(p)), nil
+		})
+
+		dir, _ := path.Split(ef.Path(fileDir))
+		mv.Fs.EXPECT().MkdirAll(dir, os.ModePerm).Return(nil)
+
+		mv.Fs.EXPECT().Rename(gomock.Any(), ef.Path(fileDir)).Do(func(p string, _ string) {
+			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
+		}).Return(nil)
+
+		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(nil, errors.New("not found"))
+
+		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
+
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
+
+		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
@@ -455,7 +490,7 @@ func TestGetFile(t *testing.T) {
 			content   = "expectedcontent"
 			fileDir   = path.Join(rootDir, "file")
 
-			mv  = mock.NewManageVolume(t, rootDir)
+			mv  = newManageVolume(t, rootDir)
 			ctx = context.Background()
 		)
 
@@ -466,7 +501,7 @@ func TestGetFile(t *testing.T) {
 		mv.Fs.EXPECT().Open(file.Path(fileDir, signature)).DoAndReturn(func(p string) (afero.File, error) {
 			tf := mem.NewFileHandle(mem.CreateFile(p))
 			tf.WriteString(content)
-			// After finishing writting, the "cursor" points to the end of
+			// After finishing writing, the "cursor" points to the end of
 			// the content, so to be able to read all of it, has to be
 			// set to the beggining, that's what the Seek does
 			tf.Seek(0, 0)
@@ -484,7 +519,7 @@ func TestGetFile(t *testing.T) {
 		var (
 			rootDir = "root"
 			key     = "expectedkey"
-			mv      = mock.NewManageVolume(t, rootDir)
+			mv      = newManageVolume(t, rootDir)
 			ctx     = context.Background()
 		)
 
@@ -502,7 +537,7 @@ func TestHasFile(t *testing.T) {
 		var (
 			rootDir = "root"
 			key     = "expectedkey"
-			mv      = mock.NewManageVolume(t, rootDir)
+			mv      = newManageVolume(t, rootDir)
 			ctx     = context.Background()
 		)
 
@@ -519,7 +554,7 @@ func TestHasFile(t *testing.T) {
 			rootDir = "root"
 			key     = "expectedkey"
 			ctx     = context.Background()
-			mv      = mock.NewManageVolume(t, rootDir)
+			mv      = newManageVolume(t, rootDir)
 		)
 
 		defer mv.Finish()
@@ -545,7 +580,7 @@ func TestDeleteFile(t *testing.T) {
 			fileDir = path.Join(rootDir, "file")
 
 			ctx = context.Background()
-			mv  = mock.NewManageVolume(t, rootDir)
+			mv  = newManageVolume(t, rootDir)
 		)
 
 		defer mv.Finish()
@@ -577,7 +612,7 @@ func TestDeleteFile(t *testing.T) {
 			}
 
 			ctx = context.Background()
-			mv  = mock.NewManageVolume(t, rootDir)
+			mv  = newManageVolume(t, rootDir)
 		)
 
 		defer mv.Finish()
@@ -598,17 +633,155 @@ func TestDeleteFile(t *testing.T) {
 	})
 }
 
-func TestCreateReplicaRetry(t *testing.T) {
+func TestNextReplica(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			rootDir = "root"
 			ctx     = context.Background()
-			mv      = mock.NewManageVolume(t, rootDir)
+			mv      = newManageVolume(t, rootDir)
+			rp      = &replica.Replica{
+				ID: "1",
+			}
 		)
+		defer mv.Finish()
 
-		mv.ReplicaRetry.EXPECT().Create(ctx, &replica.Retry{NodeName: "Name"}).Return(nil)
+		mv.Replicas.EXPECT().First(ctx).Return(rp, nil)
 
-		err := mv.V.CreateReplicaRetry(ctx, &replica.Retry{NodeName: "Name"})
+		dbrep, err := mv.V.NextReplica(ctx)
 		require.NoError(t, err)
+		assert.Equal(t, rp, dbrep)
+	})
+}
+
+func TestUpdateReplica(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			rootDir = "root"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+			rp      = &replica.Replica{
+				ID:            "1",
+				Count:         2,
+				OriginalCount: 3,
+				Signature:     "sig",
+				VolumeID:      mv.V.ID(),
+			}
+			createRP = &replica.Replica{
+				ID:            "1",
+				Count:         1,
+				OriginalCount: 3,
+				Signature:     "sig",
+				VolumeID:      mv.V.ID(),
+			}
+			findFile = &file.File{
+				Signature: "sig",
+			}
+			updateFile = &file.File{
+				Signature: "sig",
+				Replica:   3,
+				VolumeIDs: []string{"1"},
+			}
+		)
+		defer mv.Finish()
+
+		mv.Files.EXPECT().FindBySignature(ctx, rp.Signature).Return(findFile, nil)
+		mv.Files.EXPECT().CreateOrReplace(ctx, updateFile).Return(nil)
+		mv.Replicas.EXPECT().Delete(ctx, rp).Return(nil)
+		mv.Replicas.EXPECT().Create(ctx, createRP).Return(nil)
+
+		err := mv.V.UpdateReplica(ctx, rp, "1")
+		require.NoError(t, err)
+	})
+	t.Run("SuccessWithNoMoreReplicas", func(t *testing.T) {
+		var (
+			rootDir = "root"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+			rp      = &replica.Replica{
+				ID:            "1",
+				Count:         1,
+				OriginalCount: 2,
+				Signature:     "sig",
+				VolumeID:      mv.V.ID(),
+			}
+			findFile = &file.File{
+				Signature: "sig",
+			}
+			updateFile = &file.File{
+				Signature: "sig",
+				Replica:   2,
+				VolumeIDs: []string{"1"},
+			}
+		)
+		defer mv.Finish()
+
+		mv.Files.EXPECT().FindBySignature(ctx, rp.Signature).Return(findFile, nil)
+		mv.Files.EXPECT().CreateOrReplace(ctx, updateFile).Return(nil)
+		mv.Replicas.EXPECT().Delete(ctx, rp).Return(nil)
+
+		err := mv.V.UpdateReplica(ctx, rp, "1")
+		require.NoError(t, err)
+	})
+	t.Run("SuccessWithOutsideReplica", func(t *testing.T) {
+		var (
+			rootDir = "root"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+			rp      = &replica.Replica{
+				ID:            "1",
+				Count:         1,
+				OriginalCount: 2,
+				Signature:     "sig",
+				VolumeID:      "outside-id",
+			}
+			findFile = &file.File{
+				Signature: "sig",
+			}
+			updateFile = &file.File{
+				Signature: "sig",
+				Replica:   2,
+				VolumeIDs: []string{"1"},
+			}
+		)
+		defer mv.Finish()
+
+		mv.Files.EXPECT().FindBySignature(ctx, rp.Signature).Return(findFile, nil)
+		mv.Files.EXPECT().CreateOrReplace(ctx, updateFile).Return(nil)
+
+		err := mv.V.UpdateReplica(ctx, rp, "1")
+		require.NoError(t, err)
+	})
+	t.Run("ErrorWithNoReplica", func(t *testing.T) {
+		var (
+			rootDir = "root"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+		)
+		defer mv.Finish()
+
+		err := mv.V.UpdateReplica(ctx, nil, "1")
+		assert.EqualError(t, err, "the replica is required")
+	})
+	t.Run("ErrorWithNoSignatureOrKey", func(t *testing.T) {
+		var (
+			rootDir = "root"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+		)
+		defer mv.Finish()
+
+		err := mv.V.UpdateReplica(ctx, &replica.Replica{}, "1")
+		assert.EqualError(t, err, "the replica Signature or Key are required")
+	})
+	t.Run("ErrorWithNoOriginalCount", func(t *testing.T) {
+		var (
+			rootDir = "root"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+		)
+		defer mv.Finish()
+
+		err := mv.V.UpdateReplica(ctx, &replica.Replica{Key: "key"}, "1")
+		assert.EqualError(t, err, "the replica OriginalCount is required")
 	})
 }

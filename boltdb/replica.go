@@ -9,7 +9,7 @@ import (
 	"github.com/xescugc/rebost/replica"
 )
 
-type replicaPendentRepository struct {
+type replicaRepository struct {
 	client     *bolt.DB
 	bucketName []byte
 	bucket     *bolt.Bucket
@@ -17,19 +17,19 @@ type replicaPendentRepository struct {
 }
 
 // NewReplicaPendentRepository returns an implementation of the interface replica.PendentRepository
-func NewReplicaPendentRepository(c *bolt.DB) (replica.PendentRepository, error) {
-	bn := []byte("replica-pendent")
+func NewReplicaRepository(c *bolt.DB) (replica.Repository, error) {
+	bn := []byte("replica")
 	if err := createBucket(c, bn); err != nil {
 		return nil, err
 	}
-	return &replicaPendentRepository{
+	return &replicaRepository{
 		client:     c,
 		bucketName: bn,
 		key:        keyGenerator{},
 	}, nil
 }
 
-func (r *replicaPendentRepository) Create(ctx context.Context, rp *replica.Pendent) error {
+func (r *replicaRepository) Create(ctx context.Context, rp *replica.Replica) error {
 	rp.VolumeReplicaID = r.key.new()
 	b, err := json.Marshal(rp)
 	if err != nil {
@@ -38,8 +38,8 @@ func (r *replicaPendentRepository) Create(ctx context.Context, rp *replica.Pende
 	return r.bucket.Put(rp.VolumeReplicaID, b)
 }
 
-func (r *replicaPendentRepository) First(ctx context.Context) (*replica.Pendent, error) {
-	var p replica.Pendent
+func (r *replicaRepository) First(ctx context.Context) (*replica.Replica, error) {
+	var p replica.Replica
 	_, b := r.bucket.Cursor().First()
 	if b == nil {
 		return nil, errors.New("not found")
@@ -51,6 +51,6 @@ func (r *replicaPendentRepository) First(ctx context.Context) (*replica.Pendent,
 	return &p, nil
 }
 
-func (r *replicaPendentRepository) Delete(ctx context.Context, rp *replica.Pendent) error {
+func (r *replicaRepository) Delete(ctx context.Context, rp *replica.Replica) error {
 	return r.bucket.Delete(rp.VolumeReplicaID)
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 func encodeHasFileRequest(_ context.Context, r *http.Request, request interface{}) error {
@@ -13,6 +15,8 @@ func encodeHasFileRequest(_ context.Context, r *http.Request, request interface{
 }
 
 func decodeHasFileResponse(_ context.Context, r *http.Response) (interface{}, error) {
+	// As it's a HEAD request it's not possible to return an error on the body
+	// so we directly add this
 	return hasFileResponse{
 		Ok: r.StatusCode == http.StatusNoContent,
 	}, nil
@@ -25,13 +29,81 @@ func encodeGetFileRequest(_ context.Context, r *http.Request, request interface{
 }
 
 func decodeGetFileResponse(_ context.Context, r *http.Response) (interface{}, error) {
-	return getFileResponse{IORC: r.Body}, nil
+	var response getFileResponse
+	// It has a different content type depending if it failed or not, if it fails
+	// it returns a JSON and if it does not fail it returns a File/Stream
+	if strings.Contains(r.Header["Content-Type"][0], "application/json") {
+		if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+			return nil, err
+		}
+	} else {
+		response.IORC = r.Body
+	}
+	return response, nil
 }
 
 func encodeGetConfigRequest(_ context.Context, r *http.Request, request interface{}) error { return nil }
 
 func decodeGetConfigResponse(_ context.Context, r *http.Response) (interface{}, error) {
 	var response getConfigResponse
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func encodeDeleteFileRequest(_ context.Context, r *http.Request, request interface{}) error {
+	dfr := request.(deleteFileRequest)
+	r.URL.Path += "/" + dfr.Key
+	return nil
+}
+
+func decodeDeleteFileResponse(_ context.Context, r *http.Response) (interface{}, error) {
+	var response deleteFileResponse
+	if r.StatusCode == http.StatusNoContent {
+		return response, nil
+	}
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func encodeCreateFileRequest(_ context.Context, r *http.Request, request interface{}) error {
+	cfr := request.(createFileRequest)
+	r.URL.Path += "/" + cfr.Key
+	q := r.URL.Query()
+	q.Set("replica", strconv.Itoa(cfr.Replica))
+	r.URL.RawQuery = q.Encode()
+	r.Body = cfr.IORC
+	return nil
+}
+
+func decodeCreateFileResponse(_ context.Context, r *http.Response) (interface{}, error) {
+	var response createFileResponse
+	if r.StatusCode == http.StatusCreated {
+		return response, nil
+	}
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func encodeCreateReplicaRequest(_ context.Context, r *http.Request, request interface{}) error {
+	crr := request.(createReplicaRequest)
+	r.URL.Path += "/" + crr.Key
+	q := r.URL.Query()
+	q.Set("replica", strconv.Itoa(crr.Replica))
+	q.Set("volume_id", crr.VolumeID)
+
+	r.URL.RawQuery = q.Encode()
+	r.Body = crr.IORC
+	return nil
+}
+
+func decodeCreateReplicaResponse(_ context.Context, r *http.Response) (interface{}, error) {
+	var response createReplicaResponse
 	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
 		return nil, err
 	}

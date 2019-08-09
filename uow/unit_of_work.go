@@ -35,8 +35,7 @@ type UnitOfWork interface {
 	Files() file.Repository
 	IDXKeys() idxkey.Repository
 	Fs() afero.Fs
-	ReplicaPendent() replica.PendentRepository
-	ReplicaRetry() replica.RetryRepository
+	Replicas() replica.Repository
 }
 
 // StartUnitOfWork it's the way to initialize a typed UoW, it has a uowFn

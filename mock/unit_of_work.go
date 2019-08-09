@@ -78,30 +78,16 @@ func (mr *UnitOfWorkMockRecorder) IDXKeys() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXKeys", reflect.TypeOf((*UnitOfWork)(nil).IDXKeys))
 }
 
-// ReplicaPendent mocks base method
-func (m *UnitOfWork) ReplicaPendent() replica.PendentRepository {
+// Replicas mocks base method
+func (m *UnitOfWork) Replicas() replica.Repository {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReplicaPendent")
-	ret0, _ := ret[0].(replica.PendentRepository)
+	ret := m.ctrl.Call(m, "Replicas")
+	ret0, _ := ret[0].(replica.Repository)
 	return ret0
 }
 
-// ReplicaPendent indicates an expected call of ReplicaPendent
-func (mr *UnitOfWorkMockRecorder) ReplicaPendent() *gomock.Call {
+// Replicas indicates an expected call of Replicas
+func (mr *UnitOfWorkMockRecorder) Replicas() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplicaPendent", reflect.TypeOf((*UnitOfWork)(nil).ReplicaPendent))
-}
-
-// ReplicaRetry mocks base method
-func (m *UnitOfWork) ReplicaRetry() replica.RetryRepository {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReplicaRetry")
-	ret0, _ := ret[0].(replica.RetryRepository)
-	return ret0
-}
-
-// ReplicaRetry indicates an expected call of ReplicaRetry
-func (mr *UnitOfWorkMockRecorder) ReplicaRetry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplicaRetry", reflect.TypeOf((*UnitOfWork)(nil).ReplicaRetry))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replicas", reflect.TypeOf((*UnitOfWork)(nil).Replicas))
 }

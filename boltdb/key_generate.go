@@ -1,4 +1,4 @@
-package internal
+package boltdb
 
 import (
 	"fmt"

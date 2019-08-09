@@ -70,17 +70,17 @@ type hasFileRequest struct {
 }
 
 type hasFileResponse struct {
-	Ok  bool
-	Err error
+	Ok bool
 }
-
-func (r hasFileResponse) error() error { return r.Err }
 
 func makeHasFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(hasFileRequest)
 		ok, err := s.HasFile(ctx, req.Key)
-		return hasFileResponse{Ok: ok, Err: err}, nil
+		if err != nil {
+			return nil, err
+		}
+		return hasFileResponse{Ok: ok}, nil
 	}
 }
 
@@ -89,11 +89,32 @@ type response struct {
 	Err  error       `json:"error,omitempty"`
 }
 
-func (r *response) error() error { return r.Err }
+func (r response) error() error { return r.Err }
 
 func makeGetConfigEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		cfg, err := s.Config(ctx)
-		return response{Data: model.Config(*cfg), Err: err}, nil
+		if err != nil {
+			return response{Err: err}, nil
+		}
+		return response{Data: model.Config(*cfg)}, nil
+	}
+}
+
+type createReplicaRequest struct {
+	Key      string
+	Body     io.ReadCloser
+	Replica  int
+	VolumeID string
+}
+
+func makeCreateReplicaEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(createReplicaRequest)
+		volID, err := s.CreateReplica(ctx, req.Key, req.Body, req.VolumeID, req.Replica)
+		if err != nil {
+			return response{Err: err}, nil
+		}
+		return response{Data: model.CreateReplica{VolumeID: volID}}, nil
 	}
 }

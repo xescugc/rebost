@@ -13,6 +13,10 @@ import (
 	"github.com/xescugc/rebost/volume"
 )
 
+const (
+	noReplica = 1
+)
+
 //go:generate mockgen -destination=../mock/storing.go -mock_names=Service=Storing -package=mock github.com/xescugc/rebost/storing Service
 
 // Service is the interface of used to for the storing,
@@ -20,20 +24,17 @@ import (
 // to consume the API
 type Service interface {
 	volume.Volume
-	replica.Node
 
 	// Config returns the current Service configuration
 	Config(context.Context) (*config.Config, error)
+
+	// CreateReplica creates a new File
+	CreateReplica(ctx context.Context, key string, reader io.ReadCloser, originVolumeID string, rep int) (vID string, err error)
 }
 
 type service struct {
 	members Membership
 	cfg     *config.Config
-
-	replicasPendentCha chan replica.Pendent
-
-	replicasPendentMapLock sync.RWMutex
-	replicasPendentMap     map[string]struct{}
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -43,16 +44,19 @@ type service struct {
 // the given parameters
 func New(cfg *config.Config, m Membership) Service {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &service{
+	s := &service{
 		members: m,
 		cfg:     cfg,
-
-		replicasPendentCha: make(chan replica.Pendent, cfg.MaxReplicaPendent),
-		replicasPendentMap: make(map[string]struct{}),
 
 		ctx:    ctx,
 		cancel: cancel,
 	}
+
+	if s.cfg.Replica != -1 {
+		go s.loopVolumesReplicas()
+	}
+
+	return s
 }
 
 func (s *service) Config(_ context.Context) (*config.Config, error) {
@@ -76,6 +80,7 @@ func (s *service) GetFile(ctx context.Context, k string) (io.ReadCloser, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	r, err := v.GetFile(ctx, k)
 	if err != nil {
 		return nil, err
@@ -89,7 +94,11 @@ func (s *service) DeleteFile(ctx context.Context, k string) error {
 	if err != nil {
 		return err
 	}
-	return v.DeleteFile(ctx, k)
+	err = v.DeleteFile(ctx, k)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
@@ -105,26 +114,31 @@ func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
 	return false, nil
 }
 
-func (s *service) CreateReplicaPendent(ctx context.Context, rp replica.Pendent) error {
-	select {
-	case s.replicasPendentCha <- rp:
-		s.replicasPendentMapLock.Lock()
-		s.replicasPendentMap[rp.ID] = struct{}{}
-		s.replicasPendentMapLock.Unlock()
-		return nil
-	default:
-		return errors.New("too busy to replicate")
+func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadCloser, originVolumeID string, rep int) (string, error) {
+	if s.cfg.Replica == -1 {
+		return "", errors.New("can not store replicas")
 	}
+	if originVolumeID == "" {
+		return "", errors.New("the originVolumeID is required")
+	}
+	v := s.getLocalVolume(ctx, key)
+	err := v.CreateFile(ctx, key, reader, noReplica)
+	if err != nil {
+		return "", err
+	}
+
+	err = v.UpdateReplica(ctx, &replica.Replica{
+		Key:           key,
+		OriginalCount: rep,
+	}, originVolumeID)
+	if err != nil {
+		return "", nil
+	}
+
+	return v.ID(), nil
 }
 
-func (s *service) HasReplicaPendent(ctx context.Context, ID string) (bool, error) {
-	s.replicasPendentMapLock.RLock()
-	_, ok := s.replicasPendentMap[ID]
-	s.replicasPendentMapLock.RUnlock()
-	return ok, nil
-}
-
-func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
+func (s *service) getLocalVolume(ctx context.Context, k string) volume.Local {
 	vls := s.members.LocalVolumes()
 
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -152,7 +166,7 @@ func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error
 		return v, nil
 	}
 
-	return nil, nil
+	return nil, errors.New("not found")
 }
 
 // findVolume finds the volume that has the key k within the volumes vls in parallel

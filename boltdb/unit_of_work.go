@@ -16,10 +16,10 @@ type unitOfWork struct {
 	tx *bolt.Tx
 	t  uow.Type
 
-	fileRepository           file.Repository
-	idxkeyRepository         idxkey.Repository
-	fs                       afero.Fs
-	replicaPendentRepository replica.PendentRepository
+	fileRepository    file.Repository
+	idxkeyRepository  idxkey.Repository
+	fs                afero.Fs
+	replicaRepository replica.Repository
 }
 
 type key int
@@ -90,8 +90,8 @@ func (uw *unitOfWork) Fs() afero.Fs {
 	return uw.fs
 }
 
-func (uw *unitOfWork) ReplicaPendent() replica.PendentRepository {
-	return uw.replicaPendentRepository
+func (uw *unitOfWork) Replicas() replica.Repository {
+	return uw.replicaRepository
 }
 
 func newUnitOfWork(t uow.Type) *unitOfWork {
@@ -160,15 +160,15 @@ func (uw *unitOfWork) add(r interface{}) error {
 			uw.idxkeyRepository = &r
 		}
 		return nil
-	case *replicaPendentRepository:
-		if uw.replicaPendentRepository == nil {
+	case *replicaRepository:
+		if uw.replicaRepository == nil {
 			r := *rep
 			b := uw.tx.Bucket(r.bucketName)
 			if b == nil {
 				return fmt.Errorf("bucker for %q not found", r.bucketName)
 			}
 			r.bucket = b
-			uw.replicaPendentRepository = &r
+			uw.replicaRepository = &r
 		}
 		return nil
 	default:

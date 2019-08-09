@@ -7,10 +7,15 @@ import "path"
 type File struct {
 	// Keys has all the keys that point to this file
 	Keys []string
+
 	// Signature is the SHA1 of the file
 	Signature string
+
 	// Replica number of replicas for that file
 	Replica int
+
+	// VolumeIDs it's where this file it's replicated to
+	VolumeIDs []string
 }
 
 // Path calculates the storage path for the File with the Signature

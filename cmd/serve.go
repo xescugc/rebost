@@ -54,14 +54,13 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating IDXKeys Repository: %s", err)
 				}
-				replicaPendent, err := boltdb.NewReplicaPendentRepository(bdb)
+				replicas, err := boltdb.NewReplicaRepository(bdb)
 				if err != nil {
-					return fmt.Errorf("error creating ReplicaPendent Repository: %s", err)
+					return fmt.Errorf("error creating Replica Repository: %s", err)
 				}
 				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-				rl := volume.NewReplica(replicaPendent, suow)
-				v, err := volume.New(vp, rl, files, idxkeys, osfs, suow)
+				v, err := volume.New(vp, files, idxkeys, replicas, osfs, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
@@ -107,9 +106,6 @@ func init() {
 
 	serveCmd.PersistentFlags().IntP("replica", "rep", 2, "The default number of replicas used if none specified on the requests")
 	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("replica"))
-
-	serveCmd.PersistentFlags().Int("max-replica-pendent", 50, "Replica is the default number of replicas that each file will have if none specified")
-	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("max-replica-pendent"))
 
 	serveCmd.PersistentFlags().String("memberlist-bind-port", "", "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist-bind-port", serveCmd.PersistentFlags().Lookup("memberlist-bind-port"))

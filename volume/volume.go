@@ -14,7 +14,6 @@ import (
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
-	"github.com/xescugc/rebost/volume/internal"
 )
 
 //go:generate mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
@@ -55,16 +54,14 @@ type Local interface {
 	// ID returns the ID of the Volume
 	ID() string
 
-	// ReplicasPendent is a channel that recieves replica.Pendent
-	// when a new file needs replica
-	ReplicasPendent() <-chan replica.Pendent
+	// NextReplica returns the next replica
+	// inline. A "not found" error means
+	// no replica is needed
+	NextReplica(ctx context.Context) (*replica.Replica, error)
 
-	// ReplicasRetry is a channel that returns if some expected
-	// replica did still not happen and it has to be validated
-	ReplicasRetry() <-chan replica.Retry
-
-	// CreateReplicaRetry creates the rr
-	CreateReplicaRetry(ctx context.Context, rr *replica.Retry) error
+	// UpdateReplica updates the rp of the index and the File to include
+	// the vID as a volume with the Replica
+	UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error
 }
 
 type local struct {
@@ -72,11 +69,10 @@ type local struct {
 	tempDir string
 	id      string
 
-	fs      afero.Fs
-	files   file.Repository
-	idxkeys idxkey.Repository
-
-	replica *internal.Replica
+	fs       afero.Fs
+	files    file.Repository
+	idxkeys  idxkey.Repository
+	replicas replica.Repository
 
 	startUnitOfWork uow.StartUnitOfWork
 
@@ -87,18 +83,16 @@ type local struct {
 // New returns an implementation of the volume.Local interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
-func New(root string, files file.Repository, idxkeys idxkey.Repository, rp replica.PendentRepository, rr replica.RetryRepository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, rp replica.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	rep := internal.NewReplica(rp, rr, suow)
 	l := &local{
 		fileDir: path.Join(root, "file"),
 		tempDir: path.Join(root, "tmps"),
 
-		files:   files,
-		fs:      fileSystem,
-		idxkeys: idxkeys,
-
-		replica: rep,
+		files:    files,
+		fs:       fileSystem,
+		idxkeys:  idxkeys,
+		replicas: rp,
 
 		startUnitOfWork: suow,
 
@@ -151,42 +145,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, rp repli
 
 	l.id = id
 
-	go l.loopFromReplicaPendent()
-	go l.loopFromReplicaRetry()
-
 	return l, nil
-}
-
-// loopFromReplicaPendent loops until the l.ctx is canceled
-func (l *local) loopFromReplicaPendent() {
-	for {
-		select {
-		case <-l.ctx.Done():
-			break
-		default:
-			err := l.replica.PopFromReplicaPendent(l.ctx)
-			if err != nil {
-				// TODO: logs
-				fmt.Println(err)
-			}
-		}
-	}
-}
-
-// loopFromReplicaRetry loops until the l.ctx is canceled
-func (l *local) loopFromReplicaRetry() {
-	for {
-		select {
-		case <-l.ctx.Done():
-			break
-		default:
-			err := l.replica.PopFromReplicaRetry(l.ctx)
-			if err != nil {
-				// TODO: logs
-				fmt.Println(err)
-			}
-		}
-	}
 }
 
 func (l *local) ID() string { return l.id }
@@ -311,13 +270,29 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			return err
 		}
 
-		err = l.replica.CreateReplicaPendent(ctx, l.id, key, f.Signature, rep)
-		if err != nil {
-			return err
+		// As one is already stored on this volume we can reduce it
+		rep--
+		if rep >= 1 {
+			rp := &replica.Replica{
+				ID:  uuid.NewV4().String(),
+				Key: key,
+				// TODO: For now we are ignoring the fact
+				// that if the file exists the replicas may
+				// chage and be more or lesss
+				Count:         rep,
+				OriginalCount: rep + 1,
+				Signature:     f.Signature,
+				VolumeID:      l.id,
+			}
+
+			err = uw.Replicas().Create(ctx, rp)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
-	}, l.idxkeys, l.files, l.fs)
+	}, l.idxkeys, l.files, l.fs, l.replicas)
 
 	if err != nil {
 		return err
@@ -353,7 +328,7 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 }
 
 func (l *local) DeleteFile(ctx context.Context, key string) error {
-	return l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		ik, err := uw.IDXKeys().FindByKey(ctx, key)
 		if err != nil {
 			return err
@@ -411,14 +386,92 @@ func (l *local) HasFile(ctx context.Context, k string) (bool, error) {
 	return true, nil
 }
 
-func (l *local) ReplicasPendent() <-chan replica.Pendent {
-	return l.replica.ReplicasPendent()
+func (l *local) NextReplica(ctx context.Context) (*replica.Replica, error) {
+	var (
+		err error
+		rp  *replica.Replica
+	)
+	err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		rp, err = uw.Replicas().First(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, l.replicas)
+	if err != nil {
+		return nil, err
+	}
+	return rp, nil
 }
 
-func (l *local) ReplicasRetry() <-chan replica.Retry {
-	return l.replica.ReplicasRetry()
-}
+func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error {
+	if rp == nil {
+		return fmt.Errorf("the replica is required")
+	}
+	if rp.Signature == "" && rp.Key == "" {
+		return fmt.Errorf("the replica Signature or Key are required")
+	}
+	if rp.OriginalCount == 0 {
+		return fmt.Errorf("the replica OriginalCount is required")
+	}
+	err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		var (
+			f   *file.File
+			err error
+		)
 
-func (l *local) CreateReplicaRetry(ctx context.Context, r *replica.Retry) error {
-	return l.replica.CreateReplicaRetry(ctx, r)
+		// If we have Signature, when it's the one internal Update, we use it\
+		// if we have the key, from remote, we get it from there
+		if rp.Signature != "" {
+			f, err = uw.Files().FindBySignature(ctx, rp.Signature)
+		} else {
+			ik, err := uw.IDXKeys().FindByKey(ctx, rp.Key)
+			if err != nil && err.Error() != "not found" {
+				return err
+			}
+			f, err = uw.Files().FindBySignature(ctx, ik.Value)
+		}
+		if err != nil {
+			return err
+		}
+
+		f.VolumeIDs = append(f.VolumeIDs, vID)
+		f.Replica = rp.OriginalCount
+
+		err = uw.Files().CreateOrReplace(ctx, f)
+		if err != nil {
+			return err
+		}
+
+		// If it's not the same volume menas
+		// that it's an outise replica so we just have
+		// to update the File
+		if rp.VolumeID != l.id {
+			return nil
+		}
+
+		// Delete the replica from the  queue to reinsert it later
+		// with a different Count
+		err = uw.Replicas().Delete(ctx, rp)
+		if err != nil {
+			return err
+		}
+
+		rp.Count -= 1
+
+		if rp.Count > 0 {
+			err = uw.Replicas().Create(ctx, rp)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

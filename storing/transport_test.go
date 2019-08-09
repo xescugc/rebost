@@ -22,11 +22,13 @@ import (
 
 func TestMakeHandler(t *testing.T) {
 	var (
-		key     = "fileName"
-		content = []byte("content")
-		ctrl    = gomock.NewController(t)
-		cfg     = config.Config{MemberlistName: "Pepito"}
-		rep     = 2
+		key                  = "fileName"
+		content              = []byte("content")
+		ctrl                 = gomock.NewController(t)
+		cfg                  = config.Config{MemberlistName: "Pepito"}
+		replicaFromVol       = "volume-id"
+		createReplicaVolmeID = "createReplicaVolmeID"
+		rep                  = 2
 	)
 
 	st := mock.NewStoring(ctrl)
@@ -50,6 +52,11 @@ func TestMakeHandler(t *testing.T) {
 		return false, nil
 	}).AnyTimes()
 	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
+	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any(), replicaFromVol, rep).Do(func(_ context.Context, _ string, r io.Reader, _ string, _ int) {
+		b, err := ioutil.ReadAll(r)
+		require.NoError(t, err)
+		assert.Equal(t, content, b)
+	}).Return(createReplicaVolmeID, nil).AnyTimes()
 
 	tests := []struct {
 		Name        string
@@ -101,6 +108,18 @@ func TestMakeHandler(t *testing.T) {
 			EBody: func() []byte {
 				cfg := model.Config{MemberlistName: "Pepito"}
 				b, _ := json.Marshal(cfg)
+				return []byte(fmt.Sprintf(`{"data":%s}`, b))
+			},
+		},
+		{
+			Name:        "CreateReplica",
+			URL:         "/replicas/fileName?volume_id=volume-id&replica=2",
+			Method:      http.MethodPut,
+			Body:        []byte("content"),
+			EStatusCode: http.StatusOK,
+			EBody: func() []byte {
+				cr := model.CreateReplica{VolumeID: createReplicaVolmeID}
+				b, _ := json.Marshal(cr)
 				return []byte(fmt.Sprintf(`{"data":%s}`, b))
 			},
 		},
