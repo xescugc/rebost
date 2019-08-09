@@ -111,6 +111,7 @@ func TestCreateFile(t *testing.T) {
 		var (
 			tempuuid string
 			rootDir  = "root"
+			mv       = newManageVolume(t, rootDir)
 			rep      = 2
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
@@ -120,12 +121,12 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   2,
+				VolumeIDs: []string{mv.V.ID()},
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
 			}
-			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -171,6 +172,7 @@ func TestCreateFile(t *testing.T) {
 		var (
 			tempuuid string
 			rootDir  = "root"
+			mv       = newManageVolume(t, rootDir)
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
@@ -180,12 +182,12 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{"b", key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   rep,
+				VolumeIDs: []string{mv.V.ID()},
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
 			}
-			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -235,6 +237,7 @@ func TestCreateFile(t *testing.T) {
 		var (
 			tempuuid string
 			rootDir  = "root"
+			mv       = newManageVolume(t, rootDir)
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
@@ -244,9 +247,9 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   rep,
+				VolumeIDs: []string{mv.V.ID()},
 			}
 
-			mv  = newManageVolume(t, rootDir)
 			ctx = context.Background()
 		)
 
@@ -277,6 +280,7 @@ func TestCreateFile(t *testing.T) {
 		var (
 			tempuuid string
 			rootDir  = "root"
+			mv       = newManageVolume(t, rootDir)
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
@@ -286,6 +290,7 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   rep,
+				VolumeIDs: []string{mv.V.ID()},
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
@@ -294,8 +299,8 @@ func TestCreateFile(t *testing.T) {
 			foundFile = file.File{
 				Keys:      []string{key, "b"},
 				Signature: "123123123",
+				VolumeIDs: []string{mv.V.ID()},
 			}
-			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -322,6 +327,7 @@ func TestCreateFile(t *testing.T) {
 			return &file.File{
 				Keys:      foundFile.Keys,
 				Signature: foundFile.Signature,
+				VolumeIDs: []string{mv.V.ID()},
 			}, nil
 		}).Times(2)
 
@@ -356,6 +362,7 @@ func TestCreateFile(t *testing.T) {
 		var (
 			tempuuid string
 			rootDir  = "root"
+			mv       = newManageVolume(t, rootDir)
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
@@ -365,6 +372,7 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   rep,
+				VolumeIDs: []string{mv.V.ID()},
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
@@ -373,8 +381,8 @@ func TestCreateFile(t *testing.T) {
 			foundFile = file.File{
 				Keys:      []string{key},
 				Signature: "123123123",
+				VolumeIDs: []string{mv.V.ID()},
 			}
-			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)
@@ -434,6 +442,7 @@ func TestCreateFile(t *testing.T) {
 		var (
 			tempuuid string
 			rootDir  = "root"
+			mv       = newManageVolume(t, rootDir)
 			rep      = 1
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
@@ -443,12 +452,12 @@ func TestCreateFile(t *testing.T) {
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   1,
+				VolumeIDs: []string{mv.V.ID()},
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
 			}
-			mv = newManageVolume(t, rootDir)
 
 			ctx = context.Background()
 		)

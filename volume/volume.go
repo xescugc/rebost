@@ -210,6 +210,8 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			f = dbf
 		}
 
+		f.VolumeIDs = append(f.VolumeIDs, l.ID())
+
 		err = uw.Files().CreateOrReplace(ctx, f)
 		if err != nil {
 			return err
@@ -420,7 +422,7 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 			err error
 		)
 
-		// If we have Signature, when it's the one internal Update, we use it\
+		// If we have Signature, when it's the one internal Update, we use it
 		// if we have the key, from remote, we get it from there
 		if rp.Signature != "" {
 			f, err = uw.Files().FindBySignature(ctx, rp.Signature)
@@ -467,7 +469,7 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 		}
 
 		return nil
-	})
+	}, l.replicas, l.files, l.idxkeys)
 
 	if err != nil {
 		return err
