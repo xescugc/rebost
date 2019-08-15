@@ -20,6 +20,10 @@ type Replica struct {
 	// VolumeID that stored the original replica
 	VolumeID string
 
+	// VolumeIDs list of all the volumes that have the replica
+	// excluding the original one
+	VolumeIDs []string
+
 	// VolumeReplicaID represents the unique ID of the replica
 	// inside the Volume. It's used to index in a
 	// uinique incress order on the DB

@@ -44,6 +44,8 @@ func (s *service) loopVolumesReplicas() {
 						continue
 					}
 
+					rp.VolumeIDs = append(rp.VolumeIDs, vID)
+
 					err = v.UpdateReplica(s.ctx, rp, vID)
 					if err != nil {
 						log.Println(err)
