@@ -97,10 +97,8 @@ func (c Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 }
 
 type createReplicaRequest struct {
-	Key      string
-	IORC     io.ReadCloser
-	Replica  int
-	VolumeID string
+	Key  string
+	IORC io.ReadCloser
 }
 
 type createReplicaResponse struct {
@@ -109,8 +107,8 @@ type createReplicaResponse struct {
 }
 
 // CreateReplicaPendent WIP
-func (c Client) CreateReplica(ctx context.Context, key string, reader io.ReadCloser, orginVolID string, rep int) (string, error) {
-	response, err := c.createReplica(ctx, createReplicaRequest{Key: key, IORC: reader, VolumeID: orginVolID, Replica: rep})
+func (c Client) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
+	response, err := c.createReplica(ctx, createReplicaRequest{Key: key, IORC: reader})
 	if err != nil {
 		return "", err
 	}

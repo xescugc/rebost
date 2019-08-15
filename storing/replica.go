@@ -38,13 +38,15 @@ func (s *service) loopVolumesReplicas() {
 						log.Println(err)
 						continue
 					}
-					vID, err := n.CreateReplica(s.ctx, rp.Key, iorc, v.ID(), rp.OriginalCount)
+					vID, err := n.CreateReplica(s.ctx, rp.Key, iorc)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 
 					rp.VolumeIDs = append(rp.VolumeIDs, vID)
+
+					//TODO: Iterate over and UpdateFileReplica
 
 					err = v.UpdateReplica(s.ctx, rp, vID)
 					if err != nil {

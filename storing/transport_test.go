@@ -26,7 +26,6 @@ func TestMakeHandler(t *testing.T) {
 		content              = []byte("content")
 		ctrl                 = gomock.NewController(t)
 		cfg                  = config.Config{MemberlistName: "Pepito"}
-		replicaFromVol       = "volume-id"
 		createReplicaVolmeID = "createReplicaVolmeID"
 		rep                  = 2
 	)
@@ -52,7 +51,7 @@ func TestMakeHandler(t *testing.T) {
 		return false, nil
 	}).AnyTimes()
 	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
-	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any(), replicaFromVol, rep).Do(func(_ context.Context, _ string, r io.Reader, _ string, _ int) {
+	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, r io.Reader) {
 		b, err := ioutil.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
@@ -113,7 +112,7 @@ func TestMakeHandler(t *testing.T) {
 		},
 		{
 			Name:        "CreateReplica",
-			URL:         "/replicas/fileName?volume_id=volume-id&replica=2",
+			URL:         "/replicas/fileName",
 			Method:      http.MethodPut,
 			Body:        []byte("content"),
 			EStatusCode: http.StatusOK,

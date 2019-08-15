@@ -258,13 +258,11 @@ func TestCreateReplica(t *testing.T) {
 			content     = make([]byte, 6000)
 			iorcContent = ioutil.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
-			orgVolID    = "orgVolID"
 			volID       = "volID"
-			rep         = 10
 		)
 		defer ctrl.Finish()
 
-		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any(), orgVolID, rep).Do(func(_ context.Context, _ string, b io.ReadCloser, _ string, _ int) {
+		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, b io.ReadCloser) {
 			c, err := ioutil.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
@@ -275,7 +273,7 @@ func TestCreateReplica(t *testing.T) {
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		vID, err := c.CreateReplica(context.Background(), key, iorcContent, orgVolID, rep)
+		vID, err := c.CreateReplica(context.Background(), key, iorcContent)
 		require.NoError(t, err)
 		assert.Equal(t, volID, vID)
 	})
@@ -286,12 +284,10 @@ func TestCreateReplica(t *testing.T) {
 			content     = make([]byte, 6000)
 			iorcContent = ioutil.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
-			orgVolID    = "orgVolID"
-			rep         = 10
 		)
 		defer ctrl.Finish()
 
-		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any(), orgVolID, rep).Do(func(_ context.Context, _ string, b io.ReadCloser, _ string, _ int) {
+		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, b io.ReadCloser) {
 			c, err := ioutil.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
@@ -302,7 +298,7 @@ func TestCreateReplica(t *testing.T) {
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		vID, err := c.CreateReplica(context.Background(), key, iorcContent, orgVolID, rep)
+		vID, err := c.CreateReplica(context.Background(), key, iorcContent)
 		assert.EqualError(t, err, "some-error")
 		assert.Equal(t, "", vID)
 	})

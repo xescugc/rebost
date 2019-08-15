@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
-	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
@@ -265,8 +264,6 @@ func TestCreateReplica(t *testing.T) {
 			buff           = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl           = gomock.NewController(t)
 			ctx            = context.Background()
-			rep            = 4
-			originVolID    = "originVolID"
 			createdToVolID = "createdToVolID"
 		)
 
@@ -283,23 +280,37 @@ func TestCreateReplica(t *testing.T) {
 		// This is also because of the goroutine, it may call it or not
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 
-		v.EXPECT().UpdateReplica(ctx, &replica.Replica{
-			Key:           key,
-			OriginalCount: rep,
-		}, originVolID)
-
 		v.EXPECT().ID().Return(createdToVolID)
 
 		s := storing.New(&config.Config{}, m)
 
-		volID, err := s.CreateReplica(ctx, key, buff, "originVolID", 4)
+		volID, err := s.CreateReplica(ctx, key, buff)
 		require.NoError(t, err)
 		assert.Equal(t, createdToVolID, volID)
 	})
-	t.Run("ErrorOriginVolumeID", func(t *testing.T) {
+	t.Run("ErrorNoReplica", func(t *testing.T) {
 		var (
 			key  = "expectedkey"
 			buff = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+		)
+
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		s := storing.New(&config.Config{Replica: -1}, m)
+
+		volID, err := s.CreateReplica(ctx, key, buff)
+		assert.EqualError(t, err, "can not store replicas")
+		assert.Equal(t, "", volID)
+	})
+}
+
+func TestUpdateFileReplica(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 4

@@ -102,16 +102,14 @@ func makeGetConfigEndpoint(s Service) endpoint.Endpoint {
 }
 
 type createReplicaRequest struct {
-	Key      string
-	Body     io.ReadCloser
-	Replica  int
-	VolumeID string
+	Key  string
+	Body io.ReadCloser
 }
 
 func makeCreateReplicaEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createReplicaRequest)
-		volID, err := s.CreateReplica(ctx, req.Key, req.Body, req.VolumeID, req.Replica)
+		volID, err := s.CreateReplica(ctx, req.Key, req.Body)
 		if err != nil {
 			return response{Err: err}, nil
 		}

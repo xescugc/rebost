@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/xescugc/rebost/config"
-	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -28,8 +27,8 @@ type Service interface {
 	// Config returns the current Service configuration
 	Config(context.Context) (*config.Config, error)
 
-	// CreateReplica creates a new File
-	CreateReplica(ctx context.Context, key string, reader io.ReadCloser, originVolumeID string, rep int) (vID string, err error)
+	// CreateReplica creates a new File replica
+	CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (vID string, err error)
 }
 
 type service struct {
@@ -114,12 +113,9 @@ func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
 	return false, nil
 }
 
-func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadCloser, originVolumeID string, rep int) (string, error) {
+func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
 	if s.cfg.Replica == -1 {
 		return "", errors.New("can not store replicas")
-	}
-	if originVolumeID == "" {
-		return "", errors.New("the originVolumeID is required")
 	}
 	v := s.getLocalVolume(ctx, key)
 	err := v.CreateFile(ctx, key, reader, noReplica)
@@ -127,10 +123,6 @@ func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadC
 		return "", err
 	}
 
-	err = v.UpdateReplica(ctx, &replica.Replica{
-		Key:           key,
-		OriginalCount: rep,
-	}, originVolumeID)
 	if err != nil {
 		return "", nil
 	}

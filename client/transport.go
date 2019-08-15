@@ -93,11 +93,6 @@ func decodeCreateFileResponse(_ context.Context, r *http.Response) (interface{},
 func encodeCreateReplicaRequest(_ context.Context, r *http.Request, request interface{}) error {
 	crr := request.(createReplicaRequest)
 	r.URL.Path += "/" + crr.Key
-	q := r.URL.Query()
-	q.Set("replica", strconv.Itoa(crr.Replica))
-	q.Set("volume_id", crr.VolumeID)
-
-	r.URL.RawQuery = q.Encode()
 	r.Body = crr.IORC
 	return nil
 }

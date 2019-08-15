@@ -203,19 +203,9 @@ func decodeCreateReplicaRequest(_ context.Context, r *http.Request) (interface{}
 		iorc = r.Body
 	}
 
-	rep, err := strconv.Atoi(r.URL.Query().Get("replica"))
-	if err != nil {
-		// If we can not transform the replica to an Int, we
-		// just use the default value of int, which is 1
-		rep = 1
-	}
-	volID := r.URL.Query().Get("volume_id")
-
 	return createReplicaRequest{
-		Key:      mux.Vars(r)["key"],
-		Body:     iorc,
-		Replica:  rep,
-		VolumeID: volID,
+		Key:  mux.Vars(r)["key"],
+		Body: iorc,
 	}, nil
 }
 
