@@ -91,3 +91,17 @@ func (mr *VolumeMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*Volume)(nil).HasFile), arg0, arg1)
 }
+
+// UpdateFileReplica mocks base method
+func (m *Volume) UpdateFileReplica(arg0 context.Context, arg1 string, arg2 []string, arg3 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateFileReplica", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateFileReplica indicates an expected call of UpdateFileReplica
+func (mr *VolumeMockRecorder) UpdateFileReplica(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateFileReplica", reflect.TypeOf((*Volume)(nil).UpdateFileReplica), arg0, arg1, arg2, arg3)
+}

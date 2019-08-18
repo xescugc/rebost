@@ -122,3 +122,17 @@ func (mr *StoringMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*Storing)(nil).HasFile), arg0, arg1)
 }
+
+// UpdateFileReplica mocks base method
+func (m *Storing) UpdateFileReplica(arg0 context.Context, arg1 string, arg2 []string, arg3 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateFileReplica", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateFileReplica indicates an expected call of UpdateFileReplica
+func (mr *StoringMockRecorder) UpdateFileReplica(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateFileReplica", reflect.TypeOf((*Storing)(nil).UpdateFileReplica), arg0, arg1, arg2, arg3)
+}

@@ -1,8 +1,10 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -99,6 +101,28 @@ func encodeCreateReplicaRequest(_ context.Context, r *http.Request, request inte
 
 func decodeCreateReplicaResponse(_ context.Context, r *http.Response) (interface{}, error) {
 	var response createReplicaResponse
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func encodeUpdateFileReplicaRequest(_ context.Context, r *http.Request, request interface{}) error {
+	ufr := request.(updateFileReplicaRequest)
+	r.URL.Path += "/" + ufr.Key
+	b, err := json.Marshal(ufr.UpdateFileReplica)
+	if err != nil {
+		return err
+	}
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+	return nil
+}
+
+func decodeUpdateFileReplicaResponse(_ context.Context, r *http.Response) (interface{}, error) {
+	var response updateFileReplicaResponse
+	if r.StatusCode == http.StatusOK {
+		return response, nil
+	}
 	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
 		return nil, err
 	}

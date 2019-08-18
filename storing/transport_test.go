@@ -56,6 +56,7 @@ func TestMakeHandler(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
 	}).Return(createReplicaVolmeID, nil).AnyTimes()
+	st.EXPECT().UpdateFileReplica(gomock.Any(), key, []string{"1", "2"}, rep).Return(nil)
 
 	tests := []struct {
 		Name        string
@@ -121,6 +122,13 @@ func TestMakeHandler(t *testing.T) {
 				b, _ := json.Marshal(cr)
 				return []byte(fmt.Sprintf(`{"data":%s}`, b))
 			},
+		},
+		{
+			Name:        "UpdateFileReplica",
+			URL:         "/replicas/fileName",
+			Body:        []byte(`{"volume_ids": ["1","2"], "replica": 2}`),
+			Method:      http.MethodPatch,
+			EStatusCode: http.StatusOK,
 		},
 	}
 

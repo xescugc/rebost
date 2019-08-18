@@ -68,3 +68,13 @@ func makeCreatReplicaEndpoint(u url.URL) endpoint.Endpoint {
 		decodeCreateReplicaResponse,
 	).Endpoint()
 }
+
+func makeUpdateFileReplica(u url.URL) endpoint.Endpoint {
+	u.Path = "/replicas"
+	return kithttp.NewClient(
+		http.MethodPatch,
+		&u,
+		encodeUpdateFileReplicaRequest,
+		decodeUpdateFileReplicaResponse,
+	).Endpoint()
+}

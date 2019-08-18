@@ -123,11 +123,25 @@ func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadC
 		return "", err
 	}
 
-	if err != nil {
-		return "", nil
+	return v.ID(), nil
+}
+
+func (s *service) UpdateFileReplica(ctx context.Context, key string, volumeIDs []string, replica int) error {
+	if s.cfg.Replica == -1 {
+		return errors.New("can not store replicas")
 	}
 
-	return v.ID(), nil
+	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), key)
+	if err != nil {
+		return err
+	}
+
+	err = v.UpdateFileReplica(ctx, key, volumeIDs, replica)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *service) getLocalVolume(ctx context.Context, k string) volume.Local {

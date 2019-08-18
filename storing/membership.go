@@ -14,6 +14,10 @@ type Membership interface {
 	// LocalVolumes returns only the local volumes
 	LocalVolumes() []volume.Local
 
+	// GetNodeWithVolumeByID returns the Node that has the
+	// vid in his volumes
+	GetNodeWithVolumeByID(vid string) (Service, error)
+
 	// Leave makes it leave the cluster
 	Leave()
 }

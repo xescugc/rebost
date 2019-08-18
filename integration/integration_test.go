@@ -151,6 +151,10 @@ func TestReplica(t *testing.T) {
 	defer ca2()
 	cl3, _, ca3 := newClient(t, "n3", u1)
 	defer ca3()
+	cl4, _, ca4 := newClient(t, "n4", u1)
+	defer ca4()
+
+	clients := []*client.Client{cl1, cl2, cl3, cl4}
 
 	// Sleep one second to let the nodes communicate between each other
 	// and have the cluster stable
@@ -165,18 +169,22 @@ func TestReplica(t *testing.T) {
 	// w8 for it
 	time.Sleep(2 * time.Second)
 
-	// As it's a replica 3, all 3 nodes have the file
+	// As it's a replica 3 so 3/4 have to have it
 	t.Run("HasFile", func(t *testing.T) {
-		ok, err := cl1.HasFile(ctx, keytxt)
-		require.NoError(t, err)
-		assert.True(t, ok)
-
-		ok, err = cl2.HasFile(ctx, keytxt)
-		require.NoError(t, err)
-		assert.True(t, ok)
-
-		ok, err = cl3.HasFile(ctx, keytxt)
-		require.NoError(t, err)
-		assert.True(t, ok)
+		var (
+			okCount  int
+			nokCount int
+		)
+		for _, c := range clients {
+			ok, err := c.HasFile(ctx, keytxt)
+			require.NoError(t, err)
+			if ok {
+				okCount++
+			} else {
+				nokCount++
+			}
+		}
+		assert.Equal(t, 3, okCount)
+		assert.Equal(t, 1, nokCount)
 	})
 }

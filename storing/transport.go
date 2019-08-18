@@ -11,6 +11,7 @@ import (
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/xescugc/rebost/storing/model"
 )
 
 // MakeHandler returns a http.Handler that uses the storing.Service
@@ -47,6 +48,12 @@ func MakeHandler(s Service) http.Handler {
 		encodeJSONResponse,
 	)
 
+	updateFileReplicaHandler := kithttp.NewServer(
+		makeUpdateFileReplicaEndpoint(s),
+		decodeUpdateFileReplicaRequest,
+		encodeUpdateFileReplicaResponse,
+	)
+
 	getConfigHandler := kithttp.NewServer(
 		makeGetConfigEndpoint(s),
 		decodeGetConfigRequest,
@@ -61,6 +68,7 @@ func MakeHandler(s Service) http.Handler {
 	r.Handle("/files/{key:.*}", hasFileHandler).Methods("HEAD")
 
 	r.Handle("/replicas/{key:.*}", createReplicaHandler).Methods("PUT")
+	r.Handle("/replicas/{key:.*}", updateFileReplicaHandler).Methods("PATCH")
 
 	r.Handle("/config", getConfigHandler).Methods("GET")
 
@@ -207,6 +215,29 @@ func decodeCreateReplicaRequest(_ context.Context, r *http.Request) (interface{}
 		Key:  mux.Vars(r)["key"],
 		Body: iorc,
 	}, nil
+}
+
+func decodeUpdateFileReplicaRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var ufr model.UpdateFileReplica
+	err := json.NewDecoder(r.Body).Decode(&ufr)
+	if err != nil {
+		return nil, err
+	}
+	return updateFileReplicaRequest{
+		Key:       mux.Vars(r)["key"],
+		VolumeIDs: ufr.VolumeIDs,
+		Replica:   ufr.Replica,
+	}, nil
+}
+
+func encodeUpdateFileReplicaResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	if e, ok := response.(errorer); ok && e.error() != nil {
+		encodeError(ctx, e.error(), w)
+		return nil
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
 func encodeJSONResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {

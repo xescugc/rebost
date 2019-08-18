@@ -3,6 +3,7 @@ package volume
 import (
 	"context"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -39,6 +40,10 @@ type Volume interface {
 	// file with 2 keys, then just the key will be deleted
 	// and not the content
 	DeleteFile(ctx context.Context, key string) error
+
+	// UpdateFileReplica updates the Replica information of the file
+	// with the given one basically replacing it
+	UpdateFileReplica(ctx context.Context, key string, volumeIDs []string, replica int) error
 }
 
 //go:generate mockgen -destination=../mock/volume_local.go -mock_names=Local=VolumeLocal -package=mock github.com/xescugc/rebost/volume Local
@@ -406,6 +411,7 @@ func (l *local) NextReplica(ctx context.Context) (*replica.Replica, error) {
 	return rp, nil
 }
 
+// TODO Remove old logic
 func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error {
 	if rp == nil {
 		return fmt.Errorf("the replica is required")
@@ -428,7 +434,7 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 			f, err = uw.Files().FindBySignature(ctx, rp.Signature)
 		} else {
 			ik, err := uw.IDXKeys().FindByKey(ctx, rp.Key)
-			if err != nil && err.Error() != "not found" {
+			if err != nil {
 				return err
 			}
 			f, err = uw.Files().FindBySignature(ctx, ik.Value)
@@ -470,6 +476,46 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 
 		return nil
 	}, l.replicas, l.files, l.idxkeys)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *local) UpdateFileReplica(ctx context.Context, key string, volumeIDs []string, replica int) error {
+	err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+
+		var found bool
+		for _, v := range volumeIDs {
+			if v == l.ID() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return errors.New("the volume ID has to be on the list of volume")
+		}
+
+		ik, err := uw.IDXKeys().FindByKey(ctx, key)
+		if err != nil {
+			return err
+		}
+		f, err := uw.Files().FindBySignature(ctx, ik.Value)
+		if err != nil {
+			return err
+		}
+
+		f.VolumeIDs = volumeIDs
+		f.Replica = replica
+
+		err = uw.Files().CreateOrReplace(ctx, f)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, l.files, l.idxkeys)
 
 	if err != nil {
 		return err

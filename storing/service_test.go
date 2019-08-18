@@ -314,11 +314,15 @@ func TestUpdateFileReplica(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 4
+			vids = []string{"1", "2"}
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
+
+		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(nil)
 
 		// It's AnyTimes as we have the config witha number of replicas
 		// which activates the goroutines that also calls this
@@ -329,17 +333,16 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		s := storing.New(&config.Config{}, m)
 
-		volID, err := s.CreateReplica(ctx, key, buff, "", rep)
-		assert.EqualError(t, err, "the originVolumeID is required")
-		assert.Equal(t, "", volID)
+		err := s.UpdateFileReplica(ctx, key, vids, rep)
+		require.NoError(t, err)
 	})
 	t.Run("ErrorNoReplica", func(t *testing.T) {
 		var (
 			key  = "expectedkey"
-			buff = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 4
+			vids = []string{"1", "2"}
 		)
 
 		m := mock.NewMembership(ctrl)
@@ -347,8 +350,7 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		s := storing.New(&config.Config{Replica: -1}, m)
 
-		volID, err := s.CreateReplica(ctx, key, buff, "", rep)
+		err := s.UpdateFileReplica(ctx, key, vids, rep)
 		assert.EqualError(t, err, "can not store replicas")
-		assert.Equal(t, "", volID)
 	})
 }

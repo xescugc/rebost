@@ -34,6 +34,21 @@ func (m *Membership) EXPECT() *MembershipMockRecorder {
 	return m.recorder
 }
 
+// GetNodeWithVolumeByID mocks base method
+func (m *Membership) GetNodeWithVolumeByID(arg0 string) (storing.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNodeWithVolumeByID", arg0)
+	ret0, _ := ret[0].(storing.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNodeWithVolumeByID indicates an expected call of GetNodeWithVolumeByID
+func (mr *MembershipMockRecorder) GetNodeWithVolumeByID(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNodeWithVolumeByID", reflect.TypeOf((*Membership)(nil).GetNodeWithVolumeByID), arg0)
+}
+
 // Leave mocks base method
 func (m *Membership) Leave() {
 	m.ctrl.T.Helper()

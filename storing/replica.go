@@ -10,7 +10,7 @@ import (
 // it checks if any of the nodes wants to replicate
 func (s *service) loopVolumesReplicas() {
 	for {
-		var noReplica bool
+		var replicated bool
 		select {
 		case <-s.ctx.Done():
 			goto end
@@ -18,7 +18,7 @@ func (s *service) loopVolumesReplicas() {
 			for _, v := range s.members.LocalVolumes() {
 				rp, err := v.NextReplica(s.ctx)
 				if err != nil {
-					noReplica = true
+					log.Println(err)
 					continue
 				}
 				for _, n := range s.members.Nodes() {
@@ -46,20 +46,36 @@ func (s *service) loopVolumesReplicas() {
 
 					rp.VolumeIDs = append(rp.VolumeIDs, vID)
 
-					//TODO: Iterate over and UpdateFileReplica
+					for _, vid := range rp.VolumeIDs {
+						n, err := s.members.GetNodeWithVolumeByID(vid)
+						if err != nil {
+							log.Println(err)
+							continue
+						}
+						err = n.UpdateFileReplica(s.ctx, rp.Key, append([]string{v.ID()}, rp.VolumeIDs...), rp.OriginalCount)
+						if err != nil {
+							log.Println(err)
+							continue
+						}
+					}
 
 					err = v.UpdateReplica(s.ctx, rp, vID)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
+
+					// As it has replicated the rp from NextReplica to one of the Nodes
+					// we can exit the loop
+					replicated = true
+					break
 				}
 			}
 		}
 		// If nothing was replicated on one run sleep
 		// to give a delay and not be constantly
 		// asking for items to the volumes
-		if noReplica {
+		if !replicated {
 			time.Sleep(time.Second)
 		}
 	}

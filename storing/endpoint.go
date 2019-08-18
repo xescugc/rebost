@@ -116,3 +116,23 @@ func makeCreateReplicaEndpoint(s Service) endpoint.Endpoint {
 		return response{Data: model.CreateReplica{VolumeID: volID}}, nil
 	}
 }
+
+type updateFileReplicaRequest struct {
+	Key       string
+	Replica   int
+	VolumeIDs []string
+}
+
+type updateFileReplicaResponse struct {
+	Err error
+}
+
+func (r updateFileReplicaResponse) error() error { return r.Err }
+
+func makeUpdateFileReplicaEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(updateFileReplicaRequest)
+		err := s.UpdateFileReplica(ctx, req.Key, req.VolumeIDs, req.Replica)
+		return updateFileReplicaResponse{Err: err}, nil
+	}
+}

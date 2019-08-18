@@ -33,8 +33,13 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 		panic(err)
 	}
 
+	nn := node{
+		conn: c,
+		meta: meta,
+	}
+
 	e.members.nodesLock.Lock()
-	e.members.nodes[n.Name] = c
+	e.members.nodes[n.Name] = nn
 	e.members.nodesLock.Unlock()
 }
 

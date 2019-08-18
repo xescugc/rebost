@@ -303,3 +303,46 @@ func TestCreateReplica(t *testing.T) {
 		assert.Equal(t, "", vID)
 	})
 }
+
+func TestUpdateFileReplica(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			ctrl = gomock.NewController(t)
+			st   = mock.NewStoring(ctrl)
+			key  = "filename"
+			vids = []string{"volID", "volID2"}
+			rep  = 2
+		)
+		defer ctrl.Finish()
+
+		st.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(nil)
+
+		h := storing.MakeHandler(st)
+		server := httptest.NewServer(h)
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		err = c.UpdateFileReplica(context.Background(), key, vids, rep)
+		require.NoError(t, err)
+	})
+	t.Run("Error", func(t *testing.T) {
+		var (
+			ctrl = gomock.NewController(t)
+			st   = mock.NewStoring(ctrl)
+			key  = "filename"
+			vids = []string{"volID", "volID2"}
+			rep  = 2
+		)
+		defer ctrl.Finish()
+
+		st.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(errors.New("some-error"))
+
+		h := storing.MakeHandler(st)
+		server := httptest.NewServer(h)
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		err = c.UpdateFileReplica(context.Background(), key, vids, rep)
+		assert.EqualError(t, err, "some-error")
+	})
+}

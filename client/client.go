@@ -22,7 +22,8 @@ type Client struct {
 	hasFile    endpoint.Endpoint
 	getConfig  endpoint.Endpoint
 
-	createReplica endpoint.Endpoint
+	createReplica     endpoint.Endpoint
+	updateFileReplica endpoint.Endpoint
 }
 
 // New returns an client to connect to a remote Storing service
@@ -41,6 +42,7 @@ func New(host string) (*Client, error) {
 
 	c.createFile = makeCreatFileEndpoint(*u)
 	c.createReplica = makeCreatReplicaEndpoint(*u)
+	c.updateFileReplica = makeUpdateFileReplica(*u)
 	c.getFile = makeGetFileEndpoint(*u)
 	c.deleteFile = makeDeleteFileEndpoint(*u)
 	c.hasFile = makeHasFileEndpoint(*u)
@@ -120,6 +122,34 @@ func (c Client) CreateReplica(ctx context.Context, key string, reader io.ReadClo
 	}
 
 	return resp.Data.VolumeID, nil
+}
+
+type updateFileReplicaRequest struct {
+	Key               string
+	UpdateFileReplica model.UpdateFileReplica
+}
+
+type updateFileReplicaResponse struct {
+	Err string `json:"error,omitempty"`
+}
+
+// UpdateFileReplica WIP
+func (c Client) UpdateFileReplica(ctx context.Context, key string, vids []string, replica int) error {
+	response, err := c.updateFileReplica(ctx, updateFileReplicaRequest{
+		Key:               key,
+		UpdateFileReplica: model.UpdateFileReplica{VolumeIDs: vids, Replica: replica},
+	})
+	if err != nil {
+		return err
+	}
+
+	resp := response.(updateFileReplicaResponse)
+
+	if resp.Err != "" {
+		return errors.New(resp.Err)
+	}
+
+	return nil
 }
 
 type getFileRequest struct {

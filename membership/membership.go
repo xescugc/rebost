@@ -2,6 +2,7 @@ package membership
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -23,14 +24,19 @@ type Membership struct {
 	cfg          *config.Config
 
 	nodesLock sync.RWMutex
-	nodes     map[string]storing.Service
+	nodes     map[string]node
+}
+
+type node struct {
+	conn storing.Service
+	meta metadata
 }
 
 // New returns an implementation of the Membership interface
 func New(cfg *config.Config, lv []volume.Local, remote string) (*Membership, error) {
 	m := &Membership{
 		localVolumes: lv,
-		nodes:        make(map[string]storing.Service),
+		nodes:        make(map[string]node),
 		cfg:          cfg,
 	}
 
@@ -80,11 +86,25 @@ func (m *Membership) LocalVolumes() []volume.Local {
 	return m.localVolumes
 }
 
+func (m *Membership) GetNodeWithVolumeByID(vid string) (storing.Service, error) {
+	m.nodesLock.RLock()
+	defer m.nodesLock.RUnlock()
+	for _, n := range m.nodes {
+		for _, nvid := range n.meta.VolumeIDs {
+			if nvid == vid {
+				return n.conn, nil
+			}
+		}
+	}
+
+	return nil, errors.New("not found")
+}
+
 // Services return all the nodes of the Cluster
 func (m *Membership) Nodes() (res []storing.Service) {
 	m.nodesLock.RLock()
 	for _, r := range m.nodes {
-		res = append(res, r)
+		res = append(res, r.conn)
 	}
 	m.nodesLock.RUnlock()
 

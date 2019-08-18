@@ -20,6 +20,7 @@ func TestVolumes(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		v := mock.NewVolumeLocal(ctrl)
+		v.EXPECT().ID().Return("id")
 
 		p, err := util.FreePort()
 		require.NoError(t, err)
@@ -34,11 +35,13 @@ func TestVolumes(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			v := mock.NewVolumeLocal(ctrl)
+			v.EXPECT().ID().Return("id")
 
 			v2 := mock.NewVolumeLocal(ctrl)
+			v2.EXPECT().ID().Return("id")
 			p2, err := util.FreePort()
 			require.NoError(t, err)
-			cfg2 := &config.Config{MemberlistName: "am2", MemberlistBindPort: p2}
+			cfg2 := &config.Config{MemberlistName: "am2", Replica: -1, MemberlistBindPort: p2}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "")
 			require.NoError(t, err)
 
@@ -58,11 +61,13 @@ func TestVolumes(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			v := mock.NewVolumeLocal(ctrl)
+			v.EXPECT().ID().Return("id")
 
 			v2 := mock.NewVolumeLocal(ctrl)
+			v2.EXPECT().ID().Return("id")
 			p2, err := util.FreePort()
 			require.NoError(t, err)
-			cfg2 := &config.Config{MemberlistName: "rm2", MemberlistBindPort: p2}
+			cfg2 := &config.Config{MemberlistName: "rm2", Replica: -1, MemberlistBindPort: p2}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "")
 			require.NoError(t, err)
 			s := storing.New(cfg2, m2)

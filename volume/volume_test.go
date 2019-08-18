@@ -794,3 +794,54 @@ func TestUpdateReplica(t *testing.T) {
 		assert.EqualError(t, err, "the replica OriginalCount is required")
 	})
 }
+
+func TestUpdateFileReplica(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			rootDir  = "root"
+			ctx      = context.Background()
+			mv       = newManageVolume(t, rootDir)
+			findFile = &file.File{
+				Keys:      []string{"file-key"},
+				Signature: "sig",
+			}
+			kv = &idxkey.IDXKey{
+				Key:   findFile.Keys[0],
+				Value: findFile.Signature,
+			}
+			rep        = 3
+			vids       = []string{mv.V.ID(), "2"}
+			updateFile = &file.File{
+				Keys:      findFile.Keys,
+				Signature: findFile.Signature,
+				Replica:   rep,
+				VolumeIDs: vids,
+			}
+		)
+		defer mv.Finish()
+
+		mv.IDXKeys.EXPECT().FindByKey(ctx, kv.Key).Return(kv, nil)
+		mv.Files.EXPECT().FindBySignature(ctx, kv.Value).Return(findFile, nil)
+		mv.Files.EXPECT().CreateOrReplace(ctx, updateFile).Return(nil)
+
+		err := mv.V.UpdateFileReplica(ctx, findFile.Keys[0], vids, rep)
+		require.NoError(t, err)
+	})
+	t.Run("ErrorRequireVolumeIDonList", func(t *testing.T) {
+		var (
+			rootDir  = "root"
+			ctx      = context.Background()
+			mv       = newManageVolume(t, rootDir)
+			findFile = &file.File{
+				Keys:      []string{"file-key"},
+				Signature: "sig",
+			}
+			rep  = 3
+			vids = []string{"1", "2"}
+		)
+		defer mv.Finish()
+
+		err := mv.V.UpdateFileReplica(ctx, findFile.Keys[0], vids, rep)
+		assert.EqualError(t, err, "the volume ID has to be on the list of volume")
+	})
+}
