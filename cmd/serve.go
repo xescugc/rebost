@@ -54,13 +54,17 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating IDXKeys Repository: %s", err)
 				}
+				idxvolumes, err := boltdb.NewIDXVolumeRepository(bdb)
+				if err != nil {
+					return fmt.Errorf("error creating IDXVolumes Repository: %s", err)
+				}
 				replicas, err := boltdb.NewReplicaRepository(bdb)
 				if err != nil {
 					return fmt.Errorf("error creating Replica Repository: %s", err)
 				}
 				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-				v, err := volume.New(vp, files, idxkeys, replicas, osfs, suow)
+				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, osfs, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}

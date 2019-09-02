@@ -45,8 +45,14 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 
 func (e *eventDelegate) NotifyLeave(n *memberlist.Node) {
 	e.members.nodesLock.Lock()
+	e.members.removedVolumeIDsLock.Lock()
+
+	nn := e.members.nodes[n.Name]
+	e.members.removedVolumeIDs = append(e.members.removedVolumeIDs, nn.meta.VolumeIDs...)
 	delete(e.members.nodes, n.Name)
+
 	e.members.nodesLock.Unlock()
+	e.members.removedVolumeIDsLock.Unlock()
 }
 
 func (e *eventDelegate) NotifyUpdate(n *memberlist.Node) {
@@ -55,5 +61,8 @@ func (e *eventDelegate) NotifyUpdate(n *memberlist.Node) {
 	// same logic as Join.
 	// The update it's only triggered when
 	// the node.Meta has changed
+
+	// TODO: Check if it has been any VolumeID deleted from the
+	// Node Updated, if it has it should be added to the removedVolumeIDs
 	e.NotifyJoin(n)
 }

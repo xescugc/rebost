@@ -88,3 +88,17 @@ func (mr *MembershipMockRecorder) Nodes() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Nodes", reflect.TypeOf((*Membership)(nil).Nodes))
 }
+
+// RemovedVolumeIDs mocks base method
+func (m *Membership) RemovedVolumeIDs() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemovedVolumeIDs")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// RemovedVolumeIDs indicates an expected call of RemovedVolumeIDs
+func (mr *MembershipMockRecorder) RemovedVolumeIDs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemovedVolumeIDs", reflect.TypeOf((*Membership)(nil).RemovedVolumeIDs))
+}

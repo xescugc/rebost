@@ -16,10 +16,11 @@ import (
 // manageVolume is a test structure that hepls initialize a
 // Volume with all his 'mocks' initialized an ready to use
 type manageVolume struct {
-	Files    *mock.FileRepository
-	IDXKeys  *mock.IDXKeyRepository
-	Fs       *mock.Fs
-	Replicas *mock.ReplicaRepository
+	Files      *mock.FileRepository
+	IDXKeys    *mock.IDXKeyRepository
+	IDXVolumes *mock.IDXVolumeRepository
+	Fs         *mock.Fs
+	Replicas   *mock.ReplicaRepository
 
 	V volume.Local
 
@@ -33,6 +34,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 
 	files := mock.NewFileRepository(ctrl)
 	idxkeys := mock.NewIDXKeyRepository(ctrl)
+	idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 	fs := mock.NewFs(ctrl)
 	rp := mock.NewReplicaRepository(ctrl)
 
@@ -40,6 +42,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 		uw := mock.NewUnitOfWork(ctrl)
 		uw.EXPECT().Files().Return(files).AnyTimes()
 		uw.EXPECT().IDXKeys().Return(idxkeys).AnyTimes()
+		uw.EXPECT().IDXVolumes().Return(idxvolumes).AnyTimes()
 		uw.EXPECT().Fs().Return(fs).AnyTimes()
 		uw.EXPECT().Replicas().Return(rp).AnyTimes()
 		return uowFn(ctx, uw)
@@ -51,14 +54,15 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	fs.EXPECT().Stat(gomock.Any()).Return(nil, os.ErrNotExist)
 	fs.EXPECT().Create(gomock.Any()).Return(mem.NewFileHandle(mem.CreateFile("")), nil)
 
-	v, err := volume.New(root, files, idxkeys, rp, fs, uowFn)
+	v, err := volume.New(root, files, idxkeys, idxvolumes, rp, fs, uowFn)
 	require.NoError(t, err)
 
 	return manageVolume{
-		Files:    files,
-		IDXKeys:  idxkeys,
-		Fs:       fs,
-		Replicas: rp,
+		Files:      files,
+		IDXKeys:    idxkeys,
+		IDXVolumes: idxvolumes,
+		Fs:         fs,
+		Replicas:   rp,
 
 		V: v,
 

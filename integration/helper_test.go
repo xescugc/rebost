@@ -58,12 +58,15 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	idxkeys, err := boltdb.NewIDXKeyRepository(bdb)
 	require.NoError(t, err)
 
+	idxvolumes, err := boltdb.NewIDXVolumeRepository(bdb)
+	require.NoError(t, err)
+
 	replicas, err := boltdb.NewReplicaRepository(bdb)
 	require.NoError(t, err)
 
 	suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-	v, err := volume.New(tmpDir, files, idxkeys, replicas, osfs, suow)
+	v, err := volume.New(tmpDir, files, idxkeys, idxvolumes, replicas, osfs, suow)
 	require.NoError(t, err)
 
 	mbp, err := util.FreePort()
@@ -90,6 +93,7 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	require.NoError(t, err)
 
 	return cl, u, func() {
+		m.Leave()
 		bdb.Close()
 		os.RemoveAll(tmpDir)
 		server.Close()

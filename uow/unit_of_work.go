@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
 )
 
@@ -34,6 +35,7 @@ const (
 type UnitOfWork interface {
 	Files() file.Repository
 	IDXKeys() idxkey.Repository
+	IDXVolumes() idxvolume.Repository
 	Fs() afero.Fs
 	Replicas() replica.Repository
 }

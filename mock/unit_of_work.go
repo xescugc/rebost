@@ -9,6 +9,7 @@ import (
 	afero "github.com/spf13/afero"
 	file "github.com/xescugc/rebost/file"
 	idxkey "github.com/xescugc/rebost/idxkey"
+	idxvolume "github.com/xescugc/rebost/idxvolume"
 	replica "github.com/xescugc/rebost/replica"
 	reflect "reflect"
 )
@@ -76,6 +77,20 @@ func (m *UnitOfWork) IDXKeys() idxkey.Repository {
 func (mr *UnitOfWorkMockRecorder) IDXKeys() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXKeys", reflect.TypeOf((*UnitOfWork)(nil).IDXKeys))
+}
+
+// IDXVolumes mocks base method
+func (m *UnitOfWork) IDXVolumes() idxvolume.Repository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IDXVolumes")
+	ret0, _ := ret[0].(idxvolume.Repository)
+	return ret0
+}
+
+// IDXVolumes indicates an expected call of IDXVolumes
+func (mr *UnitOfWorkMockRecorder) IDXVolumes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXVolumes", reflect.TypeOf((*UnitOfWork)(nil).IDXVolumes))
 }
 
 // Replicas mocks base method

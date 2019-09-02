@@ -153,24 +153,62 @@ func TestReplica(t *testing.T) {
 	defer ca3()
 	cl4, _, ca4 := newClient(t, "n4", u1)
 	defer ca4()
+	cl5, _, ca5 := newClient(t, "n5", u1)
+	defer ca5()
 
-	clients := []*client.Client{cl1, cl2, cl3, cl4}
+	clients := []*client.Client{cl1, cl2, cl3, cl4, cl5}
+	cancels := []cancelFn{ca1, ca2, ca3, ca4, ca5}
 
 	// Sleep one second to let the nodes communicate between each other
 	// and have the cluster stable
 	time.Sleep(time.Second)
 
-	t.Run("CreateFile", func(t *testing.T) {
+	t.Run("HasFileReplicatedOn3/5", func(t *testing.T) {
 		err := cl1.CreateFile(ctx, keytxt, iorctxt, 3)
 		require.NoError(t, err)
+
+		// As the goroutine has a delay of 1s we may have to
+		// w8 for it
+		time.Sleep(2 * time.Second)
+
+		// As it's a replica 3 so 3/5 have to have it
+		var (
+			okCount  int
+			nokCount int
+		)
+		for _, c := range clients {
+			ok, err := c.HasFile(ctx, keytxt)
+			require.NoError(t, err)
+			if ok {
+				okCount++
+			} else {
+				nokCount++
+			}
+		}
+		assert.Equal(t, 3, okCount)
+		assert.Equal(t, 2, nokCount)
 	})
 
-	// As the goroutine has a delay of 1s we may have to
-	// w8 for it
-	time.Sleep(2 * time.Second)
+	t.Run("ExpandReplicaAfterNodeDead", func(t *testing.T) {
+		for i, c := range clients {
+			// We skip the first one because we know it's the owner
+			// and we do now want to kill it now
+			if i == 0 {
+				continue
+			}
+			ok, err := c.HasFile(ctx, keytxt)
+			require.NoError(t, err)
+			if ok {
+				cancels[i]()
+				clients = append(clients[0:i], clients[i+1:]...)
+				cancels = append(cancels[0:i], cancels[i+1:]...)
+				break
+			}
+		}
 
-	// As it's a replica 3 so 3/4 have to have it
-	t.Run("HasFile", func(t *testing.T) {
+		time.Sleep(10 * time.Second)
+
+		// As it's a replica 3 so 3/4 have to have it
 		var (
 			okCount  int
 			nokCount int
@@ -187,4 +225,30 @@ func TestReplica(t *testing.T) {
 		assert.Equal(t, 3, okCount)
 		assert.Equal(t, 1, nokCount)
 	})
+
+	t.Run("ExpandReplicaAfterMasterOfFileDead", func(t *testing.T) {
+		cancels[0]()
+		clients = clients[1:]
+		cancels = cancels[1:]
+
+		time.Sleep(10 * time.Second)
+
+		// As it's a replica 3 so 3/4 have to have it
+		var (
+			okCount  int
+			nokCount int
+		)
+		for _, c := range clients {
+			ok, err := c.HasFile(ctx, keytxt)
+			require.NoError(t, err)
+			if ok {
+				okCount++
+			} else {
+				nokCount++
+			}
+		}
+		assert.Equal(t, 3, okCount)
+		assert.Equal(t, 0, nokCount)
+	})
+
 }

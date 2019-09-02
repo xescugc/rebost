@@ -18,6 +18,10 @@ type Membership interface {
 	// vid in his volumes
 	GetNodeWithVolumeByID(vid string) (Service, error)
 
+	// RemovedVolumeIDs returns a list of are the volumeIDs
+	// that left the cluster
+	RemovedVolumeIDs() []string
+
 	// Leave makes it leave the cluster
 	Leave()
 }

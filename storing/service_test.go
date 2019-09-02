@@ -60,6 +60,7 @@ func TestCreateFile(t *testing.T) {
 
 		// This is also because of the goroutine, it may call it or not
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
 		s := storing.New(&config.Config{Replica: rep}, m)
 
@@ -279,6 +280,7 @@ func TestCreateReplica(t *testing.T) {
 
 		// This is also because of the goroutine, it may call it or not
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
 		v.EXPECT().ID().Return(createdToVolID)
 
@@ -330,6 +332,7 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		// This is also because of the goroutine, it may call it or not
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
 		s := storing.New(&config.Config{}, m)
 

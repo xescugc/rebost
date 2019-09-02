@@ -47,12 +47,17 @@ func (s *service) loopVolumesReplicas() {
 					rp.VolumeIDs = append(rp.VolumeIDs, vID)
 
 					for _, vid := range rp.VolumeIDs {
+						// If is this node we do not need to do it
+						// as it's the owener master
+						if vid == v.ID() {
+							continue
+						}
 						n, err := s.members.GetNodeWithVolumeByID(vid)
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-						err = n.UpdateFileReplica(s.ctx, rp.Key, append([]string{v.ID()}, rp.VolumeIDs...), rp.OriginalCount)
+						err = n.UpdateFileReplica(s.ctx, rp.Key, rp.VolumeIDs, rp.OriginalCount)
 						if err != nil {
 							log.Println(err)
 							continue
@@ -77,6 +82,36 @@ func (s *service) loopVolumesReplicas() {
 		// asking for items to the volumes
 		if !replicated {
 			time.Sleep(time.Second)
+		}
+	}
+end:
+	return
+}
+
+// loopRemovedVolumeDIs checks if any volumeID
+// was removed that it's interesting for the node
+// meaning that it has to recover a lost replica
+func (s *service) loopRemovedVolumeDIs() {
+	for {
+		select {
+		case <-s.ctx.Done():
+			goto end
+		default:
+			rvids := s.members.RemovedVolumeIDs()
+			if len(rvids) == 0 {
+				time.Sleep(time.Second)
+				break
+			}
+
+			for _, vid := range rvids {
+				for _, lv := range s.members.LocalVolumes() {
+					err := lv.SynchronizeReplicas(s.ctx, vid)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				}
+			}
 		}
 	}
 end:

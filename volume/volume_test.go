@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
@@ -33,6 +34,7 @@ func TestNew(t *testing.T) {
 
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
+		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
@@ -51,7 +53,7 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, os.ErrNotExist)
 		fs.EXPECT().Create(idPath).Return(fh, nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, rp, fs, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, fs, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -75,6 +77,7 @@ func TestNew(t *testing.T) {
 
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
+		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
@@ -98,7 +101,7 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, nil)
 		fs.EXPECT().Open(idPath).Return(fh, nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, rp, fs, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, fs, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -695,6 +698,8 @@ func TestUpdateReplica(t *testing.T) {
 
 		mv.Files.EXPECT().FindBySignature(ctx, rp.Signature).Return(findFile, nil)
 		mv.Files.EXPECT().CreateOrReplace(ctx, updateFile).Return(nil)
+		mv.IDXVolumes.EXPECT().FindByVolumeID(ctx, "1").Return(nil, errors.New("not found"))
+		mv.IDXVolumes.EXPECT().CreateOrReplace(ctx, idxvolume.New("1", []string{findFile.Signature})).Return(nil)
 		mv.Replicas.EXPECT().Delete(ctx, rp).Return(nil)
 		mv.Replicas.EXPECT().Create(ctx, createRP).Return(nil)
 
@@ -726,36 +731,9 @@ func TestUpdateReplica(t *testing.T) {
 
 		mv.Files.EXPECT().FindBySignature(ctx, rp.Signature).Return(findFile, nil)
 		mv.Files.EXPECT().CreateOrReplace(ctx, updateFile).Return(nil)
+		mv.IDXVolumes.EXPECT().FindByVolumeID(ctx, "1").Return(nil, errors.New("not found"))
+		mv.IDXVolumes.EXPECT().CreateOrReplace(ctx, idxvolume.New("1", []string{findFile.Signature})).Return(nil)
 		mv.Replicas.EXPECT().Delete(ctx, rp).Return(nil)
-
-		err := mv.V.UpdateReplica(ctx, rp, "1")
-		require.NoError(t, err)
-	})
-	t.Run("SuccessWithOutsideReplica", func(t *testing.T) {
-		var (
-			rootDir = "root"
-			ctx     = context.Background()
-			mv      = newManageVolume(t, rootDir)
-			rp      = &replica.Replica{
-				ID:            "1",
-				Count:         1,
-				OriginalCount: 2,
-				Signature:     "sig",
-				VolumeID:      "outside-id",
-			}
-			findFile = &file.File{
-				Signature: "sig",
-			}
-			updateFile = &file.File{
-				Signature: "sig",
-				Replica:   2,
-				VolumeIDs: []string{"1"},
-			}
-		)
-		defer mv.Finish()
-
-		mv.Files.EXPECT().FindBySignature(ctx, rp.Signature).Return(findFile, nil)
-		mv.Files.EXPECT().CreateOrReplace(ctx, updateFile).Return(nil)
 
 		err := mv.V.UpdateReplica(ctx, rp, "1")
 		require.NoError(t, err)
@@ -780,7 +758,7 @@ func TestUpdateReplica(t *testing.T) {
 		defer mv.Finish()
 
 		err := mv.V.UpdateReplica(ctx, &replica.Replica{}, "1")
-		assert.EqualError(t, err, "the replica Signature or Key are required")
+		assert.EqualError(t, err, "the replica Signature is required")
 	})
 	t.Run("ErrorWithNoOriginalCount", func(t *testing.T) {
 		var (
@@ -790,7 +768,7 @@ func TestUpdateReplica(t *testing.T) {
 		)
 		defer mv.Finish()
 
-		err := mv.V.UpdateReplica(ctx, &replica.Replica{Key: "key"}, "1")
+		err := mv.V.UpdateReplica(ctx, &replica.Replica{Signature: "key"}, "1")
 		assert.EqualError(t, err, "the replica OriginalCount is required")
 	})
 }
@@ -822,12 +800,14 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().FindByKey(ctx, kv.Key).Return(kv, nil)
 		mv.Files.EXPECT().FindBySignature(ctx, kv.Value).Return(findFile, nil)
+		mv.IDXVolumes.EXPECT().FindByVolumeID(ctx, vids[1]).Return(idxvolume.New(vids[1], []string{"other"}), nil)
+		mv.IDXVolumes.EXPECT().CreateOrReplace(ctx, idxvolume.New(vids[1], []string{"other", findFile.Signature})).Return(nil)
 		mv.Files.EXPECT().CreateOrReplace(ctx, updateFile).Return(nil)
 
 		err := mv.V.UpdateFileReplica(ctx, findFile.Keys[0], vids, rep)
 		require.NoError(t, err)
 	})
-	t.Run("ErrorRequireVolumeIDonList", func(t *testing.T) {
+	t.Run("ErrorRequireVolumeIDOnList", func(t *testing.T) {
 		var (
 			rootDir  = "root"
 			ctx      = context.Background()
@@ -843,5 +823,69 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		err := mv.V.UpdateFileReplica(ctx, findFile.Keys[0], vids, rep)
 		assert.EqualError(t, err, "the volume ID has to be on the list of volume")
+	})
+}
+
+func TestSynchronizeReplicas(t *testing.T) {
+	t.Run("SuccessBeingOwner", func(t *testing.T) {
+		var (
+			rootDir  = "root"
+			ctx      = context.Background()
+			mv       = newManageVolume(t, rootDir)
+			findFile = &file.File{
+				Keys:      []string{"file-key", "file-key-2"},
+				Signature: "sig",
+				VolumeIDs: []string{mv.V.ID(), "b"},
+				Replica:   4,
+			}
+			rep = &replica.Replica{
+				Key:           findFile.Keys[0],
+				Count:         3,
+				OriginalCount: 4,
+				Signature:     findFile.Signature,
+				VolumeID:      mv.V.ID(),
+				VolumeIDs:     []string{mv.V.ID()},
+			}
+			vid = "b"
+		)
+		defer mv.Finish()
+
+		mv.IDXVolumes.EXPECT().
+			FindByVolumeID(ctx, vid).Return(&idxvolume.IDXVolume{VolumeID: vid, Signatures: []string{findFile.Signature}}, nil)
+		mv.Files.EXPECT().FindBySignature(ctx, findFile.Signature).Return(findFile, nil)
+		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Replica) error {
+				assert.NotEmpty(t, rp.ID)
+				rp.ID = rep.ID
+
+				assert.Equal(t, rep, rp)
+				return nil
+			},
+		).Return(nil)
+
+		err := mv.V.SynchronizeReplicas(ctx, vid)
+		require.NoError(t, err)
+	})
+	t.Run("SuccessNotBeingOwner", func(t *testing.T) {
+		var (
+			rootDir  = "root"
+			ctx      = context.Background()
+			mv       = newManageVolume(t, rootDir)
+			findFile = &file.File{
+				Keys:      []string{"file-key", "file-key-2"},
+				Signature: "sig",
+				VolumeIDs: []string{"b", mv.V.ID(), "c"},
+				Replica:   4,
+			}
+			vid = "c"
+		)
+		defer mv.Finish()
+
+		mv.IDXVolumes.EXPECT().
+			FindByVolumeID(ctx, vid).Return(&idxvolume.IDXVolume{VolumeID: vid, Signatures: []string{findFile.Signature}}, nil)
+		mv.Files.EXPECT().FindBySignature(ctx, findFile.Signature).Return(findFile, nil)
+
+		err := mv.V.SynchronizeReplicas(ctx, vid)
+		require.NoError(t, err)
 	})
 }

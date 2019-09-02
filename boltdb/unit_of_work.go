@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
 )
@@ -16,10 +17,11 @@ type unitOfWork struct {
 	tx *bolt.Tx
 	t  uow.Type
 
-	fileRepository    file.Repository
-	idxkeyRepository  idxkey.Repository
-	fs                afero.Fs
-	replicaRepository replica.Repository
+	fileRepository      file.Repository
+	idxkeyRepository    idxkey.Repository
+	idxvolumeRepository idxvolume.Repository
+	fs                  afero.Fs
+	replicaRepository   replica.Repository
 }
 
 type key int
@@ -84,6 +86,10 @@ func (uw *unitOfWork) Files() file.Repository {
 
 func (uw *unitOfWork) IDXKeys() idxkey.Repository {
 	return uw.idxkeyRepository
+}
+
+func (uw *unitOfWork) IDXVolumes() idxvolume.Repository {
+	return uw.idxvolumeRepository
 }
 
 func (uw *unitOfWork) Fs() afero.Fs {
@@ -158,6 +164,17 @@ func (uw *unitOfWork) add(r interface{}) error {
 			}
 			r.bucket = b
 			uw.idxkeyRepository = &r
+		}
+		return nil
+	case *idxvolumeRepository:
+		if uw.idxvolumeRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.idxvolumeRepository = &r
 		}
 		return nil
 	case *replicaRepository:

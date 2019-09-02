@@ -23,10 +23,19 @@ type Membership struct {
 	localVolumes []volume.Local
 	cfg          *config.Config
 
+	// Somehow improve this to make it easy
+	// to search for Nodes by Volume
 	nodesLock sync.RWMutex
 	nodes     map[string]node
+
+	// removedVolumeIDs list of all the volumeIDs removed by
+	// nodes leaving the cluster
+	removedVolumeIDs     []string
+	removedVolumeIDsLock sync.Mutex
 }
 
+// node represents a Node in the cluseter, with the metadata (meta)
+// and the connection (conn) to it
 type node struct {
 	conn storing.Service
 	meta metadata
@@ -35,9 +44,10 @@ type node struct {
 // New returns an implementation of the Membership interface
 func New(cfg *config.Config, lv []volume.Local, remote string) (*Membership, error) {
 	m := &Membership{
-		localVolumes: lv,
-		nodes:        make(map[string]node),
-		cfg:          cfg,
+		localVolumes:     lv,
+		nodes:            make(map[string]node),
+		cfg:              cfg,
+		removedVolumeIDs: make([]string, 0),
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
@@ -86,6 +96,8 @@ func (m *Membership) LocalVolumes() []volume.Local {
 	return m.localVolumes
 }
 
+// GetNodeWithVolumeByID returns the Node/storing.Service that has
+// the gicen vid
 func (m *Membership) GetNodeWithVolumeByID(vid string) (storing.Service, error) {
 	m.nodesLock.RLock()
 	defer m.nodesLock.RUnlock()
@@ -109,6 +121,23 @@ func (m *Membership) Nodes() (res []storing.Service) {
 	m.nodesLock.RUnlock()
 
 	return
+}
+
+// RemovedVolumeIDs returns the list of removed VolumeIDs from
+// the cluser.
+// WARNING: Each call to it empties the list so the list
+// of nodes have to be stored/used once called
+func (m *Membership) RemovedVolumeIDs() []string {
+	m.removedVolumeIDsLock.Lock()
+
+	rvids := make([]string, 0, len(m.removedVolumeIDs))
+	for _, vid := range m.removedVolumeIDs {
+		rvids = append(rvids, vid)
+	}
+	m.removedVolumeIDs = make([]string, 0)
+
+	m.removedVolumeIDsLock.Unlock()
+	return rvids
 }
 
 func (m *Membership) Leave() {

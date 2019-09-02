@@ -136,6 +136,20 @@ func (mr *VolumeLocalMockRecorder) NextReplica(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextReplica", reflect.TypeOf((*VolumeLocal)(nil).NextReplica), arg0)
 }
 
+// SynchronizeReplicas mocks base method
+func (m *VolumeLocal) SynchronizeReplicas(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SynchronizeReplicas", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SynchronizeReplicas indicates an expected call of SynchronizeReplicas
+func (mr *VolumeLocalMockRecorder) SynchronizeReplicas(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SynchronizeReplicas", reflect.TypeOf((*VolumeLocal)(nil).SynchronizeReplicas), arg0, arg1)
+}
+
 // UpdateFileReplica mocks base method
 func (m *VolumeLocal) UpdateFileReplica(arg0 context.Context, arg1 string, arg2 []string, arg3 int) error {
 	m.ctrl.T.Helper()

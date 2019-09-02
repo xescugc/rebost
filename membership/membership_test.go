@@ -29,6 +29,7 @@ func TestVolumes(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, m.Nodes(), 0)
 		assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
+		assert.Equal(t, []string{}, m.RemovedVolumeIDs())
 	})
 	t.Run("WithNodes", func(t *testing.T) {
 		t.Run("Add", func(t *testing.T) {
@@ -56,6 +57,7 @@ func TestVolumes(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
+			assert.Equal(t, []string{}, m.RemovedVolumeIDs())
 		})
 		t.Run("Remove", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -64,7 +66,7 @@ func TestVolumes(t *testing.T) {
 			v.EXPECT().ID().Return("id")
 
 			v2 := mock.NewVolumeLocal(ctrl)
-			v2.EXPECT().ID().Return("id")
+			v2.EXPECT().ID().Return("id2")
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{MemberlistName: "rm2", Replica: -1, MemberlistBindPort: p2}
@@ -85,6 +87,8 @@ func TestVolumes(t *testing.T) {
 			m2.Leave()
 			assert.Len(t, m.Nodes(), 0)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
+			assert.Equal(t, []string{"id2"}, m.RemovedVolumeIDs())
+			assert.Equal(t, []string{}, m.RemovedVolumeIDs())
 		})
 	})
 }

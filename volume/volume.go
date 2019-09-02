@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
 )
@@ -67,6 +68,11 @@ type Local interface {
 	// UpdateReplica updates the rp of the index and the File to include
 	// the vID as a volume with the Replica
 	UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error
+
+	// SynchronizeReplicas cheks the replicas related with vID and
+	// if this volume is the resposable (next after the removed ID on the files)
+	// will start replication of those files which have to
+	SynchronizeReplicas(ctx context.Context, vID string) error
 }
 
 type local struct {
@@ -74,10 +80,11 @@ type local struct {
 	tempDir string
 	id      string
 
-	fs       afero.Fs
-	files    file.Repository
-	idxkeys  idxkey.Repository
-	replicas replica.Repository
+	fs         afero.Fs
+	files      file.Repository
+	idxkeys    idxkey.Repository
+	replicas   replica.Repository
+	idxvolumes idxvolume.Repository
 
 	startUnitOfWork uow.StartUnitOfWork
 
@@ -88,16 +95,17 @@ type local struct {
 // New returns an implementation of the volume.Local interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
-func New(root string, files file.Repository, idxkeys idxkey.Repository, rp replica.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &local{
 		fileDir: path.Join(root, "file"),
 		tempDir: path.Join(root, "tmps"),
 
-		files:    files,
-		fs:       fileSystem,
-		idxkeys:  idxkeys,
-		replicas: rp,
+		files:      files,
+		fs:         fileSystem,
+		idxkeys:    idxkeys,
+		idxvolumes: idxvolumes,
+		replicas:   rp,
 
 		startUnitOfWork: suow,
 
@@ -233,6 +241,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		// * If the len(File.Keys) == 0 we'll remove that File/IDXKey
 		// * If the len(File.Keys) != 0 we'll update that File
 		// At the end the new key will replace the old one found
+		// TODO: Update the value on the idxvolumes
 		if ik != nil {
 			dbf, err := uw.Files().FindBySignature(ctx, ik.Value)
 			if err != nil && err.Error() != "not found" {
@@ -289,6 +298,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 				Count:         rep,
 				OriginalCount: rep + 1,
 				Signature:     f.Signature,
+				VolumeIDs:     []string{l.id},
 				VolumeID:      l.id,
 			}
 
@@ -411,34 +421,18 @@ func (l *local) NextReplica(ctx context.Context) (*replica.Replica, error) {
 	return rp, nil
 }
 
-// TODO Remove old logic
 func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error {
 	if rp == nil {
 		return fmt.Errorf("the replica is required")
 	}
-	if rp.Signature == "" && rp.Key == "" {
-		return fmt.Errorf("the replica Signature or Key are required")
+	if rp.Signature == "" {
+		return fmt.Errorf("the replica Signature is required")
 	}
 	if rp.OriginalCount == 0 {
 		return fmt.Errorf("the replica OriginalCount is required")
 	}
 	err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
-		var (
-			f   *file.File
-			err error
-		)
-
-		// If we have Signature, when it's the one internal Update, we use it
-		// if we have the key, from remote, we get it from there
-		if rp.Signature != "" {
-			f, err = uw.Files().FindBySignature(ctx, rp.Signature)
-		} else {
-			ik, err := uw.IDXKeys().FindByKey(ctx, rp.Key)
-			if err != nil {
-				return err
-			}
-			f, err = uw.Files().FindBySignature(ctx, ik.Value)
-		}
+		f, err := uw.Files().FindBySignature(ctx, rp.Signature)
 		if err != nil {
 			return err
 		}
@@ -446,16 +440,25 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 		f.VolumeIDs = append(f.VolumeIDs, vID)
 		f.Replica = rp.OriginalCount
 
-		err = uw.Files().CreateOrReplace(ctx, f)
+		idxv, err := uw.IDXVolumes().FindByVolumeID(ctx, vID)
+		if err != nil {
+			if err.Error() == "not found" {
+				idxv = idxvolume.New(vID, []string{})
+			} else {
+				return err
+			}
+		}
+
+		idxv.AddSignature(f.Signature)
+
+		err = uw.IDXVolumes().CreateOrReplace(ctx, idxv)
 		if err != nil {
 			return err
 		}
 
-		// If it's not the same volume menas
-		// that it's an outise replica so we just have
-		// to update the File
-		if rp.VolumeID != l.id {
-			return nil
+		err = uw.Files().CreateOrReplace(ctx, f)
+		if err != nil {
+			return err
 		}
 
 		// Delete the replica from the  queue to reinsert it later
@@ -475,7 +478,7 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 		}
 
 		return nil
-	}, l.replicas, l.files, l.idxkeys)
+	}, l.replicas, l.files, l.idxkeys, l.idxvolumes)
 
 	if err != nil {
 		return err
@@ -507,6 +510,34 @@ func (l *local) UpdateFileReplica(ctx context.Context, key string, volumeIDs []s
 			return err
 		}
 
+		// For all the volumes we add the signature to the IDX
+		// so we can easily keep track of which file replicas
+		// are in which nodes
+		for _, vid := range volumeIDs {
+			// If it's this Volume we do not need to do
+			// any of this as it's not required
+			if vid == l.ID() {
+				continue
+			}
+			idxv, err := uw.IDXVolumes().FindByVolumeID(ctx, vid)
+			if err != nil {
+				if err.Error() == "not found" {
+					idxv = idxvolume.New(vid, []string{})
+				} else {
+					return err
+				}
+			}
+
+			idxv.AddSignature(f.Signature)
+
+			err = uw.IDXVolumes().CreateOrReplace(ctx, idxv)
+			if err != nil {
+				return err
+			}
+		}
+
+		// TODO: Diff the VolumeIDs and update/create/delete signature from
+		// the required idxvolumes to maintain the consistency
 		f.VolumeIDs = volumeIDs
 		f.Replica = replica
 
@@ -515,7 +546,61 @@ func (l *local) UpdateFileReplica(ctx context.Context, key string, volumeIDs []s
 			return err
 		}
 		return nil
-	}, l.files, l.idxkeys)
+	}, l.files, l.idxkeys, l.idxvolumes)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *local) SynchronizeReplicas(ctx context.Context, vID string) error {
+	err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		idxvol, err := uw.IDXVolumes().FindByVolumeID(ctx, vID)
+		if err != nil {
+			return err
+		}
+
+		// Two use cases, one to check if you are he next
+		for _, s := range idxvol.Signatures {
+			f, err := uw.Files().FindBySignature(ctx, s)
+			if err != nil {
+				return err
+			}
+
+			f.DeleteVolumeID(vID)
+
+			// If after deleting the vID from the
+			// file this Node is the first one means
+			// it's the master of the file so it has to start
+			// replicating
+			if f.VolumeIDs[0] == l.ID() {
+				numOfReplicasMissing := f.Replica - len(f.VolumeIDs)
+
+				// TODO: We do not know which key was assigned
+				// to that Volume so we use the 0 by default
+				// this is another argumet to not use "Key" and
+				// autogenerate an ID for each file and we just
+				// aggrupate by Signature and not Key
+				rp := &replica.Replica{
+					ID:            uuid.NewV4().String(),
+					Key:           f.Keys[0],
+					Count:         numOfReplicasMissing,
+					OriginalCount: f.Replica,
+					Signature:     f.Signature,
+					VolumeID:      l.id,
+					VolumeIDs:     f.VolumeIDs,
+				}
+
+				err = uw.Replicas().Create(ctx, rp)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}, l.files, l.idxvolumes, l.replicas)
 
 	if err != nil {
 		return err

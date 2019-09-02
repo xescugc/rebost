@@ -53,6 +53,7 @@ func New(cfg *config.Config, m Membership) Service {
 
 	if s.cfg.Replica != -1 {
 		go s.loopVolumesReplicas()
+		go s.loopRemovedVolumeDIs()
 	}
 
 	return s
