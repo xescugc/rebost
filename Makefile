@@ -9,11 +9,11 @@ ci:	lint vet fmt test ## Run all the CI targets
 
 .PHONY: test
 test: ## Run the tests
-	@go test ./...
+	@GO111MODULE=on go test ./...
 
 .PHONY: vet
 vet: ## Run the vet
-	@go vet ./...
+	@GO111MODULE=on go vet ./...
 
 .PHONY: fmt
 fmt: install-goimports ## Run the goimports
@@ -23,15 +23,15 @@ fmt: install-goimports ## Run the goimports
 
 .PHONY: lint
 lint: install-lint ## Run the golint
-	@go list ./... | xargs golint -set_exit_status
+	@GO111MODULE=on go list ./... | xargs golint -set_exit_status
 
 .PHONY: install-lint
 install-lint: ## Install the golint
-	@go get -u golang.org/x/lint/golint
+	@GO111MODULE=off go get -u golang.org/x/lint/golint
 
 .PHONY: install-goimports
 install-goimports: ## Intall the goimports
-	@go get golang.org/x/tools/cmd/goimports
+	@GO111MODULE=off go get golang.org/x/tools/cmd/goimports
 
 .PHONY: generate
 generate: ## Generates the code generators
