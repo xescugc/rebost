@@ -108,7 +108,7 @@ type createReplicaResponse struct {
 	Err  string              `json:"error,omitempty"`
 }
 
-// CreateReplicaPendent WIP
+// CreateReplica creates a new replica to the Node
 func (c Client) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
 	response, err := c.createReplica(ctx, createReplicaRequest{Key: key, IORC: reader})
 	if err != nil {
@@ -133,7 +133,7 @@ type updateFileReplicaResponse struct {
 	Err string `json:"error,omitempty"`
 }
 
-// UpdateFileReplica WIP
+// UpdateFileReplica updtes the file replica information
 func (c Client) UpdateFileReplica(ctx context.Context, key string, vids []string, replica int) error {
 	response, err := c.updateFileReplica(ctx, updateFileReplicaRequest{
 		Key:               key,
@@ -207,7 +207,7 @@ type deleteFileRequest struct {
 }
 
 type deleteFileResponse struct {
-	Err string `json:"error, omitempty"`
+	Err string `json:"error,omitempty"`
 }
 
 // DeleteFile deletes the file with the given key

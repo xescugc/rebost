@@ -42,9 +42,8 @@ func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 			}
 			ctx = context.WithValue(ctx, uowKey, ctxUOW)
 			return uowFn(ctx, ctxUOW)
-		} else {
-			ctx = context.WithValue(ctx, uowKey, uw)
 		}
+		ctx = context.WithValue(ctx, uowKey, uw)
 
 		err = uw.begin(db)
 		if err != nil {

@@ -206,7 +206,7 @@ func TestReplica(t *testing.T) {
 			}
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		// As it's a replica 3 so 3/4 have to have it
 		var (
@@ -231,7 +231,7 @@ func TestReplica(t *testing.T) {
 		clients = clients[1:]
 		cancels = cancels[1:]
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		// As it's a replica 3 so 3/4 have to have it
 		var (

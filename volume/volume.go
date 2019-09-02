@@ -468,7 +468,7 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 			return err
 		}
 
-		rp.Count -= 1
+		rp.Count--
 
 		if rp.Count > 0 {
 			err = uw.Replicas().Create(ctx, rp)

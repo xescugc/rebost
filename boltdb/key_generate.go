@@ -15,6 +15,13 @@ type keyGenerator struct {
 	lastKey int64
 }
 
+var newKey func() []byte
+
+func init() {
+	k := keyGenerator{}
+	newKey = k.new
+}
+
 // new genrates a new unique incrementing key
 func (k *keyGenerator) new() []byte {
 	k.Lock()

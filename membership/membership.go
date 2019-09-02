@@ -16,6 +16,8 @@ import (
 	"github.com/xescugc/rebost/volume"
 )
 
+// Membership handles all the logic of the Node
+// persistentce and also the localVolumes
 type Membership struct {
 	members *memberlist.Memberlist
 	events  *memberlist.EventDelegate
@@ -112,7 +114,7 @@ func (m *Membership) GetNodeWithVolumeByID(vid string) (storing.Service, error) 
 	return nil, errors.New("not found")
 }
 
-// Services return all the nodes of the Cluster
+// Nodes return all the nodes of the Cluster
 func (m *Membership) Nodes() (res []storing.Service) {
 	m.nodesLock.RLock()
 	for _, r := range m.nodes {
@@ -140,6 +142,7 @@ func (m *Membership) RemovedVolumeIDs() []string {
 	return rvids
 }
 
+// Leave makes the node leave the cluster
 func (m *Membership) Leave() {
 	m.members.Leave(0)
 }
