@@ -34,10 +34,13 @@ var (
 			if len(cfg.Volumes) == 0 {
 				return errors.New("at last one volume is required")
 			}
+			if cfg.MemberlistName == "" {
+				return errors.New("the 'memberlist-name' is required")
+			}
 
 			osfs := afero.NewOsFs()
 
-			vs := make([]volume.Volume, 0, len(cfg.Volumes))
+			vs := make([]volume.Local, 0, len(cfg.Volumes))
 			for _, vp := range cfg.Volumes {
 				bdb, err := createDB(vp)
 				if err != nil {
@@ -51,9 +54,17 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating IDXKeys Repository: %s", err)
 				}
+				idxvolumes, err := boltdb.NewIDXVolumeRepository(bdb)
+				if err != nil {
+					return fmt.Errorf("error creating IDXVolumes Repository: %s", err)
+				}
+				replicas, err := boltdb.NewReplicaRepository(bdb)
+				if err != nil {
+					return fmt.Errorf("error creating Replica Repository: %s", err)
+				}
 				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-				v, err := volume.New(vp, files, idxkeys, osfs, suow)
+				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, osfs, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
@@ -96,6 +107,9 @@ func init() {
 
 	serveCmd.PersistentFlags().StringP("remote", "r", "", "The URL of a remote Node to join on the cluster")
 	viper.BindPFlag("remote", serveCmd.PersistentFlags().Lookup("remote"))
+
+	serveCmd.PersistentFlags().IntP("replica", "rep", 2, "The default number of replicas used if none specified on the requests")
+	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("replica"))
 
 	serveCmd.PersistentFlags().String("memberlist-bind-port", "", "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist-bind-port", serveCmd.PersistentFlags().Lookup("memberlist-bind-port"))

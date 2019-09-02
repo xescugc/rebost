@@ -9,8 +9,11 @@ import (
 	"time"
 
 	"github.com/xescugc/rebost/config"
-	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/volume"
+)
+
+const (
+	noReplica = 1
 )
 
 //go:generate mockgen -destination=../mock/storing.go -mock_names=Service=Storing -package=mock github.com/xescugc/rebost/storing Service
@@ -21,29 +24,50 @@ import (
 type Service interface {
 	volume.Volume
 
+	// Config returns the current Service configuration
 	Config(context.Context) (*config.Config, error)
+
+	// CreateReplica creates a new File replica
+	CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (vID string, err error)
 }
 
 type service struct {
-	members membership.Membership
+	members Membership
 	cfg     *config.Config
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-// New returns an implementation of the Service with
+// New returns an implementation of the Node with
 // the given parameters
-func New(cfg *config.Config, m membership.Membership) Service {
-	return &service{
+func New(cfg *config.Config, m Membership) Service {
+	ctx, cancel := context.WithCancel(context.Background())
+	s := &service{
 		members: m,
 		cfg:     cfg,
+
+		ctx:    ctx,
+		cancel: cancel,
 	}
+
+	if s.cfg.Replica != -1 {
+		go s.loopVolumesReplicas()
+		go s.loopRemovedVolumeDIs()
+	}
+
+	return s
 }
 
 func (s *service) Config(_ context.Context) (*config.Config, error) {
 	return s.cfg, nil
 }
 
-func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser) error {
-	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r)
+func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep int) error {
+	if rep == 0 {
+		rep = s.cfg.Replica
+	}
+	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r, rep)
 	if err != nil {
 		return err
 	}
@@ -56,6 +80,7 @@ func (s *service) GetFile(ctx context.Context, k string) (io.ReadCloser, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	r, err := v.GetFile(ctx, k)
 	if err != nil {
 		return nil, err
@@ -69,11 +94,15 @@ func (s *service) DeleteFile(ctx context.Context, k string) error {
 	if err != nil {
 		return err
 	}
-	return v.DeleteFile(ctx, k)
+	err = v.DeleteFile(ctx, k)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
-	v, err := s.findVolume(ctx, s.members.LocalVolumes(), k)
+	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
 	if err != nil && err.Error() != "not found" {
 		return false, err
 	}
@@ -85,7 +114,38 @@ func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
 	return false, nil
 }
 
-func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
+func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
+	if s.cfg.Replica == -1 {
+		return "", errors.New("can not store replicas")
+	}
+	v := s.getLocalVolume(ctx, key)
+	err := v.CreateFile(ctx, key, reader, noReplica)
+	if err != nil {
+		return "", err
+	}
+
+	return v.ID(), nil
+}
+
+func (s *service) UpdateFileReplica(ctx context.Context, key string, volumeIDs []string, replica int) error {
+	if s.cfg.Replica == -1 {
+		return errors.New("can not store replicas")
+	}
+
+	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), key)
+	if err != nil {
+		return err
+	}
+
+	err = v.UpdateFileReplica(ctx, key, volumeIDs, replica)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) getLocalVolume(ctx context.Context, k string) volume.Local {
 	vls := s.members.LocalVolumes()
 
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -93,9 +153,9 @@ func (s *service) getLocalVolume(ctx context.Context, k string) volume.Volume {
 }
 
 // getVolume returns a volume that may have k in his index. It tries first with
-// the LocalVolumes and then with the RemoteVolumes
+// the LocalVolumes and then with the Nodes
 func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
-	v, err := s.findVolume(ctx, s.members.LocalVolumes(), k)
+	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
 	if err != nil && err.Error() != "not found" {
 		return nil, err
 	}
@@ -104,7 +164,7 @@ func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error
 		return v, nil
 	}
 
-	v, err = s.findVolume(ctx, s.members.RemoteVolumes(), k)
+	v, err = s.findVolume(ctx, servicesToVolumes(s.members.Nodes()), k)
 	if err != nil && err.Error() != "not found" {
 		return nil, err
 	}
@@ -113,10 +173,10 @@ func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error
 		return v, nil
 	}
 
-	return nil, nil
+	return nil, errors.New("not found")
 }
 
-// findVolume finds the volume that has the key (k) within the volumes (vls) in parallel
+// findVolume finds the volume that has the key k within the volumes vls in parallel
 func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string) (volume.Volume, error) {
 	var wg sync.WaitGroup
 	cctx, cfn := context.WithCancel(ctx)
@@ -170,4 +230,22 @@ func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string)
 	}
 
 	return v, err
+}
+
+// localVolumesToVolumes convert []volume.Local to []volume.Volume
+func localVolumesToVolumes(lvs []volume.Local) []volume.Volume {
+	rvs := make([]volume.Volume, 0, len(lvs))
+	for _, v := range lvs {
+		rvs = append(rvs, v)
+	}
+	return rvs
+}
+
+// servicesToVolumes convert []Service to []volume.Volume
+func servicesToVolumes(ns []Service) []volume.Volume {
+	rvs := make([]volume.Volume, 0, len(ns))
+	for _, v := range ns {
+		rvs = append(rvs, v)
+	}
+	return rvs
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/idxvolume"
+	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
 )
 
@@ -15,16 +17,33 @@ type unitOfWork struct {
 	tx *bolt.Tx
 	t  uow.Type
 
-	fileRepository   file.Repository
-	idxkeyRepository idxkey.Repository
-	fs               afero.Fs
+	fileRepository      file.Repository
+	idxkeyRepository    idxkey.Repository
+	idxvolumeRepository idxvolume.Repository
+	fs                  afero.Fs
+	replicaRepository   replica.Repository
 }
+
+type key int
+
+var uowKey key
 
 // NewUOW returns an implementation of the interface uow.StartUnitOfWork
 // that will track all the boltDB repositories
 func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 	return func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) (err error) {
 		uw := newUnitOfWork(t)
+
+		if ctxUOW, ok := ctx.Value(uowKey).(*unitOfWork); ok {
+			for _, r := range repos {
+				if err = ctxUOW.add(r); err != nil {
+					return fmt.Errorf("could not add repository: %s", err)
+				}
+			}
+			ctx = context.WithValue(ctx, uowKey, ctxUOW)
+			return uowFn(ctx, ctxUOW)
+		}
+		ctx = context.WithValue(ctx, uowKey, uw)
 
 		err = uw.begin(db)
 		if err != nil {
@@ -56,7 +75,7 @@ func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 			return
 		}()
 
-		return uowFn(uw)
+		return uowFn(ctx, uw)
 	}
 }
 
@@ -68,8 +87,16 @@ func (uw *unitOfWork) IDXKeys() idxkey.Repository {
 	return uw.idxkeyRepository
 }
 
+func (uw *unitOfWork) IDXVolumes() idxvolume.Repository {
+	return uw.idxvolumeRepository
+}
+
 func (uw *unitOfWork) Fs() afero.Fs {
 	return uw.fs
+}
+
+func (uw *unitOfWork) Replicas() replica.Repository {
+	return uw.replicaRepository
 }
 
 func newUnitOfWork(t uow.Type) *unitOfWork {
@@ -117,22 +144,48 @@ func (uw *unitOfWork) commit() error {
 func (uw *unitOfWork) add(r interface{}) error {
 	switch rep := r.(type) {
 	case *fileRepository:
-		r := *rep
-		b := uw.tx.Bucket(r.bucketName)
-		if b == nil {
-			return fmt.Errorf("bucker for %q not found", r.bucketName)
+		if uw.fileRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.fileRepository = &r
 		}
-		r.bucket = b
-		uw.fileRepository = &r
 		return nil
 	case *idxkeyRepository:
-		r := *rep
-		b := uw.tx.Bucket(r.bucketName)
-		if b == nil {
-			return fmt.Errorf("bucker for %q not found", r.bucketName)
+		if uw.idxkeyRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.idxkeyRepository = &r
 		}
-		r.bucket = b
-		uw.idxkeyRepository = &r
+		return nil
+	case *idxvolumeRepository:
+		if uw.idxvolumeRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.idxvolumeRepository = &r
+		}
+		return nil
+	case *replicaRepository:
+		if uw.replicaRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.replicaRepository = &r
+		}
 		return nil
 	default:
 		if v, ok := r.(afero.Fs); ok {

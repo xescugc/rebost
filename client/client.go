@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -20,6 +21,9 @@ type Client struct {
 	deleteFile endpoint.Endpoint
 	hasFile    endpoint.Endpoint
 	getConfig  endpoint.Endpoint
+
+	createReplica     endpoint.Endpoint
+	updateFileReplica endpoint.Endpoint
 }
 
 // New returns an client to connect to a remote Storing service
@@ -36,9 +40,11 @@ func New(host string) (*Client, error) {
 		return nil, err
 	}
 
-	//c.createFile = makeCreatFileEndpoint(*u)
+	c.createFile = makeCreatFileEndpoint(*u)
+	c.createReplica = makeCreatReplicaEndpoint(*u)
+	c.updateFileReplica = makeUpdateFileReplica(*u)
 	c.getFile = makeGetFileEndpoint(*u)
-	//c.deleteFile = makeDeleteFileEndpoint(*u)
+	c.deleteFile = makeDeleteFileEndpoint(*u)
 	c.hasFile = makeHasFileEndpoint(*u)
 	c.getConfig = makeGetConfigEndpoint(*u)
 
@@ -47,7 +53,7 @@ func New(host string) (*Client, error) {
 
 type getConfigResponse struct {
 	Data model.Config `json:"data,omitempty"`
-	Err  error        `json:"error,omitempty"`
+	Err  string       `json:"error,omitempty"`
 }
 
 // Config returns the config of the Node
@@ -58,16 +64,91 @@ func (c Client) Config(ctx context.Context) (*config.Config, error) {
 	}
 
 	resp := response.(getConfigResponse)
-	if resp.Err != nil {
-		return nil, resp.Err
+	if resp.Err != "" {
+		return nil, errors.New(resp.Err)
 	}
 
 	cfg := config.Config(resp.Data)
 	return &cfg, nil
 }
 
-// CreateFile WIP
-func (c Client) CreateFile(ctx context.Context, key string, r io.ReadCloser) error {
+type createFileRequest struct {
+	Key     string
+	IORC    io.ReadCloser
+	Replica int
+}
+
+type createFileResponse struct {
+	Err string `json:"error,omitempty"`
+}
+
+// CreateFile creates a file with the  given key and the r content with rep replicas
+func (c Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
+	response, err := c.createFile(ctx, createFileRequest{Key: key, IORC: r, Replica: rep})
+	if err != nil {
+		return err
+	}
+
+	resp := response.(createFileResponse)
+
+	if resp.Err != "" {
+		return errors.New(resp.Err)
+	}
+
+	return nil
+}
+
+type createReplicaRequest struct {
+	Key  string
+	IORC io.ReadCloser
+}
+
+type createReplicaResponse struct {
+	Data model.CreateReplica `json:"data,omitempty"`
+	Err  string              `json:"error,omitempty"`
+}
+
+// CreateReplica creates a new replica to the Node
+func (c Client) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
+	response, err := c.createReplica(ctx, createReplicaRequest{Key: key, IORC: reader})
+	if err != nil {
+		return "", err
+	}
+
+	resp := response.(createReplicaResponse)
+
+	if resp.Err != "" {
+		return "", errors.New(resp.Err)
+	}
+
+	return resp.Data.VolumeID, nil
+}
+
+type updateFileReplicaRequest struct {
+	Key               string
+	UpdateFileReplica model.UpdateFileReplica
+}
+
+type updateFileReplicaResponse struct {
+	Err string `json:"error,omitempty"`
+}
+
+// UpdateFileReplica updtes the file replica information
+func (c Client) UpdateFileReplica(ctx context.Context, key string, vids []string, replica int) error {
+	response, err := c.updateFileReplica(ctx, updateFileReplicaRequest{
+		Key:               key,
+		UpdateFileReplica: model.UpdateFileReplica{VolumeIDs: vids, Replica: replica},
+	})
+	if err != nil {
+		return err
+	}
+
+	resp := response.(updateFileReplicaResponse)
+
+	if resp.Err != "" {
+		return errors.New(resp.Err)
+	}
+
 	return nil
 }
 
@@ -77,7 +158,7 @@ type getFileRequest struct {
 
 type getFileResponse struct {
 	IORC io.ReadCloser
-	Err  error
+	Err  string `json:"error,omitempty"`
 }
 
 // GetFile returns the requested file
@@ -89,7 +170,11 @@ func (c Client) GetFile(ctx context.Context, key string) (io.ReadCloser, error) 
 
 	resp := response.(getFileResponse)
 
-	return resp.IORC, resp.Err
+	if resp.Err != "" {
+		return nil, errors.New(resp.Err)
+	}
+
+	return resp.IORC, nil
 }
 
 type hasFileRequest struct {
@@ -98,7 +183,7 @@ type hasFileRequest struct {
 
 type hasFileResponse struct {
 	Ok  bool
-	Err error
+	Err string `json:"error,omitempty"`
 }
 
 // HasFile returns if the file exists
@@ -110,10 +195,33 @@ func (c Client) HasFile(ctx context.Context, key string) (bool, error) {
 
 	resp := response.(hasFileResponse)
 
-	return resp.Ok, resp.Err
+	if resp.Err != "" {
+		return false, errors.New(resp.Err)
+	}
+
+	return resp.Ok, nil
 }
 
-// DeleteFile WIP
+type deleteFileRequest struct {
+	Key string
+}
+
+type deleteFileResponse struct {
+	Err string `json:"error,omitempty"`
+}
+
+// DeleteFile deletes the file with the given key
 func (c Client) DeleteFile(ctx context.Context, key string) error {
+	response, err := c.deleteFile(ctx, deleteFileRequest{Key: key})
+	if err != nil {
+		return err
+	}
+
+	resp := response.(deleteFileResponse)
+
+	if resp.Err != "" {
+		return errors.New(resp.Err)
+	}
+
 	return nil
 }

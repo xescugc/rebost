@@ -2,6 +2,7 @@ package membership
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -11,42 +12,44 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
+	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
 
-//go:generate mockgen -destination=../mock/membership.go -mock_names=Membership=Membership -package=mock github.com/xescugc/rebost/membership Membership
-
-// Membership is the interface that hides the logic behind the
-// cluseter members. In this "domain" (rebost), the members
-// are considered volume.Volume.
-type Membership interface {
-	// RemoteVolumes return all the Volumes of the cluster
-	RemoteVolumes() []volume.Volume
-
-	// LocalVolumes returns only the local volumes
-	LocalVolumes() []volume.Volume
-
-	// Leave makes it leave the cluster
-	Leave()
-}
-
-type membership struct {
+// Membership handles all the logic of the Node
+// persistentce and also the localVolumes
+type Membership struct {
 	members *memberlist.Memberlist
 	events  *memberlist.EventDelegate
 
-	localVolumes []volume.Volume
+	localVolumes []volume.Local
 	cfg          *config.Config
 
-	remoteVolumesLock sync.RWMutex
-	remoteVolumes     map[string]volume.Volume
+	// Somehow improve this to make it easy
+	// to search for Nodes by Volume
+	nodesLock sync.RWMutex
+	nodes     map[string]node
+
+	// removedVolumeIDs list of all the volumeIDs removed by
+	// nodes leaving the cluster
+	removedVolumeIDs     []string
+	removedVolumeIDsLock sync.Mutex
+}
+
+// node represents a Node in the cluseter, with the metadata (meta)
+// and the connection (conn) to it
+type node struct {
+	conn storing.Service
+	meta metadata
 }
 
 // New returns an implementation of the Membership interface
-func New(cfg *config.Config, lv []volume.Volume, remote string) (Membership, error) {
-	m := &membership{
-		localVolumes:  lv,
-		remoteVolumes: make(map[string]volume.Volume),
-		cfg:           cfg,
+func New(cfg *config.Config, lv []volume.Local, remote string) (*Membership, error) {
+	m := &Membership{
+		localVolumes:     lv,
+		nodes:            make(map[string]node),
+		cfg:              cfg,
+		removedVolumeIDs: make([]string, 0),
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
@@ -91,33 +94,65 @@ func New(cfg *config.Config, lv []volume.Volume, remote string) (Membership, err
 }
 
 // LocalVolumes returns all the local volumes
-func (m *membership) LocalVolumes() []volume.Volume {
+func (m *Membership) LocalVolumes() []volume.Local {
 	return m.localVolumes
 }
 
-// Volumes return all the volumes/nodes of the cluester
-func (m *membership) RemoteVolumes() (res []volume.Volume) {
-	m.remoteVolumesLock.RLock()
-	for _, r := range m.remoteVolumes {
-		res = append(res, r)
+// GetNodeWithVolumeByID returns the Node/storing.Service that has
+// the gicen vid
+func (m *Membership) GetNodeWithVolumeByID(vid string) (storing.Service, error) {
+	m.nodesLock.RLock()
+	defer m.nodesLock.RUnlock()
+	for _, n := range m.nodes {
+		for _, nvid := range n.meta.VolumeIDs {
+			if nvid == vid {
+				return n.conn, nil
+			}
+		}
 	}
-	m.remoteVolumesLock.RUnlock()
+
+	return nil, errors.New("not found")
+}
+
+// Nodes return all the nodes of the Cluster
+func (m *Membership) Nodes() (res []storing.Service) {
+	m.nodesLock.RLock()
+	for _, r := range m.nodes {
+		res = append(res, r.conn)
+	}
+	m.nodesLock.RUnlock()
 
 	return
 }
 
-func (m *membership) Leave() {
+// RemovedVolumeIDs returns the list of removed VolumeIDs from
+// the cluser.
+// WARNING: Each call to it empties the list so the list
+// of nodes have to be stored/used once called
+func (m *Membership) RemovedVolumeIDs() []string {
+	m.removedVolumeIDsLock.Lock()
+
+	rvids := make([]string, 0, len(m.removedVolumeIDs))
+	for _, vid := range m.removedVolumeIDs {
+		rvids = append(rvids, vid)
+	}
+	m.removedVolumeIDs = make([]string, 0)
+
+	m.removedVolumeIDsLock.Unlock()
+	return rvids
+}
+
+// Leave makes the node leave the cluster
+func (m *Membership) Leave() {
 	m.members.Leave(0)
 }
 
-func (m *membership) buildConfig(cfg *config.Config) *memberlist.Config {
+func (m *Membership) buildConfig(cfg *config.Config) *memberlist.Config {
 	mcfg := memberlist.DefaultLocalConfig()
 	if cfg.MemberlistBindPort != 0 {
 		mcfg.BindPort = cfg.MemberlistBindPort
 	}
-	if cfg.MemberlistName != "" {
-		mcfg.Name = cfg.MemberlistName
-	}
+	mcfg.Name = cfg.MemberlistName
 	mcfg.Events = &eventDelegate{members: m}
 	mcfg.Delegate = &delegate{members: m}
 	return mcfg

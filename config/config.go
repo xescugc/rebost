@@ -1,19 +1,30 @@
 package config
 
 import (
-	"net"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/viper"
+	"github.com/xescugc/rebost/util"
 )
 
 // Config represents the struct whith all the possible
 // configuration options
 type Config struct {
-	Port    int
+	// Port is the port to open to the public
+	Port int
+
+	// Volumes is th list of the local volumes
 	Volumes []string
-	Remote  string
+
+	// Remote is the URL of another Node
+	Remote string
+
+	// Replica is the default number of replicas
+	// that each file will have if none specified
+	// If set to -1 it'll not try to replicate any
+	// of the created files and it'll not store any
+	// replica from another Node
+	Replica int
 
 	MemberlistBindPort int
 	MemberlistName     string
@@ -25,17 +36,7 @@ func New(v *viper.Viper) (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	v.AutomaticEnv()
 
-	// Opens a TCP connection to a free port on the host
-	// and closes the connection but getting the port from it
-	// so the 'memberlist-bind-port' can be setted to a free
-	// random port each time if no one is specified
-	l, err := net.Listen("tcp", "")
-	if err != nil {
-		return nil, err
-	}
-	l.Close()
-	sl := strings.Split(l.Addr().String(), ":")
-	mbp, err := strconv.Atoi(sl[len(sl)-1])
+	mbp, err := util.FreePort()
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +54,7 @@ func New(v *viper.Viper) (*Config, error) {
 		Port:    v.GetInt("port"),
 		Volumes: v.GetStringSlice("volumes"),
 		Remote:  v.GetString("remote"),
+		Replica: v.GetInt("replica"),
 
 		MemberlistBindPort: v.GetInt("memberlist-bind-port"),
 		MemberlistName:     v.GetString("memberlist-name"),

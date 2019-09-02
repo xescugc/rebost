@@ -3,6 +3,8 @@ package storing_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,14 +17,17 @@ import (
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
+	"github.com/xescugc/rebost/storing/model"
 )
 
 func TestMakeHandler(t *testing.T) {
 	var (
-		key     = "fileName"
-		content = []byte("content")
-		ctrl    = gomock.NewController(t)
-		cfg     = config.Config{MemberlistName: "Pepito"}
+		key                  = "fileName"
+		content              = []byte("content")
+		ctrl                 = gomock.NewController(t)
+		cfg                  = config.Config{MemberlistName: "Pepito"}
+		createReplicaVolmeID = "createReplicaVolmeID"
+		rep                  = 2
 	)
 
 	st := mock.NewStoring(ctrl)
@@ -32,7 +37,7 @@ func TestMakeHandler(t *testing.T) {
 	server := httptest.NewServer(h)
 	client := server.Client()
 
-	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, r io.Reader) {
+	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep).Do(func(_ context.Context, _ string, r io.Reader, _ int) {
 		b, err := ioutil.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
@@ -46,6 +51,12 @@ func TestMakeHandler(t *testing.T) {
 		return false, nil
 	}).AnyTimes()
 	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
+	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, r io.Reader) {
+		b, err := ioutil.ReadAll(r)
+		require.NoError(t, err)
+		assert.Equal(t, content, b)
+	}).Return(createReplicaVolmeID, nil).AnyTimes()
+	st.EXPECT().UpdateFileReplica(gomock.Any(), key, []string{"1", "2"}, rep).Return(nil)
 
 	tests := []struct {
 		Name        string
@@ -57,7 +68,7 @@ func TestMakeHandler(t *testing.T) {
 	}{
 		{
 			Name:        "CreateFile",
-			URL:         "/files/fileName",
+			URL:         "/files/fileName?replica=2",
 			Method:      http.MethodPut,
 			Body:        []byte("content"),
 			EStatusCode: http.StatusCreated,
@@ -95,8 +106,29 @@ func TestMakeHandler(t *testing.T) {
 			Method:      http.MethodGet,
 			EStatusCode: http.StatusOK,
 			EBody: func() []byte {
-				return []byte(`{"data":{"port":0,"volumes":null,"remote":"","memberlist_bind_port":0,"memberlist_name":"Pepito"}}`)
+				cfg := model.Config{MemberlistName: "Pepito"}
+				b, _ := json.Marshal(cfg)
+				return []byte(fmt.Sprintf(`{"data":%s}`, b))
 			},
+		},
+		{
+			Name:        "CreateReplica",
+			URL:         "/replicas/fileName",
+			Method:      http.MethodPut,
+			Body:        []byte("content"),
+			EStatusCode: http.StatusOK,
+			EBody: func() []byte {
+				cr := model.CreateReplica{VolumeID: createReplicaVolmeID}
+				b, _ := json.Marshal(cr)
+				return []byte(fmt.Sprintf(`{"data":%s}`, b))
+			},
+		},
+		{
+			Name:        "UpdateFileReplica",
+			URL:         "/replicas/fileName",
+			Body:        []byte(`{"volume_ids": ["1","2"], "replica": 2}`),
+			Method:      http.MethodPatch,
+			EStatusCode: http.StatusOK,
 		},
 	}
 

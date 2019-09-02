@@ -9,6 +9,8 @@ import (
 	afero "github.com/spf13/afero"
 	file "github.com/xescugc/rebost/file"
 	idxkey "github.com/xescugc/rebost/idxkey"
+	idxvolume "github.com/xescugc/rebost/idxvolume"
+	replica "github.com/xescugc/rebost/replica"
 	reflect "reflect"
 )
 
@@ -37,6 +39,7 @@ func (m *UnitOfWork) EXPECT() *UnitOfWorkMockRecorder {
 
 // Files mocks base method
 func (m *UnitOfWork) Files() file.Repository {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Files")
 	ret0, _ := ret[0].(file.Repository)
 	return ret0
@@ -44,11 +47,13 @@ func (m *UnitOfWork) Files() file.Repository {
 
 // Files indicates an expected call of Files
 func (mr *UnitOfWorkMockRecorder) Files() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Files", reflect.TypeOf((*UnitOfWork)(nil).Files))
 }
 
 // Fs mocks base method
 func (m *UnitOfWork) Fs() afero.Fs {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Fs")
 	ret0, _ := ret[0].(afero.Fs)
 	return ret0
@@ -56,11 +61,13 @@ func (m *UnitOfWork) Fs() afero.Fs {
 
 // Fs indicates an expected call of Fs
 func (mr *UnitOfWorkMockRecorder) Fs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fs", reflect.TypeOf((*UnitOfWork)(nil).Fs))
 }
 
 // IDXKeys mocks base method
 func (m *UnitOfWork) IDXKeys() idxkey.Repository {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IDXKeys")
 	ret0, _ := ret[0].(idxkey.Repository)
 	return ret0
@@ -68,5 +75,34 @@ func (m *UnitOfWork) IDXKeys() idxkey.Repository {
 
 // IDXKeys indicates an expected call of IDXKeys
 func (mr *UnitOfWorkMockRecorder) IDXKeys() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXKeys", reflect.TypeOf((*UnitOfWork)(nil).IDXKeys))
+}
+
+// IDXVolumes mocks base method
+func (m *UnitOfWork) IDXVolumes() idxvolume.Repository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IDXVolumes")
+	ret0, _ := ret[0].(idxvolume.Repository)
+	return ret0
+}
+
+// IDXVolumes indicates an expected call of IDXVolumes
+func (mr *UnitOfWorkMockRecorder) IDXVolumes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXVolumes", reflect.TypeOf((*UnitOfWork)(nil).IDXVolumes))
+}
+
+// Replicas mocks base method
+func (m *UnitOfWork) Replicas() replica.Repository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Replicas")
+	ret0, _ := ret[0].(replica.Repository)
+	return ret0
+}
+
+// Replicas indicates an expected call of Replicas
+func (mr *UnitOfWorkMockRecorder) Replicas() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replicas", reflect.TypeOf((*UnitOfWork)(nil).Replicas))
 }

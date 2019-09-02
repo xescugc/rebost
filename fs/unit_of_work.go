@@ -10,6 +10,8 @@ import (
 	"github.com/xescugc/rebost/uow"
 )
 
+//go:generate mockgen -destination=../mock/fs.go -mock_names=Fs=Fs -package=mock github.com/spf13/afero Fs
+
 // UOWWithFs creates a Unit of Work for the fs.Fs that will wrap a uow.StartUnitOfWork repositories that
 // fulfil the fs.Fs with a tracker. In order to 'rollback' and 'commit' all the actions done.
 // For now it only supports 'Create', 'Remove' and 'Rename' actions to Rollback.

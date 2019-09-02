@@ -36,6 +36,7 @@ func (m *FileRepository) EXPECT() *FileRepositoryMockRecorder {
 
 // CreateOrReplace mocks base method
 func (m *FileRepository) CreateOrReplace(arg0 context.Context, arg1 *file.File) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrReplace", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -43,11 +44,13 @@ func (m *FileRepository) CreateOrReplace(arg0 context.Context, arg1 *file.File) 
 
 // CreateOrReplace indicates an expected call of CreateOrReplace
 func (mr *FileRepositoryMockRecorder) CreateOrReplace(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrReplace", reflect.TypeOf((*FileRepository)(nil).CreateOrReplace), arg0, arg1)
 }
 
 // DeleteBySignature mocks base method
 func (m *FileRepository) DeleteBySignature(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBySignature", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -55,11 +58,13 @@ func (m *FileRepository) DeleteBySignature(arg0 context.Context, arg1 string) er
 
 // DeleteBySignature indicates an expected call of DeleteBySignature
 func (mr *FileRepositoryMockRecorder) DeleteBySignature(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBySignature", reflect.TypeOf((*FileRepository)(nil).DeleteBySignature), arg0, arg1)
 }
 
 // FindBySignature mocks base method
 func (m *FileRepository) FindBySignature(arg0 context.Context, arg1 string) (*file.File, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindBySignature", arg0, arg1)
 	ret0, _ := ret[0].(*file.File)
 	ret1, _ := ret[1].(error)
@@ -68,5 +73,6 @@ func (m *FileRepository) FindBySignature(arg0 context.Context, arg1 string) (*fi
 
 // FindBySignature indicates an expected call of FindBySignature
 func (mr *FileRepositoryMockRecorder) FindBySignature(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBySignature", reflect.TypeOf((*FileRepository)(nil).FindBySignature), arg0, arg1)
 }
