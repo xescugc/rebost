@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/volume"
 )
@@ -37,11 +38,13 @@ type service struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	logger kitlog.Logger
 }
 
 // New returns an implementation of the Node with
 // the given parameters
-func New(cfg *config.Config, m Membership) Service {
+func New(cfg *config.Config, m Membership, logger kitlog.Logger) Service {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &service{
 		members: m,
@@ -49,6 +52,8 @@ func New(cfg *config.Config, m Membership) Service {
 
 		ctx:    ctx,
 		cancel: cancel,
+
+		logger: kitlog.With(logger, "src", "storing"),
 	}
 
 	if s.cfg.Replica != -1 {

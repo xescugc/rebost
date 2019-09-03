@@ -28,7 +28,8 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 		panic(err)
 	}
 
-	c, err := client.New(net.JoinHostPort(n.Addr.String(), strconv.Itoa(meta.Port)))
+	url := net.JoinHostPort(n.Addr.String(), strconv.Itoa(meta.Port))
+	c, err := client.New(url)
 	if err != nil {
 		panic(err)
 	}
@@ -40,6 +41,7 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 
 	e.members.nodesLock.Lock()
 	e.members.nodes[n.Name] = nn
+	e.members.logger.Log("action", "join", "name", n.Name, "url", url)
 	e.members.nodesLock.Unlock()
 }
 
@@ -50,6 +52,7 @@ func (e *eventDelegate) NotifyLeave(n *memberlist.Node) {
 	nn := e.members.nodes[n.Name]
 	e.members.removedVolumeIDs = append(e.members.removedVolumeIDs, nn.meta.VolumeIDs...)
 	delete(e.members.nodes, n.Name)
+	e.members.logger.Log("action", "leave", "name", n.Name)
 
 	e.members.nodesLock.Unlock()
 	e.members.removedVolumeIDsLock.Unlock()

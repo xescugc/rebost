@@ -3,11 +3,15 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 
 	"github.com/boltdb/bolt"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/handlers"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -30,6 +34,8 @@ var (
 			if err != nil {
 				return err
 			}
+			logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+			logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
 			if len(cfg.Volumes) == 0 {
 				return errors.New("at last one volume is required")
@@ -72,18 +78,50 @@ var (
 				vs = append(vs, v)
 			}
 
-			m, err := membership.New(cfg, vs, cfg.Remote)
+			m, err := membership.New(cfg, vs, cfg.Remote, logger)
 			if err != nil {
 				return err
 			}
 
-			s := storing.New(cfg, m)
+			s := storing.New(cfg, m, logger)
 
 			mux := http.NewServeMux()
 
 			mux.Handle("/", storing.MakeHandler(s))
 
-			http.Handle("/", handlers.LoggingHandler(os.Stdout, mux))
+			http.Handle("/", handlers.CustomLoggingHandler(os.Stdout, mux, func(writer io.Writer, params handlers.LogFormatterParams) {
+				username := "-"
+				if params.URL.User != nil {
+					if name := params.URL.User.Username(); name != "" {
+						username = name
+					}
+				}
+
+				host, _, err := net.SplitHostPort(params.Request.RemoteAddr)
+				if err != nil {
+					host = params.Request.RemoteAddr
+				}
+
+				uri := params.Request.RequestURI
+
+				// Requests using the CONNECT method over HTTP/2.0 must use
+				// the authority field (aka r.Host) to identify the target.
+				// Refer: https://httpwg.github.io/specs/rfc7540.html#CONNECT
+				if params.Request.ProtoMajor == 2 && params.Request.Method == "CONNECT" {
+					uri = params.Request.Host
+				}
+				if uri == "" {
+					uri = params.URL.RequestURI()
+				}
+				logger.Log(
+					"host", host,
+					"username", username,
+					"method", params.Request.Method,
+					"uri", uri,
+					"status", strconv.Itoa(params.StatusCode),
+					"size", strconv.Itoa(params.Size),
+				)
+			}))
 
 			return http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil)
 		},
@@ -108,7 +146,7 @@ func init() {
 	serveCmd.PersistentFlags().StringP("remote", "r", "", "The URL of a remote Node to join on the cluster")
 	viper.BindPFlag("remote", serveCmd.PersistentFlags().Lookup("remote"))
 
-	serveCmd.PersistentFlags().IntP("replica", "rep", 2, "The default number of replicas used if none specified on the requests")
+	serveCmd.PersistentFlags().Int("replica", 2, "The default number of replicas used if none specified on the requests")
 	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("replica"))
 
 	serveCmd.PersistentFlags().String("memberlist-bind-port", "", "The port is used for both UDP and TCP gossip. By default a free port will be used")

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
@@ -34,6 +35,8 @@ type Membership struct {
 	// nodes leaving the cluster
 	removedVolumeIDs     []string
 	removedVolumeIDsLock sync.Mutex
+
+	logger kitlog.Logger
 }
 
 // node represents a Node in the cluseter, with the metadata (meta)
@@ -44,12 +47,13 @@ type node struct {
 }
 
 // New returns an implementation of the Membership interface
-func New(cfg *config.Config, lv []volume.Local, remote string) (*Membership, error) {
+func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Logger) (*Membership, error) {
 	m := &Membership{
 		localVolumes:     lv,
 		nodes:            make(map[string]node),
 		cfg:              cfg,
 		removedVolumeIDs: make([]string, 0),
+		logger:           kitlog.With(logger, "src", "membership"),
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))

@@ -1,7 +1,6 @@
 package storing
 
 import (
-	"log"
 	"time"
 )
 
@@ -18,13 +17,15 @@ func (s *service) loopVolumesReplicas() {
 			for _, v := range s.members.LocalVolumes() {
 				rp, err := v.NextReplica(s.ctx)
 				if err != nil {
-					log.Println(err)
+					if err.Error() != "not found" {
+						s.logger.Log("msg", err.Error())
+					}
 					continue
 				}
 				for _, n := range s.members.Nodes() {
 					ok, err := n.HasFile(s.ctx, rp.Key)
 					if err != nil {
-						log.Println(err)
+						s.logger.Log("msg", err.Error())
 						continue
 					}
 					//If the volume already has this key we ignore it
@@ -35,12 +36,12 @@ func (s *service) loopVolumesReplicas() {
 					}
 					iorc, err := v.GetFile(s.ctx, rp.Key)
 					if err != nil {
-						log.Println(err)
+						s.logger.Log("msg", err.Error())
 						continue
 					}
 					vID, err := n.CreateReplica(s.ctx, rp.Key, iorc)
 					if err != nil {
-						log.Println(err)
+						s.logger.Log("msg", err.Error())
 						continue
 					}
 
@@ -54,19 +55,19 @@ func (s *service) loopVolumesReplicas() {
 						}
 						n, err := s.members.GetNodeWithVolumeByID(vid)
 						if err != nil {
-							log.Println(err)
+							s.logger.Log("msg", err.Error())
 							continue
 						}
 						err = n.UpdateFileReplica(s.ctx, rp.Key, rp.VolumeIDs, rp.OriginalCount)
 						if err != nil {
-							log.Println(err)
+							s.logger.Log("msg", err.Error())
 							continue
 						}
 					}
 
 					err = v.UpdateReplica(s.ctx, rp, vID)
 					if err != nil {
-						log.Println(err)
+						s.logger.Log("msg", err.Error())
 						continue
 					}
 
@@ -107,7 +108,7 @@ func (s *service) loopRemovedVolumeDIs() {
 				for _, lv := range s.members.LocalVolumes() {
 					err := lv.SynchronizeReplicas(s.ctx, vid)
 					if err != nil {
-						log.Println(err)
+						s.logger.Log("msg", err.Error())
 						continue
 					}
 				}
