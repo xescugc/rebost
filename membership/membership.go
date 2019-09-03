@@ -53,7 +53,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Log
 		nodes:            make(map[string]node),
 		cfg:              cfg,
 		removedVolumeIDs: make([]string, 0),
-		logger:           logger,
+		logger:           kitlog.With(logger, "src", "membership"),
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
