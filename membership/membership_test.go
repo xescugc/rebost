@@ -4,6 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func TestVolumes(t *testing.T) {
 		p, err := util.FreePort()
 		require.NoError(t, err)
 
-		m, err := membership.New(&config.Config{MemberlistBindPort: p}, []volume.Local{v}, "")
+		m, err := membership.New(&config.Config{MemberlistBindPort: p}, []volume.Local{v}, "", kitlog.NewNopLogger())
 		require.NoError(t, err)
 		assert.Len(t, m.Nodes(), 0)
 		assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
@@ -43,7 +44,7 @@ func TestVolumes(t *testing.T) {
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{MemberlistName: "am2", Replica: -1, MemberlistBindPort: p2}
-			m2, err := membership.New(cfg2, []volume.Local{v2}, "")
+			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
 			require.NoError(t, err)
 
 			s := storing.New(cfg2, m2)
@@ -53,7 +54,7 @@ func TestVolumes(t *testing.T) {
 			p3, err := util.FreePort()
 			require.NoError(t, err)
 			cfg := &config.Config{MemberlistName: "am", MemberlistBindPort: p3}
-			m, err := membership.New(cfg, []volume.Local{v}, server.URL)
+			m, err := membership.New(cfg, []volume.Local{v}, server.URL, kitlog.NewNopLogger())
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
@@ -70,7 +71,7 @@ func TestVolumes(t *testing.T) {
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{MemberlistName: "rm2", Replica: -1, MemberlistBindPort: p2}
-			m2, err := membership.New(cfg2, []volume.Local{v2}, "")
+			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
 			require.NoError(t, err)
 			s := storing.New(cfg2, m2)
 			server := httptest.NewServer(storing.MakeHandler(s))
@@ -79,7 +80,7 @@ func TestVolumes(t *testing.T) {
 			p3, err := util.FreePort()
 			require.NoError(t, err)
 			cfg := &config.Config{MemberlistName: "rm", MemberlistBindPort: p3}
-			m, err := membership.New(cfg, []volume.Local{v}, server.URL)
+			m, err := membership.New(cfg, []volume.Local{v}, server.URL, kitlog.NewNopLogger())
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())

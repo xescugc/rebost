@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"testing"
 
+	kitlog "github.com/go-kit/kit/log"
+
 	"github.com/boltdb/bolt"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
@@ -79,7 +81,10 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 		Remote:             remote,
 	}
 
-	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote)
+	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
+
+	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote, logger)
 	require.NoError(t, err)
 
 	s := storing.New(cfg, m)

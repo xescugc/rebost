@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/boltdb/bolt"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/handlers"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -30,6 +31,8 @@ var (
 			if err != nil {
 				return err
 			}
+			logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+			logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
 			if len(cfg.Volumes) == 0 {
 				return errors.New("at last one volume is required")
@@ -72,7 +75,7 @@ var (
 				vs = append(vs, v)
 			}
 
-			m, err := membership.New(cfg, vs, cfg.Remote)
+			m, err := membership.New(cfg, vs, cfg.Remote, logger)
 			if err != nil {
 				return err
 			}
