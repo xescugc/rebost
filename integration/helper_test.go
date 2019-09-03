@@ -87,7 +87,7 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote, logger)
 	require.NoError(t, err)
 
-	s := storing.New(cfg, m)
+	s := storing.New(cfg, m, logger)
 	h := storing.MakeHandler(s)
 
 	server.Config.Handler = h

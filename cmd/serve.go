@@ -80,7 +80,7 @@ var (
 				return err
 			}
 
-			s := storing.New(cfg, m)
+			s := storing.New(cfg, m, logger)
 
 			mux := http.NewServeMux()
 

@@ -47,7 +47,7 @@ func TestVolumes(t *testing.T) {
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
 			require.NoError(t, err)
 
-			s := storing.New(cfg2, m2)
+			s := storing.New(cfg2, m2, kitlog.NewNopLogger())
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
 
@@ -73,7 +73,7 @@ func TestVolumes(t *testing.T) {
 			cfg2 := &config.Config{MemberlistName: "rm2", Replica: -1, MemberlistBindPort: p2}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
 			require.NoError(t, err)
-			s := storing.New(cfg2, m2)
+			s := storing.New(cfg2, m2, kitlog.NewNopLogger())
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
 

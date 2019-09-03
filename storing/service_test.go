@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,7 @@ func TestCreateFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		err := s.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
@@ -62,7 +63,7 @@ func TestCreateFile(t *testing.T) {
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
-		s := storing.New(&config.Config{Replica: rep}, m)
+		s := storing.New(&config.Config{Replica: rep}, m, kitlog.NewNopLogger())
 
 		err := s.CreateFile(ctx, key, buff, 0)
 		require.NoError(t, err)
@@ -89,7 +90,7 @@ func TestGetFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 		ior, err := s.GetFile(ctx, key)
 
 		require.NoError(t, err)
@@ -115,7 +116,7 @@ func TestGetFile(t *testing.T) {
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		s2.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		ior, err := s.GetFile(ctx, key)
 		require.NoError(t, err)
@@ -141,7 +142,7 @@ func TestDeleteFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		v.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		err := s.DeleteFile(ctx, key)
 		require.NoError(t, err)
@@ -164,7 +165,7 @@ func TestDeleteFile(t *testing.T) {
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		err := s.DeleteFile(ctx, key)
 		require.NoError(t, err)
@@ -186,7 +187,7 @@ func TestHasFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
@@ -212,7 +213,7 @@ func TestHasFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil).AnyTimes()
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
@@ -232,7 +233,7 @@ func TestHasFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
@@ -250,7 +251,7 @@ func TestConfig(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s := storing.New(&expcfg, m)
+		s := storing.New(&expcfg, m, kitlog.NewNopLogger())
 
 		cfg, err := s.Config(ctx)
 		require.NoError(t, err)
@@ -284,7 +285,7 @@ func TestCreateReplica(t *testing.T) {
 
 		v.EXPECT().ID().Return(createdToVolID)
 
-		s := storing.New(&config.Config{}, m)
+		s := storing.New(&config.Config{}, m, kitlog.NewNopLogger())
 
 		volID, err := s.CreateReplica(ctx, key, buff)
 		require.NoError(t, err)
@@ -301,7 +302,7 @@ func TestCreateReplica(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		volID, err := s.CreateReplica(ctx, key, buff)
 		assert.EqualError(t, err, "can not store replicas")
@@ -334,7 +335,7 @@ func TestUpdateFileReplica(t *testing.T) {
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
-		s := storing.New(&config.Config{}, m)
+		s := storing.New(&config.Config{}, m, kitlog.NewNopLogger())
 
 		err := s.UpdateFileReplica(ctx, key, vids, rep)
 		require.NoError(t, err)
@@ -351,7 +352,7 @@ func TestUpdateFileReplica(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s := storing.New(&config.Config{Replica: -1}, m)
+		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		err := s.UpdateFileReplica(ctx, key, vids, rep)
 		assert.EqualError(t, err, "can not store replicas")
