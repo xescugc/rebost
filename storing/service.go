@@ -53,7 +53,7 @@ func New(cfg *config.Config, m Membership, logger kitlog.Logger) Service {
 		ctx:    ctx,
 		cancel: cancel,
 
-		logger: kitlog.With(logger, "src", "storing"),
+		logger: kitlog.With(logger, "src", "storing", "name", cfg.MemberlistName),
 	}
 
 	if s.cfg.Replica != -1 {

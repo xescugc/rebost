@@ -53,7 +53,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Log
 		nodes:            make(map[string]node),
 		cfg:              cfg,
 		removedVolumeIDs: make([]string, 0),
-		logger:           kitlog.With(logger, "src", "membership"),
+		logger:           kitlog.With(logger, "src", "membership", "name", cfg.MemberlistName),
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
@@ -88,10 +88,12 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Log
 			return nil, err
 		}
 
-		_, err = list.Join([]string{net.JoinHostPort(host, strconv.Itoa(cfg.MemberlistBindPort))})
+		hostPort := net.JoinHostPort(host, strconv.Itoa(cfg.MemberlistBindPort))
+		_, err = list.Join([]string{hostPort})
 		if err != nil {
 			return nil, fmt.Errorf("Failed to join cluster: %s", err.Error())
 		}
+		m.logger.Log("msg", fmt.Sprintf("Joined remote cluster %q", hostPort))
 	}
 
 	return m, nil

@@ -75,6 +75,7 @@ var (
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
 
+				logger.Log("msg", fmt.Sprintf("Attached to volume: %q", vp))
 				vs = append(vs, v)
 			}
 
@@ -114,6 +115,7 @@ var (
 					uri = params.URL.RequestURI()
 				}
 				logger.Log(
+					"name", cfg.MemberlistName,
 					"host", host,
 					"username", username,
 					"method", params.Request.Method,
@@ -123,6 +125,7 @@ var (
 				)
 			}))
 
+			logger.Log("port", cfg.Port, "msg", "started server")
 			return http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil)
 		},
 	}
@@ -146,10 +149,10 @@ func init() {
 	serveCmd.PersistentFlags().StringP("remote", "r", "", "The URL of a remote Node to join on the cluster")
 	viper.BindPFlag("remote", serveCmd.PersistentFlags().Lookup("remote"))
 
-	serveCmd.PersistentFlags().Int("replica", 2, "The default number of replicas used if none specified on the requests")
+	serveCmd.PersistentFlags().Int("replica", config.DefaultReplica, "The default number of replicas used if none specified on the requests")
 	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("replica"))
 
-	serveCmd.PersistentFlags().String("memberlist-bind-port", "", "The port is used for both UDP and TCP gossip. By default a free port will be used")
+	serveCmd.PersistentFlags().Int("memberlist-bind-port", 0, "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist-bind-port", serveCmd.PersistentFlags().Lookup("memberlist-bind-port"))
 
 	serveCmd.PersistentFlags().String("memberlist-name", "", "The name of this node. This must be unique in the cluster.")
