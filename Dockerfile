@@ -1,10 +1,22 @@
-FROM golang:1.9.4 as builder
-COPY . /go/src/github.com/xescugc/rebost
-WORKDIR /go/src/github.com/xescugc/rebost
-RUN go build -o rebost .
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o rebost .
+# build stage
+FROM golang:1.14.4 as builder
 
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /go/src/github.com/xescugc/rebost/rebost .
+WORKDIR /app
+
+COPY go.mod .
+COPY go.sum .
+
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build
+
+# final stage
+FROM alpine
+
+RUN apk --update add ca-certificates
+
+COPY --from=builder /app/rebost /app/
+
+ENTRYPOINT ["/app/rebost"]
