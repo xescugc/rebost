@@ -30,7 +30,7 @@ type Client struct {
 func New(host string) (*Client, error) {
 	c := &Client{}
 	if host == "" {
-		return nil, fmt.Errorf("can't initialize the %q with an empty host", "recipeservice")
+		return nil, fmt.Errorf("can't initialize the %q with an empty host", "rebost")
 	}
 	if !strings.HasPrefix(host, "http") {
 		host = fmt.Sprintf("http://%s", host)
