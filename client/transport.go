@@ -44,7 +44,9 @@ func decodeGetFileResponse(_ context.Context, r *http.Response) (interface{}, er
 	return response, nil
 }
 
-func encodeGetConfigRequest(_ context.Context, r *http.Request, request interface{}) error { return nil }
+func encodeGetConfigRequest(_ context.Context, r *http.Request, request interface{}) error {
+	return nil
+}
 
 func decodeGetConfigResponse(_ context.Context, r *http.Response) (interface{}, error) {
 	var response getConfigResponse
