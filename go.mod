@@ -3,43 +3,42 @@ module github.com/xescugc/rebost
 go 1.12
 
 require (
-	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
+	github.com/armon/go-metrics v0.3.3 // indirect
 	github.com/boltdb/bolt v1.3.1
-	github.com/davecgh/go-spew v1.1.1
-	github.com/fsnotify/fsnotify v1.4.7
-	github.com/go-kit/kit v0.0.0-20181022234543-ec0cc13a9b00
-	github.com/go-logfmt/logfmt v0.3.0
-	github.com/golang/mock v0.0.0-20181221212429-e698a2ea17fe
-	github.com/gorilla/context v1.1.1
-	github.com/gorilla/handlers v1.4.0
-	github.com/gorilla/mux v1.6.2
-	github.com/hashicorp/errwrap v1.0.0
-	github.com/hashicorp/go-immutable-radix v1.0.0
-	github.com/hashicorp/go-msgpack v0.0.0-20150518234257-fa3f63826f7c
-	github.com/hashicorp/go-multierror v1.0.0
-	github.com/hashicorp/go-sockaddr v0.0.0-20180320115054-6d291a969b86
-	github.com/hashicorp/golang-lru v0.5.0
-	github.com/hashicorp/hcl v1.0.0
-	github.com/hashicorp/memberlist v0.1.0
-	github.com/inconshreveable/mousetrap v1.0.0
-	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515
-	github.com/magiconair/properties v1.8.0
-	github.com/miekg/dns v1.0.14
-	github.com/mitchellh/mapstructure v1.1.2
-	github.com/pelletier/go-toml v1.2.0
-	github.com/pmezard/go-difflib v1.0.0
+	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
+	github.com/cpuguy83/go-md2man v1.0.10 // indirect
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/go-kit/kit v0.10.0
+	github.com/golang/mock v1.4.3
+	github.com/gorilla/context v1.1.1 // indirect
+	github.com/gorilla/handlers v1.4.2
+	github.com/gorilla/mux v1.7.4
+	github.com/hashicorp/go-immutable-radix v1.2.0 // indirect
+	github.com/hashicorp/go-msgpack v1.1.5 // indirect
+	github.com/hashicorp/go-multierror v1.1.0 // indirect
+	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
+	github.com/hashicorp/go-uuid v1.0.2 // indirect
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
+	github.com/hashicorp/memberlist v0.2.2
+	github.com/kr/pretty v0.2.0 // indirect
+	github.com/miekg/dns v1.1.30 // indirect
+	github.com/mitchellh/mapstructure v1.3.3 // indirect
+	github.com/pelletier/go-toml v1.8.0 // indirect
 	github.com/satori/go.uuid v1.2.0
-	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
-	github.com/spf13/afero v1.1.2
-	github.com/spf13/cast v1.2.0
-	github.com/spf13/cobra v0.0.3
-	github.com/spf13/jwalterweatherman v1.0.0
-	github.com/spf13/pflag v1.0.3
-	github.com/spf13/viper v1.2.1
-	github.com/stretchr/testify v1.2.2
-	golang.org/x/crypto v0.0.0-20181015023909-0c41d7ab0a0e
-	golang.org/x/net v0.0.0-20181017193950-04a2e542c03f
-	golang.org/x/sys v0.0.0-20181022134430-8a28ead16f52
-	golang.org/x/text v0.3.0
-	gopkg.in/yaml.v2 v2.2.1
+	github.com/spf13/afero v1.3.2
+	github.com/spf13/cast v1.3.1 // indirect
+	github.com/spf13/cobra v1.0.0
+	github.com/spf13/jwalterweatherman v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.7.0
+	github.com/stretchr/testify v1.6.1
+	github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8 // indirect
+	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899 // indirect
+	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
+	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208 // indirect
+	golang.org/x/sys v0.0.0-20200724161237-0e2f3a69832c // indirect
+	golang.org/x/text v0.3.3 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	gopkg.in/ini.v1 v1.57.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )
