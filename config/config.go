@@ -38,12 +38,17 @@ type Config struct {
 
 	MemberlistBindPort int    `mapstructure:"memberlist-bind-port"`
 	MemberlistName     string `mapstructure:"memberlist-name"`
+
+	Dashboard struct {
+		Port    int  `mapstructure:"port"`
+		Enabled bool `mapstructure:"enabled"`
+	}
 }
 
 // New returns a new Config from the viper.Viper, the ENV variables
 // are readed by using the convertion of "_" and all caps
 func New(v *viper.Viper) (*Config, error) {
-	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
 	v.AutomaticEnv()
 
 	mbp, err := util.FreePort()

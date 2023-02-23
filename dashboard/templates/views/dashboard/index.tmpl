@@ -1,0 +1,25 @@
+{{template "main" .}}
+{{define "content"}}
+  <div class="container">
+    <h1>Nodes</h1>
+    {{ range .Nodes }} 
+      <p>
+        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ .MemberlistName }}" aria-expanded="false" aria-controls="{{ .MemberlistName }}">
+          {{ .MemberlistName }}
+        </button>
+      </p>
+      <div class="collapse" id="{{ .MemberlistName }}">
+        <div class="card card-body">
+          <p><strong>Port:</strong> {{ .Port }}</p>
+          <p><strong>Volumes:</strong> {{ .Volumes }}</p>
+          <p><strong>Remote:</strong> {{ .Remote }}</p>
+          <p><strong>Replica:</strong> {{ .Replica }}</p>
+          <p><strong>Memberlist Bind Port:</strong> {{ .MemberlistBindPort }}</p>
+          <p><strong>Memberlist Name:</strong> {{ .MemberlistName }}</p>
+          <p><strong>Dashboard Enabled:</strong> {{ .Dashboard.Enabled }}</p>
+          <p><strong>Dashboard Port:</strong> {{ .Dashboard.Port }}</p>
+        </div>
+      </div>
+    {{ end }}
+  </div>
+{{end}}
