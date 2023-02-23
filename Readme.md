@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/xescugc/rebost.svg?branch=master)](https://travis-ci.org/xescugc/rebost)
+[![Go](https://github.com/xescugc/rebost/actions/workflows/go.yml/badge.svg)](https://github.com/xescugc/rebost/actions/workflows/go.yml)
 
 # Rebost (Beta)
 
