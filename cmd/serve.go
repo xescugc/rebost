@@ -7,8 +7,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"strconv"
+	"syscall"
 
 	"github.com/boltdb/bolt"
 	kitlog "github.com/go-kit/kit/log"
@@ -18,6 +20,9 @@ import (
 	"github.com/spf13/viper"
 	"github.com/xescugc/rebost/boltdb"
 	"github.com/xescugc/rebost/config"
+	"github.com/xescugc/rebost/dashboard"
+	"github.com/xescugc/rebost/dashboard/assets"
+	dhttp "github.com/xescugc/rebost/dashboard/transport/http"
 	"github.com/xescugc/rebost/fs"
 	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/storing"
@@ -125,8 +130,48 @@ var (
 				)
 			}))
 
-			logger.Log("port", cfg.Port, "msg", "started server")
-			return http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil)
+			errs := make(chan error)
+
+			svr := &http.Server{
+				Addr:    fmt.Sprintf(":%d", cfg.Port),
+				Handler: handlers.LoggingHandler(os.Stdout, mux),
+			}
+
+			go func() {
+				c := make(chan os.Signal, 1)
+				signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+				errs <- fmt.Errorf("%s", <-c)
+			}()
+
+			go func() {
+				logger.Log("port", cfg.Port, "msg", "started storing server")
+				errs <- svr.ListenAndServe()
+			}()
+
+			if cfg.Dashboard.Enabled {
+				d := dashboard.New(cfg, m, logger)
+
+				dhandler := dhttp.MakeHandler(d, logger)
+
+				dmux := http.NewServeMux()
+				dmux.Handle("/", dhandler)
+				dmux.Handle("/css/", http.FileServer(http.FS(assets.Assets)))
+				dmux.Handle("/js/", http.FileServer(http.FS(assets.Assets)))
+
+				dsvr := &http.Server{
+					Addr:    fmt.Sprintf(":%d", cfg.Dashboard.Port),
+					Handler: handlers.LoggingHandler(os.Stdout, dmux),
+				}
+
+				go func() {
+					logger.Log("port", cfg.Dashboard.Port, "msg", "started dashboard server")
+					errs <- dsvr.ListenAndServe()
+				}()
+			}
+
+			logger.Log("exit", <-errs)
+
+			return nil
 		},
 	}
 )
@@ -140,7 +185,7 @@ func createDB(p string) (*bolt.DB, error) {
 }
 
 func init() {
-	serveCmd.PersistentFlags().StringP("port", "p", "3805", "Destination port")
+	serveCmd.PersistentFlags().IntP("port", "p", 3805, "Destination port")
 	viper.BindPFlag("port", serveCmd.PersistentFlags().Lookup("port"))
 
 	serveCmd.PersistentFlags().StringSliceP("volumes", "v", []string{}, "Volumes to store the data")
@@ -157,6 +202,12 @@ func init() {
 
 	serveCmd.PersistentFlags().String("memberlist-name", "", "The name of this node. This must be unique in the cluster.")
 	viper.BindPFlag("memberlist-name", serveCmd.PersistentFlags().Lookup("memberlist-name"))
+
+	serveCmd.PersistentFlags().Int("dashboard.port", 3806, "Destination port of the dashboard")
+	viper.BindPFlag("dashboard.port", serveCmd.PersistentFlags().Lookup("dashboard.port"))
+
+	serveCmd.PersistentFlags().Bool("dashboard.enabled", true, "Enable or not the Dashboard on this node")
+	viper.BindPFlag("dashboard.enabled", serveCmd.PersistentFlags().Lookup("dashboard.enabled"))
 
 	RootCmd.AddCommand(serveCmd)
 }

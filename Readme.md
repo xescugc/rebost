@@ -2,7 +2,7 @@
 
 # Rebost (Beta)
 
-Rebost is a Distributed Object Storage inspied by our experiance with MogileFS, MongoDB and ElasticSearch.
+Rebost is a Distributed Object Storage inspired by our experience with MogileFS, MongoDB and ElasticSearch.
 
 Rebost tries to simplify the management (deploy and operate) of an Object Storage by having an easy setup (barely no configuration required), by basically requiring just the address of one Node of the Rebost cluster (if not it'll start it's own)  and the path to the local Volumes (where the objects will be stored).
 The implementation also simplifies the management of the cluster as there is no "Master", each Node is Master of his objects and also knows where the replicas of those are in the cluster. So adding a new Node it's just starting it and done. When a file is asked to a Node that does not know where it is, it'll ask it to the other Nodes.
@@ -20,13 +20,13 @@ $> rebost serve --volumes v1
 Create the second Node pointing (`--remote`) to the first one and changing the default `--port` as it's already in use (`3805`) for the first Node.
 
 ```bash
-$> rebost serve --volumes v2 --port 3030 --remote http://localhost:3805
+$> rebost serve --volumes v2 --port 2020 --remote http://localhost:3805 --dashboard.enabled false
 ```
 
 Do the same thing with the third Node.
 
 ```bash
-$> rebost serve --volumes v4 --port 4040 --remote http://localhost:3805
+$> rebost serve --volumes v3 --port 3030 --remote http://localhost:3805 --dashboard.enabled false
 ```
 
 After this the 3 Nodes will see each other and connect, for example you could run:
@@ -41,7 +41,9 @@ Then you can go to your browser and check it (if it's an image) or:
 $> curl http://localhost:3805/files/your-file-name
 ```
 
-As the default replica is `3` all the Nodes we've created will have a copy of it so you could do the las comman (in fact any of the 2 before) to any Node.
+As the default replica is `3` all the Nodes we've created will have a copy of it so you could do the last command (in fact any of the 2 before) to any Node.
+
+To access the dashboard go to http://localhost:3806, we disabled the Dashboard on the other nodes just because we would need to change also the port, and for a simple example would look too verbose.
 
 ## Beta?
 

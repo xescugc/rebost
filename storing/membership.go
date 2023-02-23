@@ -8,7 +8,7 @@ import "github.com/xescugc/rebost/volume"
 // cluseter members. In this "domain" (rebost), the members
 // are considered volume.Volume.
 type Membership interface {
-	// Nodes return all the Nodes of the cluster
+	// Nodes return all the Nodes of the cluster except the current one
 	Nodes() []Service
 
 	// LocalVolumes returns only the local volumes

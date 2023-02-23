@@ -9,4 +9,9 @@ type Config struct {
 
 	MemberlistBindPort int    `json:"memberlist_bind_port"`
 	MemberlistName     string `json:"memberlist_name"`
+
+	Dashboard struct {
+		Port    int  `json:"port"`
+		Enabled bool `json:"enabled"`
+	} `json:"dashboard"`
 }
