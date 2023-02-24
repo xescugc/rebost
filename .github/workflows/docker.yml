@@ -43,3 +43,5 @@ jobs:
           push: ${{ github.ref =='refs/heads/master' || github.ref_type == 'tag'}}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+          build-args: |
+            version=${{ steps.metadata.outputs.version }}
