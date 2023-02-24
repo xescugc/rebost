@@ -14,3 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed fmt.Println for go-kit log [PR#6](https://github.com/xescugc/rebost/pull/6)
 - New Dashboard service [Issue#9](https://github.com/xescugc/rebost/issues/9)
 - The CHANGELOG file [Issue#11](https://github.com/xescugc/rebost/issues/11)
+
+### Changed
+
+- From TravisCI to GitHub Actions (Test && Docker)[Issue#14](https://github.com/xescugc/rebost/issues/14)
