@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/boltdb/bolt"
 	"github.com/xescugc/rebost/replica"
+	bolt "go.etcd.io/bbolt"
 )
 
 type replicaRepository struct {

@@ -6,35 +6,36 @@ package mock
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	idxkey "github.com/xescugc/rebost/idxkey"
-	reflect "reflect"
 )
 
-// IDXKeyRepository is a mock of Repository interface
+// IDXKeyRepository is a mock of Repository interface.
 type IDXKeyRepository struct {
 	ctrl     *gomock.Controller
 	recorder *IDXKeyRepositoryMockRecorder
 }
 
-// IDXKeyRepositoryMockRecorder is the mock recorder for IDXKeyRepository
+// IDXKeyRepositoryMockRecorder is the mock recorder for IDXKeyRepository.
 type IDXKeyRepositoryMockRecorder struct {
 	mock *IDXKeyRepository
 }
 
-// NewIDXKeyRepository creates a new mock instance
+// NewIDXKeyRepository creates a new mock instance.
 func NewIDXKeyRepository(ctrl *gomock.Controller) *IDXKeyRepository {
 	mock := &IDXKeyRepository{ctrl: ctrl}
 	mock.recorder = &IDXKeyRepositoryMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *IDXKeyRepository) EXPECT() *IDXKeyRepositoryMockRecorder {
 	return m.recorder
 }
 
-// CreateOrReplace mocks base method
+// CreateOrReplace mocks base method.
 func (m *IDXKeyRepository) CreateOrReplace(arg0 context.Context, arg1 *idxkey.IDXKey) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrReplace", arg0, arg1)
@@ -42,13 +43,13 @@ func (m *IDXKeyRepository) CreateOrReplace(arg0 context.Context, arg1 *idxkey.ID
 	return ret0
 }
 
-// CreateOrReplace indicates an expected call of CreateOrReplace
+// CreateOrReplace indicates an expected call of CreateOrReplace.
 func (mr *IDXKeyRepositoryMockRecorder) CreateOrReplace(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrReplace", reflect.TypeOf((*IDXKeyRepository)(nil).CreateOrReplace), arg0, arg1)
 }
 
-// DeleteByKey mocks base method
+// DeleteByKey mocks base method.
 func (m *IDXKeyRepository) DeleteByKey(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByKey", arg0, arg1)
@@ -56,13 +57,13 @@ func (m *IDXKeyRepository) DeleteByKey(arg0 context.Context, arg1 string) error 
 	return ret0
 }
 
-// DeleteByKey indicates an expected call of DeleteByKey
+// DeleteByKey indicates an expected call of DeleteByKey.
 func (mr *IDXKeyRepositoryMockRecorder) DeleteByKey(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByKey", reflect.TypeOf((*IDXKeyRepository)(nil).DeleteByKey), arg0, arg1)
 }
 
-// FindByKey mocks base method
+// FindByKey mocks base method.
 func (m *IDXKeyRepository) FindByKey(arg0 context.Context, arg1 string) (*idxkey.IDXKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindByKey", arg0, arg1)
@@ -71,7 +72,7 @@ func (m *IDXKeyRepository) FindByKey(arg0 context.Context, arg1 string) (*idxkey
 	return ret0, ret1
 }
 
-// FindByKey indicates an expected call of FindByKey
+// FindByKey indicates an expected call of FindByKey.
 func (mr *IDXKeyRepositoryMockRecorder) FindByKey(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByKey", reflect.TypeOf((*IDXKeyRepository)(nil).FindByKey), arg0, arg1)

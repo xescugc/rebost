@@ -6,35 +6,36 @@ package mock
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	idxvolume "github.com/xescugc/rebost/idxvolume"
-	reflect "reflect"
 )
 
-// IDXVolumeRepository is a mock of Repository interface
+// IDXVolumeRepository is a mock of Repository interface.
 type IDXVolumeRepository struct {
 	ctrl     *gomock.Controller
 	recorder *IDXVolumeRepositoryMockRecorder
 }
 
-// IDXVolumeRepositoryMockRecorder is the mock recorder for IDXVolumeRepository
+// IDXVolumeRepositoryMockRecorder is the mock recorder for IDXVolumeRepository.
 type IDXVolumeRepositoryMockRecorder struct {
 	mock *IDXVolumeRepository
 }
 
-// NewIDXVolumeRepository creates a new mock instance
+// NewIDXVolumeRepository creates a new mock instance.
 func NewIDXVolumeRepository(ctrl *gomock.Controller) *IDXVolumeRepository {
 	mock := &IDXVolumeRepository{ctrl: ctrl}
 	mock.recorder = &IDXVolumeRepositoryMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *IDXVolumeRepository) EXPECT() *IDXVolumeRepositoryMockRecorder {
 	return m.recorder
 }
 
-// CreateOrReplace mocks base method
+// CreateOrReplace mocks base method.
 func (m *IDXVolumeRepository) CreateOrReplace(arg0 context.Context, arg1 *idxvolume.IDXVolume) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrReplace", arg0, arg1)
@@ -42,13 +43,13 @@ func (m *IDXVolumeRepository) CreateOrReplace(arg0 context.Context, arg1 *idxvol
 	return ret0
 }
 
-// CreateOrReplace indicates an expected call of CreateOrReplace
+// CreateOrReplace indicates an expected call of CreateOrReplace.
 func (mr *IDXVolumeRepositoryMockRecorder) CreateOrReplace(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrReplace", reflect.TypeOf((*IDXVolumeRepository)(nil).CreateOrReplace), arg0, arg1)
 }
 
-// DeleteByKey mocks base method
+// DeleteByKey mocks base method.
 func (m *IDXVolumeRepository) DeleteByKey(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByKey", arg0, arg1)
@@ -56,13 +57,13 @@ func (m *IDXVolumeRepository) DeleteByKey(arg0 context.Context, arg1 string) err
 	return ret0
 }
 
-// DeleteByKey indicates an expected call of DeleteByKey
+// DeleteByKey indicates an expected call of DeleteByKey.
 func (mr *IDXVolumeRepositoryMockRecorder) DeleteByKey(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByKey", reflect.TypeOf((*IDXVolumeRepository)(nil).DeleteByKey), arg0, arg1)
 }
 
-// FindByVolumeID mocks base method
+// FindByVolumeID mocks base method.
 func (m *IDXVolumeRepository) FindByVolumeID(arg0 context.Context, arg1 string) (*idxvolume.IDXVolume, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindByVolumeID", arg0, arg1)
@@ -71,7 +72,7 @@ func (m *IDXVolumeRepository) FindByVolumeID(arg0 context.Context, arg1 string) 
 	return ret0, ret1
 }
 
-// FindByVolumeID indicates an expected call of FindByVolumeID
+// FindByVolumeID indicates an expected call of FindByVolumeID.
 func (mr *IDXVolumeRepositoryMockRecorder) FindByVolumeID(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByVolumeID", reflect.TypeOf((*IDXVolumeRepository)(nil).FindByVolumeID), arg0, arg1)

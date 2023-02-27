@@ -131,3 +131,7 @@ func (uowt *uowTracker) Chmod(name string, mode os.FileMode) error {
 func (uowt *uowTracker) Chtimes(name string, atime time.Time, mtime time.Time) error {
 	return uowt.fs.Chtimes(name, atime, mtime)
 }
+
+func (uowt *uowTracker) Chown(name string, uid, gid int) error {
+	return uowt.fs.Chown(name, uid, gid)
+}

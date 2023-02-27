@@ -6,35 +6,36 @@ package mock
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	replica "github.com/xescugc/rebost/replica"
-	reflect "reflect"
 )
 
-// ReplicaRepository is a mock of Repository interface
+// ReplicaRepository is a mock of Repository interface.
 type ReplicaRepository struct {
 	ctrl     *gomock.Controller
 	recorder *ReplicaRepositoryMockRecorder
 }
 
-// ReplicaRepositoryMockRecorder is the mock recorder for ReplicaRepository
+// ReplicaRepositoryMockRecorder is the mock recorder for ReplicaRepository.
 type ReplicaRepositoryMockRecorder struct {
 	mock *ReplicaRepository
 }
 
-// NewReplicaRepository creates a new mock instance
+// NewReplicaRepository creates a new mock instance.
 func NewReplicaRepository(ctrl *gomock.Controller) *ReplicaRepository {
 	mock := &ReplicaRepository{ctrl: ctrl}
 	mock.recorder = &ReplicaRepositoryMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *ReplicaRepository) EXPECT() *ReplicaRepositoryMockRecorder {
 	return m.recorder
 }
 
-// Create mocks base method
+// Create mocks base method.
 func (m *ReplicaRepository) Create(arg0 context.Context, arg1 *replica.Replica) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", arg0, arg1)
@@ -42,13 +43,13 @@ func (m *ReplicaRepository) Create(arg0 context.Context, arg1 *replica.Replica) 
 	return ret0
 }
 
-// Create indicates an expected call of Create
+// Create indicates an expected call of Create.
 func (mr *ReplicaRepositoryMockRecorder) Create(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*ReplicaRepository)(nil).Create), arg0, arg1)
 }
 
-// Delete mocks base method
+// Delete mocks base method.
 func (m *ReplicaRepository) Delete(arg0 context.Context, arg1 *replica.Replica) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
@@ -56,13 +57,13 @@ func (m *ReplicaRepository) Delete(arg0 context.Context, arg1 *replica.Replica) 
 	return ret0
 }
 
-// Delete indicates an expected call of Delete
+// Delete indicates an expected call of Delete.
 func (mr *ReplicaRepositoryMockRecorder) Delete(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*ReplicaRepository)(nil).Delete), arg0, arg1)
 }
 
-// First mocks base method
+// First mocks base method.
 func (m *ReplicaRepository) First(arg0 context.Context) (*replica.Replica, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "First", arg0)
@@ -71,7 +72,7 @@ func (m *ReplicaRepository) First(arg0 context.Context) (*replica.Replica, error
 	return ret0, ret1
 }
 
-// First indicates an expected call of First
+// First indicates an expected call of First.
 func (mr *ReplicaRepositoryMockRecorder) First(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "First", reflect.TypeOf((*ReplicaRepository)(nil).First), arg0)

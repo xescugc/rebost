@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/boltdb/bolt"
 	"github.com/xescugc/rebost/idxkey"
+	bolt "go.etcd.io/bbolt"
 )
 
 type idxkeyRepository struct {

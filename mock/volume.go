@@ -6,35 +6,36 @@ package mock
 
 import (
 	context "context"
-	gomock "github.com/golang/mock/gomock"
 	io "io"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
 )
 
-// Volume is a mock of Volume interface
+// Volume is a mock of Volume interface.
 type Volume struct {
 	ctrl     *gomock.Controller
 	recorder *VolumeMockRecorder
 }
 
-// VolumeMockRecorder is the mock recorder for Volume
+// VolumeMockRecorder is the mock recorder for Volume.
 type VolumeMockRecorder struct {
 	mock *Volume
 }
 
-// NewVolume creates a new mock instance
+// NewVolume creates a new mock instance.
 func NewVolume(ctrl *gomock.Controller) *Volume {
 	mock := &Volume{ctrl: ctrl}
 	mock.recorder = &VolumeMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *Volume) EXPECT() *VolumeMockRecorder {
 	return m.recorder
 }
 
-// CreateFile mocks base method
+// CreateFile mocks base method.
 func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 int) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2, arg3)
@@ -42,13 +43,13 @@ func (m *Volume) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadClose
 	return ret0
 }
 
-// CreateFile indicates an expected call of CreateFile
+// CreateFile indicates an expected call of CreateFile.
 func (mr *VolumeMockRecorder) CreateFile(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*Volume)(nil).CreateFile), arg0, arg1, arg2, arg3)
 }
 
-// DeleteFile mocks base method
+// DeleteFile mocks base method.
 func (m *Volume) DeleteFile(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteFile", arg0, arg1)
@@ -56,13 +57,13 @@ func (m *Volume) DeleteFile(arg0 context.Context, arg1 string) error {
 	return ret0
 }
 
-// DeleteFile indicates an expected call of DeleteFile
+// DeleteFile indicates an expected call of DeleteFile.
 func (mr *VolumeMockRecorder) DeleteFile(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFile", reflect.TypeOf((*Volume)(nil).DeleteFile), arg0, arg1)
 }
 
-// GetFile mocks base method
+// GetFile mocks base method.
 func (m *Volume) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFile", arg0, arg1)
@@ -71,13 +72,13 @@ func (m *Volume) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, erro
 	return ret0, ret1
 }
 
-// GetFile indicates an expected call of GetFile
+// GetFile indicates an expected call of GetFile.
 func (mr *VolumeMockRecorder) GetFile(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*Volume)(nil).GetFile), arg0, arg1)
 }
 
-// HasFile mocks base method
+// HasFile mocks base method.
 func (m *Volume) HasFile(arg0 context.Context, arg1 string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasFile", arg0, arg1)
@@ -86,13 +87,13 @@ func (m *Volume) HasFile(arg0 context.Context, arg1 string) (bool, error) {
 	return ret0, ret1
 }
 
-// HasFile indicates an expected call of HasFile
+// HasFile indicates an expected call of HasFile.
 func (mr *VolumeMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*Volume)(nil).HasFile), arg0, arg1)
 }
 
-// UpdateFileReplica mocks base method
+// UpdateFileReplica mocks base method.
 func (m *Volume) UpdateFileReplica(arg0 context.Context, arg1 string, arg2 []string, arg3 int) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateFileReplica", arg0, arg1, arg2, arg3)
@@ -100,7 +101,7 @@ func (m *Volume) UpdateFileReplica(arg0 context.Context, arg1 string, arg2 []str
 	return ret0
 }
 
-// UpdateFileReplica indicates an expected call of UpdateFileReplica
+// UpdateFileReplica indicates an expected call of UpdateFileReplica.
 func (mr *VolumeMockRecorder) UpdateFileReplica(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateFileReplica", reflect.TypeOf((*Volume)(nil).UpdateFileReplica), arg0, arg1, arg2, arg3)

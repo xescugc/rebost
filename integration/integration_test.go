@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -20,7 +21,6 @@ const (
 )
 
 func init() {
-	//log.SetOutput(ioutil.Discard)
 	log.SetFlags(log.Llongfile)
 }
 
@@ -32,15 +32,15 @@ func TestCRUD(t *testing.T) {
 	var (
 		keytxt     = "keytxt"
 		txtcontent = []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
-		iorctxt    = ioutil.NopCloser(bytes.NewBuffer(txtcontent))
+		iorctxt    = io.NopCloser(bytes.NewBuffer(txtcontent))
 
 		keyimg = "keyimg"
 		ctx    = context.Background()
 	)
 
-	imgcontent, err := ioutil.ReadFile("./testdata/gopher.png")
+	imgcontent, err := os.ReadFile("./testdata/gopher.png")
 	require.NoError(t, err)
-	iorcimg := ioutil.NopCloser(bytes.NewBuffer(imgcontent))
+	iorcimg := io.NopCloser(bytes.NewBuffer(imgcontent))
 
 	cl1, u1, ca1 := newClient(t, "n1", firstNode)
 	defer ca1()
@@ -96,7 +96,7 @@ func TestCRUD(t *testing.T) {
 			t.Run(fmt.Sprintf("From node %d", i+1), func(t *testing.T) {
 				txtiorc, err := c.GetFile(ctx, keytxt)
 				require.NoError(t, err)
-				txtb, err := ioutil.ReadAll(txtiorc)
+				txtb, err := io.ReadAll(txtiorc)
 				require.NoError(t, err)
 				txtiorc.Close()
 
@@ -104,7 +104,7 @@ func TestCRUD(t *testing.T) {
 
 				imgiorc, err := c.GetFile(ctx, keyimg)
 				require.NoError(t, err)
-				imgb, err := ioutil.ReadAll(imgiorc)
+				imgb, err := io.ReadAll(imgiorc)
 				require.NoError(t, err)
 				imgiorc.Close()
 
@@ -140,7 +140,7 @@ func TestReplica(t *testing.T) {
 	var (
 		keytxt     = "keytxt"
 		txtcontent = []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
-		iorctxt    = ioutil.NopCloser(bytes.NewBuffer(txtcontent))
+		iorctxt    = io.NopCloser(bytes.NewBuffer(txtcontent))
 
 		ctx = context.Background()
 	)

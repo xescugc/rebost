@@ -3,7 +3,7 @@ package boltdb
 import (
 	"fmt"
 
-	"github.com/boltdb/bolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 // createBucket tries to create a new bucket with the given name

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -63,7 +62,7 @@ func TestNew(t *testing.T) {
 		err = fh.Open()
 		require.NoError(t, err)
 
-		id, err := ioutil.ReadAll(fh)
+		id, err := io.ReadAll(fh)
 		require.NoError(t, err)
 
 		_, err = uuid.FromString(string(id))
@@ -119,7 +118,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
@@ -179,7 +178,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			rep      = 2
 			ef       = file.File{
 				Keys:      []string{"b", key},
@@ -245,7 +244,7 @@ func TestCreateFile(t *testing.T) {
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
 			rep      = 2
-			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
@@ -287,7 +286,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			rep      = 2
 			ef       = file.File{
 				Keys:      []string{key},
@@ -369,7 +368,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			rep      = 2
 			ef       = file.File{
 				Keys:      []string{key},
@@ -450,7 +449,7 @@ func TestCreateFile(t *testing.T) {
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
-			buff     = ioutil.NopCloser(bytes.NewBufferString("content of the file"))
+			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
@@ -523,7 +522,7 @@ func TestGetFile(t *testing.T) {
 		ior, err := mv.V.GetFile(ctx, key)
 		require.NoError(t, err)
 		require.NotNil(t, ior)
-		b, err := ioutil.ReadAll(ior)
+		b, err := io.ReadAll(ior)
 		require.NoError(t, err)
 		assert.Equal(t, content, string(b))
 	})

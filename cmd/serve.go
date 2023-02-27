@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/boltdb/bolt"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/handlers"
 	"github.com/spf13/afero"
@@ -27,6 +26,7 @@ import (
 	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
+	bolt "go.etcd.io/bbolt"
 )
 
 var (

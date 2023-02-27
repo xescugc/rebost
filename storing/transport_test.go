@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -38,11 +37,11 @@ func TestMakeHandler(t *testing.T) {
 	client := server.Client()
 
 	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep).Do(func(_ context.Context, _ string, r io.Reader, _ int) {
-		b, err := ioutil.ReadAll(r)
+		b, err := io.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
 	}).Return(nil).AnyTimes()
-	st.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBuffer(content)), nil).AnyTimes()
+	st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), nil).AnyTimes()
 	st.EXPECT().DeleteFile(gomock.Any(), key).Return(nil).AnyTimes()
 	st.EXPECT().HasFile(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, k string) (bool, error) {
 		if k == key {
@@ -52,7 +51,7 @@ func TestMakeHandler(t *testing.T) {
 	}).AnyTimes()
 	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
 	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, r io.Reader) {
-		b, err := ioutil.ReadAll(r)
+		b, err := io.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
 	}).Return(createReplicaVolmeID, nil).AnyTimes()
@@ -142,7 +141,7 @@ func TestMakeHandler(t *testing.T) {
 
 			if tt.EBody != nil {
 				defer resp.Body.Close()
-				b, err := ioutil.ReadAll(resp.Body)
+				b, err := io.ReadAll(resp.Body)
 				require.NoError(t, err)
 				assert.Equal(t, tt.EBody(), b)
 			}

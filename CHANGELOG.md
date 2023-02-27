@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Updated
+
+- Migrated from 'boltdb/bolt' to 'go.etcd.io/bbolt' and also updated all the dependencies [Issue#10](https://github.com/xescugc/rebost/issues/10)
+
 ## [0.1.0] - 2023-02-24
 
 ### Added

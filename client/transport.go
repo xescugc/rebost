@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -116,7 +116,7 @@ func encodeUpdateFileReplicaRequest(_ context.Context, r *http.Request, request 
 	if err != nil {
 		return err
 	}
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+	r.Body = io.NopCloser(bytes.NewBuffer(b))
 	return nil
 }
 

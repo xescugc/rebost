@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/boltdb/bolt"
 	"github.com/xescugc/rebost/idxvolume"
+	bolt "go.etcd.io/bbolt"
 )
 
 type idxvolumeRepository struct {
