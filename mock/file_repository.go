@@ -6,35 +6,36 @@ package mock
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	file "github.com/xescugc/rebost/file"
-	reflect "reflect"
 )
 
-// FileRepository is a mock of Repository interface
+// FileRepository is a mock of Repository interface.
 type FileRepository struct {
 	ctrl     *gomock.Controller
 	recorder *FileRepositoryMockRecorder
 }
 
-// FileRepositoryMockRecorder is the mock recorder for FileRepository
+// FileRepositoryMockRecorder is the mock recorder for FileRepository.
 type FileRepositoryMockRecorder struct {
 	mock *FileRepository
 }
 
-// NewFileRepository creates a new mock instance
+// NewFileRepository creates a new mock instance.
 func NewFileRepository(ctrl *gomock.Controller) *FileRepository {
 	mock := &FileRepository{ctrl: ctrl}
 	mock.recorder = &FileRepositoryMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *FileRepository) EXPECT() *FileRepositoryMockRecorder {
 	return m.recorder
 }
 
-// CreateOrReplace mocks base method
+// CreateOrReplace mocks base method.
 func (m *FileRepository) CreateOrReplace(arg0 context.Context, arg1 *file.File) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrReplace", arg0, arg1)
@@ -42,13 +43,13 @@ func (m *FileRepository) CreateOrReplace(arg0 context.Context, arg1 *file.File) 
 	return ret0
 }
 
-// CreateOrReplace indicates an expected call of CreateOrReplace
+// CreateOrReplace indicates an expected call of CreateOrReplace.
 func (mr *FileRepositoryMockRecorder) CreateOrReplace(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrReplace", reflect.TypeOf((*FileRepository)(nil).CreateOrReplace), arg0, arg1)
 }
 
-// DeleteBySignature mocks base method
+// DeleteBySignature mocks base method.
 func (m *FileRepository) DeleteBySignature(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBySignature", arg0, arg1)
@@ -56,13 +57,13 @@ func (m *FileRepository) DeleteBySignature(arg0 context.Context, arg1 string) er
 	return ret0
 }
 
-// DeleteBySignature indicates an expected call of DeleteBySignature
+// DeleteBySignature indicates an expected call of DeleteBySignature.
 func (mr *FileRepositoryMockRecorder) DeleteBySignature(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBySignature", reflect.TypeOf((*FileRepository)(nil).DeleteBySignature), arg0, arg1)
 }
 
-// FindBySignature mocks base method
+// FindBySignature mocks base method.
 func (m *FileRepository) FindBySignature(arg0 context.Context, arg1 string) (*file.File, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindBySignature", arg0, arg1)
@@ -71,7 +72,7 @@ func (m *FileRepository) FindBySignature(arg0 context.Context, arg1 string) (*fi
 	return ret0, ret1
 }
 
-// FindBySignature indicates an expected call of FindBySignature
+// FindBySignature indicates an expected call of FindBySignature.
 func (mr *FileRepositoryMockRecorder) FindBySignature(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBySignature", reflect.TypeOf((*FileRepository)(nil).FindBySignature), arg0, arg1)

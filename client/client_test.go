@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http/httptest"
 	"testing"
 
@@ -24,14 +23,14 @@ func TestCreateFile(t *testing.T) {
 			ctrl        = gomock.NewController(t)
 			st          = mock.NewStoring(ctrl)
 			content     = make([]byte, 6000)
-			iorcContent = ioutil.NopCloser(bytes.NewBuffer(content))
+			iorcContent = io.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
 			rep         = 10
 		)
 		defer ctrl.Finish()
 
 		st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep).Do(func(_ context.Context, _ string, b io.ReadCloser, _ int) {
-			c, err := ioutil.ReadAll(b)
+			c, err := io.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
 		}).Return(nil)
@@ -49,14 +48,14 @@ func TestCreateFile(t *testing.T) {
 			ctrl        = gomock.NewController(t)
 			st          = mock.NewStoring(ctrl)
 			content     = make([]byte, 6000)
-			iorcContent = ioutil.NopCloser(bytes.NewBuffer(content))
+			iorcContent = io.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
 			rep         = 10
 		)
 		defer ctrl.Finish()
 
 		st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep).Do(func(_ context.Context, _ string, b io.ReadCloser, _ int) {
-			c, err := ioutil.ReadAll(b)
+			c, err := io.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
 		}).Return(errors.New("some error"))
@@ -82,7 +81,7 @@ func TestGetFile(t *testing.T) {
 		st := mock.NewStoring(ctrl)
 		defer ctrl.Finish()
 
-		st.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBuffer(content)), nil)
+		st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), nil)
 
 		h := storing.MakeHandler(st)
 		server := httptest.NewServer(h)
@@ -256,14 +255,14 @@ func TestCreateReplica(t *testing.T) {
 			ctrl        = gomock.NewController(t)
 			st          = mock.NewStoring(ctrl)
 			content     = make([]byte, 6000)
-			iorcContent = ioutil.NopCloser(bytes.NewBuffer(content))
+			iorcContent = io.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
 			volID       = "volID"
 		)
 		defer ctrl.Finish()
 
 		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, b io.ReadCloser) {
-			c, err := ioutil.ReadAll(b)
+			c, err := io.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
 		}).Return(volID, nil)
@@ -282,13 +281,13 @@ func TestCreateReplica(t *testing.T) {
 			ctrl        = gomock.NewController(t)
 			st          = mock.NewStoring(ctrl)
 			content     = make([]byte, 6000)
-			iorcContent = ioutil.NopCloser(bytes.NewBuffer(content))
+			iorcContent = io.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
 		)
 		defer ctrl.Finish()
 
 		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, b io.ReadCloser) {
-			c, err := ioutil.ReadAll(b)
+			c, err := io.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
 		}).Return("", errors.New("some-error"))

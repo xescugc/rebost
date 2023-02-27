@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	kitlog "github.com/go-kit/kit/log"
@@ -21,7 +21,7 @@ func TestCreateFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			key  = "expectedkey"
-			buff = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
+			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 2
@@ -43,7 +43,7 @@ func TestCreateFile(t *testing.T) {
 	t.Run("SuccessWithConfigReplica", func(t *testing.T) {
 		var (
 			key  = "expectedkey"
-			buff = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
+			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 2
@@ -88,14 +88,14 @@ func TestGetFile(t *testing.T) {
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
-		v.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
+		v.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 		ior, err := s.GetFile(ctx, key)
 
 		require.NoError(t, err)
 
-		b, err := ioutil.ReadAll(ior)
+		b, err := io.ReadAll(ior)
 		assert.Equal(t, "expectedcontent", string(b))
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
@@ -114,14 +114,14 @@ func TestGetFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
-		s2.EXPECT().GetFile(gomock.Any(), key).Return(ioutil.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
+		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
 		ior, err := s.GetFile(ctx, key)
 		require.NoError(t, err)
 
-		b, err := ioutil.ReadAll(ior)
+		b, err := io.ReadAll(ior)
 		assert.Equal(t, "expectedcontent", string(b))
 	})
 }
@@ -263,7 +263,7 @@ func TestCreateReplica(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			key            = "expectedkey"
-			buff           = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
+			buff           = io.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl           = gomock.NewController(t)
 			ctx            = context.Background()
 			createdToVolID = "createdToVolID"
@@ -294,7 +294,7 @@ func TestCreateReplica(t *testing.T) {
 	t.Run("ErrorNoReplica", func(t *testing.T) {
 		var (
 			key  = "expectedkey"
-			buff = ioutil.NopCloser(bytes.NewBufferString("expectedcontent"))
+			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 		)

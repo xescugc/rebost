@@ -5,36 +5,37 @@
 package mock
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	storing "github.com/xescugc/rebost/storing"
 	volume "github.com/xescugc/rebost/volume"
-	reflect "reflect"
 )
 
-// Membership is a mock of Membership interface
+// Membership is a mock of Membership interface.
 type Membership struct {
 	ctrl     *gomock.Controller
 	recorder *MembershipMockRecorder
 }
 
-// MembershipMockRecorder is the mock recorder for Membership
+// MembershipMockRecorder is the mock recorder for Membership.
 type MembershipMockRecorder struct {
 	mock *Membership
 }
 
-// NewMembership creates a new mock instance
+// NewMembership creates a new mock instance.
 func NewMembership(ctrl *gomock.Controller) *Membership {
 	mock := &Membership{ctrl: ctrl}
 	mock.recorder = &MembershipMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *Membership) EXPECT() *MembershipMockRecorder {
 	return m.recorder
 }
 
-// GetNodeWithVolumeByID mocks base method
+// GetNodeWithVolumeByID mocks base method.
 func (m *Membership) GetNodeWithVolumeByID(arg0 string) (storing.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNodeWithVolumeByID", arg0)
@@ -43,25 +44,25 @@ func (m *Membership) GetNodeWithVolumeByID(arg0 string) (storing.Service, error)
 	return ret0, ret1
 }
 
-// GetNodeWithVolumeByID indicates an expected call of GetNodeWithVolumeByID
+// GetNodeWithVolumeByID indicates an expected call of GetNodeWithVolumeByID.
 func (mr *MembershipMockRecorder) GetNodeWithVolumeByID(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNodeWithVolumeByID", reflect.TypeOf((*Membership)(nil).GetNodeWithVolumeByID), arg0)
 }
 
-// Leave mocks base method
+// Leave mocks base method.
 func (m *Membership) Leave() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Leave")
 }
 
-// Leave indicates an expected call of Leave
+// Leave indicates an expected call of Leave.
 func (mr *MembershipMockRecorder) Leave() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Leave", reflect.TypeOf((*Membership)(nil).Leave))
 }
 
-// LocalVolumes mocks base method
+// LocalVolumes mocks base method.
 func (m *Membership) LocalVolumes() []volume.Local {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LocalVolumes")
@@ -69,13 +70,13 @@ func (m *Membership) LocalVolumes() []volume.Local {
 	return ret0
 }
 
-// LocalVolumes indicates an expected call of LocalVolumes
+// LocalVolumes indicates an expected call of LocalVolumes.
 func (mr *MembershipMockRecorder) LocalVolumes() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalVolumes", reflect.TypeOf((*Membership)(nil).LocalVolumes))
 }
 
-// Nodes mocks base method
+// Nodes mocks base method.
 func (m *Membership) Nodes() []storing.Service {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Nodes")
@@ -83,13 +84,13 @@ func (m *Membership) Nodes() []storing.Service {
 	return ret0
 }
 
-// Nodes indicates an expected call of Nodes
+// Nodes indicates an expected call of Nodes.
 func (mr *MembershipMockRecorder) Nodes() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Nodes", reflect.TypeOf((*Membership)(nil).Nodes))
 }
 
-// RemovedVolumeIDs mocks base method
+// RemovedVolumeIDs mocks base method.
 func (m *Membership) RemovedVolumeIDs() []string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemovedVolumeIDs")
@@ -97,7 +98,7 @@ func (m *Membership) RemovedVolumeIDs() []string {
 	return ret0
 }
 
-// RemovedVolumeIDs indicates an expected call of RemovedVolumeIDs
+// RemovedVolumeIDs indicates an expected call of RemovedVolumeIDs.
 func (mr *MembershipMockRecorder) RemovedVolumeIDs() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemovedVolumeIDs", reflect.TypeOf((*Membership)(nil).RemovedVolumeIDs))

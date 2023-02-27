@@ -5,39 +5,40 @@
 package mock
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	afero "github.com/spf13/afero"
 	file "github.com/xescugc/rebost/file"
 	idxkey "github.com/xescugc/rebost/idxkey"
 	idxvolume "github.com/xescugc/rebost/idxvolume"
 	replica "github.com/xescugc/rebost/replica"
-	reflect "reflect"
 )
 
-// UnitOfWork is a mock of UnitOfWork interface
+// UnitOfWork is a mock of UnitOfWork interface.
 type UnitOfWork struct {
 	ctrl     *gomock.Controller
 	recorder *UnitOfWorkMockRecorder
 }
 
-// UnitOfWorkMockRecorder is the mock recorder for UnitOfWork
+// UnitOfWorkMockRecorder is the mock recorder for UnitOfWork.
 type UnitOfWorkMockRecorder struct {
 	mock *UnitOfWork
 }
 
-// NewUnitOfWork creates a new mock instance
+// NewUnitOfWork creates a new mock instance.
 func NewUnitOfWork(ctrl *gomock.Controller) *UnitOfWork {
 	mock := &UnitOfWork{ctrl: ctrl}
 	mock.recorder = &UnitOfWorkMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *UnitOfWork) EXPECT() *UnitOfWorkMockRecorder {
 	return m.recorder
 }
 
-// Files mocks base method
+// Files mocks base method.
 func (m *UnitOfWork) Files() file.Repository {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Files")
@@ -45,13 +46,13 @@ func (m *UnitOfWork) Files() file.Repository {
 	return ret0
 }
 
-// Files indicates an expected call of Files
+// Files indicates an expected call of Files.
 func (mr *UnitOfWorkMockRecorder) Files() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Files", reflect.TypeOf((*UnitOfWork)(nil).Files))
 }
 
-// Fs mocks base method
+// Fs mocks base method.
 func (m *UnitOfWork) Fs() afero.Fs {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Fs")
@@ -59,13 +60,13 @@ func (m *UnitOfWork) Fs() afero.Fs {
 	return ret0
 }
 
-// Fs indicates an expected call of Fs
+// Fs indicates an expected call of Fs.
 func (mr *UnitOfWorkMockRecorder) Fs() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fs", reflect.TypeOf((*UnitOfWork)(nil).Fs))
 }
 
-// IDXKeys mocks base method
+// IDXKeys mocks base method.
 func (m *UnitOfWork) IDXKeys() idxkey.Repository {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IDXKeys")
@@ -73,13 +74,13 @@ func (m *UnitOfWork) IDXKeys() idxkey.Repository {
 	return ret0
 }
 
-// IDXKeys indicates an expected call of IDXKeys
+// IDXKeys indicates an expected call of IDXKeys.
 func (mr *UnitOfWorkMockRecorder) IDXKeys() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXKeys", reflect.TypeOf((*UnitOfWork)(nil).IDXKeys))
 }
 
-// IDXVolumes mocks base method
+// IDXVolumes mocks base method.
 func (m *UnitOfWork) IDXVolumes() idxvolume.Repository {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IDXVolumes")
@@ -87,13 +88,13 @@ func (m *UnitOfWork) IDXVolumes() idxvolume.Repository {
 	return ret0
 }
 
-// IDXVolumes indicates an expected call of IDXVolumes
+// IDXVolumes indicates an expected call of IDXVolumes.
 func (mr *UnitOfWorkMockRecorder) IDXVolumes() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXVolumes", reflect.TypeOf((*UnitOfWork)(nil).IDXVolumes))
 }
 
-// Replicas mocks base method
+// Replicas mocks base method.
 func (m *UnitOfWork) Replicas() replica.Repository {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Replicas")
@@ -101,7 +102,7 @@ func (m *UnitOfWork) Replicas() replica.Repository {
 	return ret0
 }
 
-// Replicas indicates an expected call of Replicas
+// Replicas indicates an expected call of Replicas.
 func (mr *UnitOfWorkMockRecorder) Replicas() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replicas", reflect.TypeOf((*UnitOfWork)(nil).Replicas))

@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http/httptest"
@@ -13,7 +12,6 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 
-	"github.com/boltdb/bolt"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/boltdb"
@@ -24,6 +22,7 @@ import (
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/util"
 	"github.com/xescugc/rebost/volume"
+	bolt "go.etcd.io/bbolt"
 )
 
 // newClient initializes a new client.Client with a random Port and random MemberlistBindPort with the
@@ -34,7 +33,7 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	port, err := util.FreePort()
 	require.NoError(t, err)
 
-	tmpDir, err := ioutil.TempDir("", "rebost")
+	tmpDir, err := os.MkdirTemp("", "rebost")
 	if err != nil {
 		panic(err)
 	}

@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/boltdb/bolt"
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/uow"
+	bolt "go.etcd.io/bbolt"
 )
 
 type unitOfWork struct {
