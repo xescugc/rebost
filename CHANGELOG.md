@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Updated
 
 - Migrated from 'boltdb/bolt' to 'go.etcd.io/bbolt' and also updated all the dependencies [Issue#10](https://github.com/xescugc/rebost/issues/10)
+- If the name of the Node is not defined the random one is now human readable instead of random alphanumeric we had [Issue#12](https://github.com/xescugc/rebost/issues/12)
 
 ## [0.1.0] - 2023-02-24
 
