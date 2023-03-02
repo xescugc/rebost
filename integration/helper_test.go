@@ -74,10 +74,12 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		Port:               port,
-		MemberlistName:     name,
-		MemberlistBindPort: mbp,
-		Remote:             remote,
+		Port: port,
+		Name: name,
+		Memberlist: config.Memberlist{
+			Port: mbp,
+		},
+		Remote: remote,
 	}
 
 	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))

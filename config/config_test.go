@@ -13,8 +13,8 @@ func TestNew(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
 		cfg, err := config.New(viper.New())
 		require.NoError(t, err)
-		assert.NotEmpty(t, cfg.MemberlistName)
-		assert.NotEmpty(t, cfg.MemberlistBindPort)
+		assert.NotEmpty(t, cfg.Name)
+		assert.NotEmpty(t, cfg.Memberlist.Port)
 		assert.Equal(t, config.DefaultReplica, cfg.Replica)
 	})
 }

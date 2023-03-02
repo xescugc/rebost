@@ -53,7 +53,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Log
 		nodes:            make(map[string]node),
 		cfg:              cfg,
 		removedVolumeIDs: make([]string, 0),
-		logger:           kitlog.With(logger, "src", "membership", "name", cfg.MemberlistName),
+		logger:           kitlog.With(logger, "src", "membership", "name", cfg.Name),
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
@@ -88,7 +88,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Log
 			return nil, err
 		}
 
-		hostPort := net.JoinHostPort(host, strconv.Itoa(cfg.MemberlistBindPort))
+		hostPort := net.JoinHostPort(host, strconv.Itoa(cfg.Memberlist.Port))
 		_, err = list.Join([]string{hostPort})
 		if err != nil {
 			return nil, fmt.Errorf("Failed to join cluster: %s", err.Error())
@@ -155,10 +155,10 @@ func (m *Membership) Leave() {
 
 func (m *Membership) buildConfig(cfg *config.Config) *memberlist.Config {
 	mcfg := memberlist.DefaultLocalConfig()
-	if cfg.MemberlistBindPort != 0 {
-		mcfg.BindPort = cfg.MemberlistBindPort
+	if cfg.Memberlist.Port != 0 {
+		mcfg.BindPort = cfg.Memberlist.Port
 	}
-	mcfg.Name = cfg.MemberlistName
+	mcfg.Name = cfg.Name
 	mcfg.Events = &eventDelegate{members: m}
 	mcfg.Delegate = &delegate{members: m}
 	return mcfg
