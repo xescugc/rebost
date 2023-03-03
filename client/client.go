@@ -68,8 +68,7 @@ func (c Client) Config(ctx context.Context) (*config.Config, error) {
 		return nil, errors.New(resp.Err)
 	}
 
-	cfg := config.Config(resp.Data)
-	return &cfg, nil
+	return model.ToConfig(resp.Data), nil
 }
 
 type createFileRequest struct {

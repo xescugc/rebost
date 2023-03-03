@@ -182,7 +182,7 @@ func TestGetConfig(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		st := mock.NewStoring(ctrl)
 		defer ctrl.Finish()
-		ecfg := &config.Config{MemberlistName: "Pepito"}
+		ecfg := &config.Config{Name: "Pepito"}
 
 		st.EXPECT().Config(gomock.Any()).Return(ecfg, nil)
 

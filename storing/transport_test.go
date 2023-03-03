@@ -24,7 +24,7 @@ func TestMakeHandler(t *testing.T) {
 		key                  = "fileName"
 		content              = []byte("content")
 		ctrl                 = gomock.NewController(t)
-		cfg                  = config.Config{MemberlistName: "Pepito"}
+		cfg                  = config.Config{Name: "Pepito"}
 		createReplicaVolmeID = "createReplicaVolmeID"
 		rep                  = 2
 	)
@@ -105,7 +105,7 @@ func TestMakeHandler(t *testing.T) {
 			Method:      http.MethodGet,
 			EStatusCode: http.StatusOK,
 			EBody: func() []byte {
-				cfg := model.Config{MemberlistName: "Pepito"}
+				cfg := model.Config{Name: "Pepito"}
 				b, _ := json.Marshal(cfg)
 				return []byte(fmt.Sprintf(`{"data":%s}`, b))
 			},

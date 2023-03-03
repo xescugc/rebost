@@ -45,8 +45,8 @@ var (
 			if len(cfg.Volumes) == 0 {
 				return errors.New("at last one volume is required")
 			}
-			if cfg.MemberlistName == "" {
-				return errors.New("the 'memberlist-name' is required")
+			if cfg.Name == "" {
+				return errors.New("the 'name' is required")
 			}
 
 			osfs := afero.NewOsFs()
@@ -120,7 +120,7 @@ var (
 					uri = params.URL.RequestURI()
 				}
 				logger.Log(
-					"name", cfg.MemberlistName,
+					"name", cfg.Name,
 					"host", host,
 					"username", username,
 					"method", params.Request.Method,
@@ -188,6 +188,9 @@ func init() {
 	serveCmd.PersistentFlags().IntP("port", "p", 3805, "Destination port")
 	viper.BindPFlag("port", serveCmd.PersistentFlags().Lookup("port"))
 
+	serveCmd.PersistentFlags().String("name", "", "The name of this node. This must be unique in the cluster.")
+	viper.BindPFlag("name", serveCmd.PersistentFlags().Lookup("name"))
+
 	serveCmd.PersistentFlags().StringSliceP("volumes", "v", []string{}, "Volumes to store the data")
 	viper.BindPFlag("volumes", serveCmd.PersistentFlags().Lookup("volumes"))
 
@@ -197,11 +200,8 @@ func init() {
 	serveCmd.PersistentFlags().Int("replica", config.DefaultReplica, "The default number of replicas used if none specified on the requests")
 	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("replica"))
 
-	serveCmd.PersistentFlags().Int("memberlist-bind-port", 0, "The port is used for both UDP and TCP gossip. By default a free port will be used")
-	viper.BindPFlag("memberlist-bind-port", serveCmd.PersistentFlags().Lookup("memberlist-bind-port"))
-
-	serveCmd.PersistentFlags().String("memberlist-name", "", "The name of this node. This must be unique in the cluster.")
-	viper.BindPFlag("memberlist-name", serveCmd.PersistentFlags().Lookup("memberlist-name"))
+	serveCmd.PersistentFlags().Int("memberlist.port", 0, "The port is used for both UDP and TCP gossip. By default a free port will be used")
+	viper.BindPFlag("memberlist.port", serveCmd.PersistentFlags().Lookup("memberlist.port"))
 
 	serveCmd.PersistentFlags().Int("dashboard.port", 3806, "Destination port of the dashboard")
 	viper.BindPFlag("dashboard.port", serveCmd.PersistentFlags().Lookup("dashboard.port"))

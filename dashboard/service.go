@@ -30,7 +30,7 @@ func New(cfg *config.Config, m storing.Membership, logger kitlog.Logger) Service
 		members: m,
 		cfg:     cfg,
 
-		logger: kitlog.With(logger, "src", "dashboard", "name", cfg.MemberlistName),
+		logger: kitlog.With(logger, "src", "dashboard", "name", cfg.Name),
 	}
 }
 

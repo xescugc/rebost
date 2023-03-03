@@ -97,7 +97,7 @@ func makeGetConfigEndpoint(s Service) endpoint.Endpoint {
 		if err != nil {
 			return response{Err: err}, nil
 		}
-		return response{Data: model.Config(*cfg)}, nil
+		return response{Data: model.ConfigToModel(cfg)}, nil
 	}
 }
 

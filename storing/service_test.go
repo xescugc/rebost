@@ -246,7 +246,7 @@ func TestConfig(t *testing.T) {
 		var (
 			ctrl   = gomock.NewController(t)
 			ctx    = context.Background()
-			expcfg = config.Config{MemberlistName: "Pepito", Replica: -1}
+			expcfg = config.Config{Name: "Pepito", Replica: -1}
 		)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
