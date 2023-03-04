@@ -27,9 +27,9 @@ import (
 
 // newClient initializes a new client.Client with a random Port and random MemberlistBindPort with the
 // given name and remote to connect to.
-// It returns the clien.Client, the URL of the server the client it's connected to and a cancelFn that
+// It returns the clien.Client, the URL of the server the client it's connected to, the volume ID  and a cancelFn that
 // cleans the server.
-func newClient(t *testing.T, name string, remote string) (*client.Client, string, cancelFn) {
+func newClient(t *testing.T, name string, remote string) (*client.Client, string, string, cancelFn) {
 	port, err := util.FreePort()
 	require.NoError(t, err)
 
@@ -98,7 +98,7 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	cl, err := client.New(u)
 	require.NoError(t, err)
 
-	return cl, u, func() {
+	return cl, u, v.ID(), func() {
 		m.Leave()
 		bdb.Close()
 		os.RemoveAll(tmpDir)

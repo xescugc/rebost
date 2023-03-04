@@ -23,7 +23,7 @@ func (s *service) loopVolumesReplicas() {
 					continue
 				}
 				for _, n := range s.members.Nodes() {
-					ok, err := n.HasFile(s.ctx, rp.Key)
+					_, ok, err := n.HasFile(s.ctx, rp.Key)
 					if err != nil {
 						s.logger.Log("msg", err.Error())
 						continue

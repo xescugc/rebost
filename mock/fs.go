@@ -5,7 +5,7 @@
 package mock
 
 import (
-	"os"
+	fs "io/fs"
 	reflect "reflect"
 	time "time"
 
@@ -37,7 +37,7 @@ func (m *Fs) EXPECT() *FsMockRecorder {
 }
 
 // Chmod mocks base method.
-func (m *Fs) Chmod(arg0 string, arg1 os.FileMode) error {
+func (m *Fs) Chmod(arg0 string, arg1 fs.FileMode) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Chmod", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -94,7 +94,7 @@ func (mr *FsMockRecorder) Create(arg0 interface{}) *gomock.Call {
 }
 
 // Mkdir mocks base method.
-func (m *Fs) Mkdir(arg0 string, arg1 os.FileMode) error {
+func (m *Fs) Mkdir(arg0 string, arg1 fs.FileMode) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Mkdir", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -108,7 +108,7 @@ func (mr *FsMockRecorder) Mkdir(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // MkdirAll mocks base method.
-func (m *Fs) MkdirAll(arg0 string, arg1 os.FileMode) error {
+func (m *Fs) MkdirAll(arg0 string, arg1 fs.FileMode) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "MkdirAll", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -151,7 +151,7 @@ func (mr *FsMockRecorder) Open(arg0 interface{}) *gomock.Call {
 }
 
 // OpenFile mocks base method.
-func (m *Fs) OpenFile(arg0 string, arg1 int, arg2 os.FileMode) (afero.File, error) {
+func (m *Fs) OpenFile(arg0 string, arg1 int, arg2 fs.FileMode) (afero.File, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "OpenFile", arg0, arg1, arg2)
 	ret0, _ := ret[0].(afero.File)
@@ -208,10 +208,10 @@ func (mr *FsMockRecorder) Rename(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // Stat mocks base method.
-func (m *Fs) Stat(arg0 string) (os.FileInfo, error) {
+func (m *Fs) Stat(arg0 string) (fs.FileInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Stat", arg0)
-	ret0, _ := ret[0].(os.FileInfo)
+	ret0, _ := ret[0].(fs.FileInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

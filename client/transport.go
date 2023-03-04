@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/xescugc/rebost/storing/model"
 )
 
 func encodeHasFileRequest(_ context.Context, r *http.Request, request interface{}) error {
@@ -20,7 +22,8 @@ func decodeHasFileResponse(_ context.Context, r *http.Response) (interface{}, er
 	// As it's a HEAD request it's not possible to return an error on the body
 	// so we directly add this
 	return hasFileResponse{
-		Ok: r.StatusCode == http.StatusNoContent,
+		Ok:       r.StatusCode == http.StatusNoContent,
+		VolumeID: r.Header.Get(model.HasFileVolumeIDHeader),
 	}, nil
 }
 

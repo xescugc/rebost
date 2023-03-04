@@ -34,8 +34,9 @@ type Volume interface {
 	// GetFile search for the file with the key
 	GetFile(ctx context.Context, key string) (io.ReadCloser, error)
 
-	// HasFile checks if a file with the key exists
-	HasFile(ctx context.Context, key string) (bool, error)
+	// HasFile checks if a file with the key exists and returns the volumeID
+	// of where is it
+	HasFile(ctx context.Context, key string) (string, bool, error)
 
 	// DeleteFile deletes the key, if the key points to a
 	// file with 2 keys, then just the key will be deleted
@@ -384,7 +385,7 @@ func (l *local) DeleteFile(ctx context.Context, key string) error {
 	}, l.idxkeys, l.files, l.fs)
 }
 
-func (l *local) HasFile(ctx context.Context, k string) (bool, error) {
+func (l *local) HasFile(ctx context.Context, k string) (string, bool, error) {
 	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
 		_, err := uw.IDXKeys().FindByKey(ctx, k)
 		if err != nil {
@@ -395,12 +396,12 @@ func (l *local) HasFile(ctx context.Context, k string) (bool, error) {
 
 	if err != nil {
 		if err.Error() == "not found" {
-			return false, nil
+			return "", false, nil
 		}
-		return false, err
+		return "", false, err
 	}
 
-	return true, nil
+	return l.id, true, nil
 }
 
 func (l *local) NextReplica(ctx context.Context) (*replica.Replica, error) {

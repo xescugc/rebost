@@ -110,12 +110,13 @@ func (mr *StoringMockRecorder) GetFile(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // HasFile mocks base method.
-func (m *Storing) HasFile(arg0 context.Context, arg1 string) (bool, error) {
+func (m *Storing) HasFile(arg0 context.Context, arg1 string) (string, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasFile", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // HasFile indicates an expected call of HasFile.

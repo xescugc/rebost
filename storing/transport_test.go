@@ -27,6 +27,7 @@ func TestMakeHandler(t *testing.T) {
 		cfg                  = config.Config{Name: "Pepito"}
 		createReplicaVolmeID = "createReplicaVolmeID"
 		rep                  = 2
+		vid                  = "vid"
 	)
 
 	st := mock.NewStoring(ctrl)
@@ -43,11 +44,11 @@ func TestMakeHandler(t *testing.T) {
 	}).Return(nil).AnyTimes()
 	st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), nil).AnyTimes()
 	st.EXPECT().DeleteFile(gomock.Any(), key).Return(nil).AnyTimes()
-	st.EXPECT().HasFile(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, k string) (bool, error) {
+	st.EXPECT().HasFile(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, k string) (string, bool, error) {
 		if k == key {
-			return true, nil
+			return vid, true, nil
 		}
-		return false, nil
+		return "", false, nil
 	}).AnyTimes()
 	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
 	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, r io.Reader) {

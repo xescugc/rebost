@@ -81,7 +81,7 @@ func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep
 }
 
 func (s *service) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
-	v, err := s.getVolume(ctx, k)
+	_, v, err := s.getVolume(ctx, k)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (s *service) GetFile(ctx context.Context, k string) (io.ReadCloser, error) 
 }
 
 func (s *service) DeleteFile(ctx context.Context, k string) error {
-	v, err := s.getVolume(ctx, k)
+	_, v, err := s.getVolume(ctx, k)
 	if err != nil {
 		return err
 	}
@@ -106,17 +106,17 @@ func (s *service) DeleteFile(ctx context.Context, k string) error {
 	return nil
 }
 
-func (s *service) HasFile(ctx context.Context, k string) (bool, error) {
-	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
+func (s *service) HasFile(ctx context.Context, k string) (string, bool, error) {
+	vid, v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
 	if err != nil && err.Error() != "not found" {
-		return false, err
+		return "", false, err
 	}
 
 	if v != nil {
-		return true, nil
+		return vid, true, nil
 	}
 
-	return false, nil
+	return "", false, nil
 }
 
 func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
@@ -137,7 +137,7 @@ func (s *service) UpdateFileReplica(ctx context.Context, key string, volumeIDs [
 		return errors.New("can not store replicas")
 	}
 
-	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), key)
+	_, v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), key)
 	if err != nil {
 		return err
 	}
@@ -157,44 +157,49 @@ func (s *service) getLocalVolume(ctx context.Context, k string) volume.Local {
 	return vls[rand.Intn(len(vls))]
 }
 
-// getVolume returns a volume that may have k in his index. It tries first with
+// getVolume returns a volume and the volumeID that may have k in his index. It tries first with
 // the LocalVolumes and then with the Nodes
-func (s *service) getVolume(ctx context.Context, k string) (volume.Volume, error) {
-	v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
+func (s *service) getVolume(ctx context.Context, k string) (string, volume.Volume, error) {
+	vid, v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
 	if err != nil && err.Error() != "not found" {
-		return nil, err
+		return "", nil, err
 	}
 
 	if v != nil {
-		return v, nil
+		return vid, v, nil
 	}
 
-	v, err = s.findVolume(ctx, servicesToVolumes(s.members.Nodes()), k)
+	vid, v, err = s.findVolume(ctx, servicesToVolumes(s.members.Nodes()), k)
 	if err != nil && err.Error() != "not found" {
-		return nil, err
+		return "", nil, err
 	}
 
 	if v != nil {
-		return v, nil
+		return vid, v, nil
 	}
 
-	return nil, errors.New("not found")
+	return "", nil, errors.New("not found")
 }
 
-// findVolume finds the volume that has the key k within the volumes vls in parallel
-func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string) (volume.Volume, error) {
+type msg struct {
+	v   volume.Volume
+	vid string
+}
+
+// findVolume finds the volume and the ID that has the key k within the volumes vls in parallel
+func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string) (string, volume.Volume, error) {
 	var wg sync.WaitGroup
 	cctx, cfn := context.WithCancel(ctx)
 
 	// doneC is used to notify which is the volume found
-	doneC := make(chan volume.Volume)
+	doneC := make(chan msg)
 
 	wg.Add(len(vls))
 
 	for _, v := range vls {
 		go func(v volume.Volume) {
 			defer wg.Done()
-			ok, err := v.HasFile(cctx, k)
+			vid, ok, err := v.HasFile(cctx, k)
 			if err != nil {
 				// TODO: Log the error?
 				// remember that when the ctx is canceled, it
@@ -205,7 +210,7 @@ func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string)
 			if ok {
 				select {
 				case <-cctx.Done():
-				case doneC <- v:
+				case doneC <- msg{v, vid}:
 				}
 				return
 			}
@@ -218,12 +223,12 @@ func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string)
 	}()
 
 	var (
-		v   volume.Volume
+		m   msg
 		err error
 	)
 	select {
-	case v = <-doneC:
-		if v == nil {
+	case m = <-doneC:
+		if m.v == nil {
 			// If it's done without a value, means
 			// that the doneC has ben closed and that
 			// no volume was found
@@ -234,7 +239,7 @@ func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string)
 		cfn()
 	}
 
-	return v, err
+	return m.vid, m.v, err
 }
 
 // localVolumesToVolumes convert []volume.Local to []volume.Volume

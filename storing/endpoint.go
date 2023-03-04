@@ -70,17 +70,18 @@ type hasFileRequest struct {
 }
 
 type hasFileResponse struct {
-	Ok bool
+	Ok       bool
+	VolumeID string
 }
 
 func makeHasFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(hasFileRequest)
-		ok, err := s.HasFile(ctx, req.Key)
+		vid, ok, err := s.HasFile(ctx, req.Key)
 		if err != nil {
 			return nil, err
 		}
-		return hasFileResponse{Ok: ok}, nil
+		return hasFileResponse{VolumeID: vid, Ok: ok}, nil
 	}
 }
 

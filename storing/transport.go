@@ -173,6 +173,7 @@ func decodeHasFileRequest(_ context.Context, r *http.Request) (interface{}, erro
 
 func encodeHasFileResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	hfr := response.(hasFileResponse)
+	w.Header().Add(model.HasFileVolumeIDHeader, hfr.VolumeID)
 	if hfr.Ok {
 		w.WriteHeader(http.StatusNoContent)
 	} else {

@@ -79,6 +79,7 @@ func TestGetFile(t *testing.T) {
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			vid  = "vid"
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
@@ -87,7 +88,7 @@ func TestGetFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		v.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
@@ -103,6 +104,7 @@ func TestGetFile(t *testing.T) {
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			vid  = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		s2 := mock.NewStoring(ctrl)
@@ -112,8 +114,8 @@ func TestGetFile(t *testing.T) {
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 		m.EXPECT().Nodes().Return([]storing.Service{s2})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
-		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
+		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
@@ -132,6 +134,7 @@ func TestDeleteFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			key  = "expectedkey"
 			ctx  = context.Background()
+			vid  = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
@@ -139,7 +142,7 @@ func TestDeleteFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		v.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
@@ -152,6 +155,7 @@ func TestDeleteFile(t *testing.T) {
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			vid  = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		s2 := mock.NewStoring(ctrl)
@@ -161,8 +165,8 @@ func TestDeleteFile(t *testing.T) {
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 		m.EXPECT().Nodes().Return([]storing.Service{s2})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
-		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
+		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
@@ -178,6 +182,7 @@ func TestHasFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			key  = "expectedkey"
 			ctx  = context.Background()
+			evid = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
@@ -185,19 +190,21 @@ func TestHasFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
-		ok, err := s.HasFile(ctx, key)
+		vid, ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.True(t, ok)
+		assert.Equal(t, evid, vid)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			evid = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		v2 := mock.NewVolumeLocal(ctrl)
@@ -206,18 +213,19 @@ func TestHasFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v, v2})
 
-		// This call is execute in paralel to all the volumes
-		// so the orther is "unexpected". This means that some
+		// This call is execute in parallel to all the volumes
+		// so the order is "unexpected". This means that some
 		// times the first call it's not done. That's why the
 		// AnyTimes is used
-		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil).AnyTimes()
-		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil).AnyTimes()
+		v2.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
-		ok, err := s.HasFile(ctx, key)
+		vid, ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.True(t, ok)
+		assert.Equal(t, evid, vid)
 	})
 	t.Run("SuccessFalse", func(t *testing.T) {
 		var (
@@ -231,13 +239,14 @@ func TestHasFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 
 		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
 
-		ok, err := s.HasFile(ctx, key)
+		vid, ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 	})
 }
 
@@ -318,13 +327,14 @@ func TestUpdateFileReplica(t *testing.T) {
 			ctx  = context.Background()
 			rep  = 4
 			vids = []string{"1", "2"}
+			vid  = "vid"
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		v.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(nil)
 
 		// It's AnyTimes as we have the config witha number of replicas

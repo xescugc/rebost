@@ -181,24 +181,25 @@ type hasFileRequest struct {
 }
 
 type hasFileResponse struct {
-	Ok  bool
-	Err string `json:"error,omitempty"`
+	Ok       bool
+	VolumeID string
+	Err      string `json:"error,omitempty"`
 }
 
 // HasFile returns if the file exists
-func (c Client) HasFile(ctx context.Context, key string) (bool, error) {
+func (c Client) HasFile(ctx context.Context, key string) (string, bool, error) {
 	response, err := c.hasFile(ctx, hasFileRequest{Key: key})
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 
 	resp := response.(hasFileResponse)
 
 	if resp.Err != "" {
-		return false, errors.New(resp.Err)
+		return "", false, errors.New(resp.Err)
 	}
 
-	return resp.Ok, nil
+	return resp.VolumeID, resp.Ok, nil
 }
 
 type deleteFileRequest struct {

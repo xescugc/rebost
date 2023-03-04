@@ -42,11 +42,11 @@ func TestCRUD(t *testing.T) {
 	require.NoError(t, err)
 	iorcimg := io.NopCloser(bytes.NewBuffer(imgcontent))
 
-	cl1, u1, ca1 := newClient(t, "n1", firstNode)
+	cl1, u1, vid1, ca1 := newClient(t, "n1", firstNode)
 	defer ca1()
-	cl2, _, ca2 := newClient(t, "n2", u1)
+	cl2, _, _, ca2 := newClient(t, "n2", u1)
 	defer ca2()
-	cl3, _, ca3 := newClient(t, "n3", u1)
+	cl3, _, vid3, ca3 := newClient(t, "n3", u1)
 	defer ca3()
 
 	// Sleep one second to let the nodes communicate between each other
@@ -66,29 +66,35 @@ func TestCRUD(t *testing.T) {
 	})
 
 	t.Run("HasFile", func(t *testing.T) {
-		ok, err := cl1.HasFile(ctx, keytxt)
+		vid, ok, err := cl1.HasFile(ctx, keytxt)
 		require.NoError(t, err)
 		assert.True(t, ok)
+		assert.Equal(t, vid1, vid)
 
-		ok, err = cl1.HasFile(ctx, keyimg)
+		vid, ok, err = cl1.HasFile(ctx, keyimg)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 
-		ok, err = cl2.HasFile(ctx, keytxt)
+		vid, ok, err = cl2.HasFile(ctx, keytxt)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 
-		ok, err = cl2.HasFile(ctx, keyimg)
+		vid, ok, err = cl2.HasFile(ctx, keyimg)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 
-		ok, err = cl3.HasFile(ctx, keytxt)
+		vid, ok, err = cl3.HasFile(ctx, keytxt)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 
-		ok, err = cl3.HasFile(ctx, keyimg)
+		vid, ok, err = cl3.HasFile(ctx, keyimg)
 		require.NoError(t, err)
 		assert.True(t, ok)
+		assert.Equal(t, vid3, vid)
 	})
 
 	t.Run("GetFile", func(t *testing.T) {
@@ -145,18 +151,19 @@ func TestReplica(t *testing.T) {
 		ctx = context.Background()
 	)
 
-	cl1, u1, ca1 := newClient(t, "n1", firstNode)
+	cl1, u1, vid1, ca1 := newClient(t, "n1", firstNode)
 	defer ca1()
-	cl2, _, ca2 := newClient(t, "n2", u1)
+	cl2, _, vid2, ca2 := newClient(t, "n2", u1)
 	defer ca2()
-	cl3, _, ca3 := newClient(t, "n3", u1)
+	cl3, _, vid3, ca3 := newClient(t, "n3", u1)
 	defer ca3()
-	cl4, _, ca4 := newClient(t, "n4", u1)
+	cl4, _, vid4, ca4 := newClient(t, "n4", u1)
 	defer ca4()
-	cl5, _, ca5 := newClient(t, "n5", u1)
+	cl5, _, vid5, ca5 := newClient(t, "n5", u1)
 	defer ca5()
 
 	clients := []*client.Client{cl1, cl2, cl3, cl4, cl5}
+	vids := []string{vid1, vid2, vid3, vid4, vid5}
 	cancels := []cancelFn{ca1, ca2, ca3, ca4, ca5}
 
 	// Sleep one second to let the nodes communicate between each other
@@ -176,13 +183,15 @@ func TestReplica(t *testing.T) {
 			okCount  int
 			nokCount int
 		)
-		for _, c := range clients {
-			ok, err := c.HasFile(ctx, keytxt)
+		for i, c := range clients {
+			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
 				okCount++
+				assert.Equal(t, vids[i], vid)
 			} else {
 				nokCount++
+				assert.Equal(t, "", vid)
 			}
 		}
 		assert.Equal(t, 3, okCount)
@@ -196,10 +205,12 @@ func TestReplica(t *testing.T) {
 			if i == 0 {
 				continue
 			}
-			ok, err := c.HasFile(ctx, keytxt)
+			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
 				cancels[i]()
+				assert.Equal(t, vids[i], vid)
+				vids = append(vids[0:i], vids[i+1:]...)
 				clients = append(clients[0:i], clients[i+1:]...)
 				cancels = append(cancels[0:i], cancels[i+1:]...)
 				break
@@ -213,13 +224,15 @@ func TestReplica(t *testing.T) {
 			okCount  int
 			nokCount int
 		)
-		for _, c := range clients {
-			ok, err := c.HasFile(ctx, keytxt)
+		for i, c := range clients {
+			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
 				okCount++
+				assert.Equal(t, vids[i], vid)
 			} else {
 				nokCount++
+				assert.Equal(t, "", vid)
 			}
 		}
 		assert.Equal(t, 3, okCount)
@@ -230,6 +243,7 @@ func TestReplica(t *testing.T) {
 		cancels[0]()
 		clients = clients[1:]
 		cancels = cancels[1:]
+		vids = vids[1:]
 
 		time.Sleep(5 * time.Second)
 
@@ -238,13 +252,15 @@ func TestReplica(t *testing.T) {
 			okCount  int
 			nokCount int
 		)
-		for _, c := range clients {
-			ok, err := c.HasFile(ctx, keytxt)
+		for i, c := range clients {
+			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
 				okCount++
+				assert.Equal(t, vids[i], vid)
 			} else {
 				nokCount++
+				assert.Equal(t, "", vid)
 			}
 		}
 		assert.Equal(t, 3, okCount)
