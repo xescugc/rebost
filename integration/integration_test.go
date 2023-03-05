@@ -105,6 +105,9 @@ func TestCRUD(t *testing.T) {
 				txtb, err := io.ReadAll(txtiorc)
 				require.NoError(t, err)
 				txtiorc.Close()
+				vid, _, err := c.HasFile(ctx, keytxt)
+				require.NoError(t, err)
+				assert.NotEmpty(t, vid)
 
 				assert.Equal(t, txtcontent, txtb)
 
@@ -113,6 +116,9 @@ func TestCRUD(t *testing.T) {
 				imgb, err := io.ReadAll(imgiorc)
 				require.NoError(t, err)
 				imgiorc.Close()
+				vid, _, err = c.HasFile(ctx, keyimg)
+				require.NoError(t, err)
+				assert.NotEmpty(t, vid)
 
 				assert.Equal(t, imgcontent, imgb)
 			})

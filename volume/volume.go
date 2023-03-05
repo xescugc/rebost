@@ -35,7 +35,9 @@ type Volume interface {
 	GetFile(ctx context.Context, key string) (io.ReadCloser, error)
 
 	// HasFile checks if a file with the key exists and returns the volumeID
-	// of where is it
+	// of where is it.
+	// It's possible to return a vid but false that means we know which volume
+	// has it but it's not this one
 	HasFile(ctx context.Context, key string) (string, bool, error)
 
 	// DeleteFile deletes the key, if the key points to a

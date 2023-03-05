@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Cache(LRU) to the logic to fetch an object form another node so we don't have to search for it again once we found it once [Issue#35](https://github.com/xescugc/rebost/issues/35)
+
 ## Updated
 
 - Migrated from 'boltdb/bolt' to 'go.etcd.io/bbolt' and also updated all the dependencies [Issue#10](https://github.com/xescugc/rebost/issues/10)

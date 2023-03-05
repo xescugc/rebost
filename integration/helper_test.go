@@ -80,6 +80,7 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 			Port: mbp,
 		},
 		Remote: remote,
+		Cache:  config.Cache{Size: config.DefaultCacheSize},
 	}
 
 	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
@@ -88,7 +89,9 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote, logger)
 	require.NoError(t, err)
 
-	s := storing.New(cfg, m, logger)
+	s, err := storing.New(cfg, m, logger)
+	require.NoError(t, err)
+
 	h := storing.MakeHandler(s)
 
 	server.Config.Handler = h

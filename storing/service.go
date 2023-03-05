@@ -9,6 +9,7 @@ import (
 	"time"
 
 	kitlog "github.com/go-kit/kit/log"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/volume"
 )
@@ -36,6 +37,8 @@ type service struct {
 	members Membership
 	cfg     *config.Config
 
+	cache *lru.ARCCache[string, string]
+
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -44,11 +47,18 @@ type service struct {
 
 // New returns an implementation of the Node with
 // the given parameters
-func New(cfg *config.Config, m Membership, logger kitlog.Logger) Service {
+func New(cfg *config.Config, m Membership, logger kitlog.Logger) (Service, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	cache, err := lru.NewARC[string, string](cfg.Cache.Size)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 	s := &service{
 		members: m,
 		cfg:     cfg,
+
+		cache: cache,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -61,7 +71,7 @@ func New(cfg *config.Config, m Membership, logger kitlog.Logger) Service {
 		go s.loopRemovedVolumeDIs()
 	}
 
-	return s
+	return s, nil
 }
 
 func (s *service) Config(_ context.Context) (*config.Config, error) {
@@ -116,6 +126,13 @@ func (s *service) HasFile(ctx context.Context, k string) (string, bool, error) {
 		return vid, true, nil
 	}
 
+	// If we do not have the file we try to find if someone we know has it
+	// so we use the cache to see if we know who has it.
+	// This will return the vid but false as we do not have it
+	if vid, ok := s.cache.Get(k); ok {
+		return vid, false, nil
+	}
+
 	return "", false, nil
 }
 
@@ -160,6 +177,14 @@ func (s *service) getLocalVolume(ctx context.Context, k string) volume.Local {
 // getVolume returns a volume and the volumeID that may have k in his index. It tries first with
 // the LocalVolumes and then with the Nodes
 func (s *service) getVolume(ctx context.Context, k string) (string, volume.Volume, error) {
+	if vid, ok := s.cache.Get(k); ok {
+		n, err := s.members.GetNodeWithVolumeByID(vid)
+		if err != nil {
+			return "", nil, err
+		}
+		return vid, n, nil
+	}
+
 	vid, v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
 	if err != nil && err.Error() != "not found" {
 		return "", nil, err
@@ -175,6 +200,12 @@ func (s *service) getVolume(ctx context.Context, k string) (string, volume.Volum
 	}
 
 	if v != nil {
+		// We only cache the remove ones because the local ones are faster and easier to access
+		// but also because the list of nodes does not include the current node so if where
+		// to cache the local volumes when we do the GetNodeWithVolumeByID would return a
+		// not found.
+		// Also the intention of the cache is to avoid to query HasFile to the other nodes
+		s.cache.Add(k, vid)
 		return vid, v, nil
 	}
 
