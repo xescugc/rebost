@@ -89,7 +89,10 @@ var (
 				return err
 			}
 
-			s := storing.New(cfg, m, logger)
+			s, err := storing.New(cfg, m, logger)
+			if err != nil {
+				return err
+			}
 
 			mux := http.NewServeMux()
 
@@ -208,6 +211,9 @@ func init() {
 
 	serveCmd.PersistentFlags().Bool("dashboard.enabled", true, "Enable or not the Dashboard on this node")
 	viper.BindPFlag("dashboard.enabled", serveCmd.PersistentFlags().Lookup("dashboard.enabled"))
+
+	serveCmd.PersistentFlags().Int("cache.size", config.DefaultCacheSize, "Size of the cache used to store reference to object location on other nodes")
+	viper.BindPFlag("cache.size", serveCmd.PersistentFlags().Lookup("cache.size"))
 
 	RootCmd.AddCommand(serveCmd)
 }

@@ -556,9 +556,10 @@ func TestHasFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(idxkey.New(key, "not needed"), nil)
 
-		ok, err := mv.V.HasFile(ctx, key)
+		vid, ok, err := mv.V.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.True(t, ok)
+		assert.Equal(t, mv.V.ID(), vid)
 	})
 	t.Run("NotFound", func(t *testing.T) {
 		var (
@@ -572,9 +573,10 @@ func TestHasFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
-		ok, err := mv.V.HasFile(ctx, key)
+		vid, ok, err := mv.V.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 	})
 }
 

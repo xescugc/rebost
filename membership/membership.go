@@ -18,7 +18,7 @@ import (
 )
 
 // Membership handles all the logic of the Node
-// persistentce and also the localVolumes
+// persistence and also the localVolumes
 type Membership struct {
 	members *memberlist.Memberlist
 	events  *memberlist.EventDelegate
@@ -39,7 +39,7 @@ type Membership struct {
 	logger kitlog.Logger
 }
 
-// node represents a Node in the cluseter, with the metadata (meta)
+// node represents a Node in the cluster, with the metadata (meta)
 // and the connection (conn) to it
 type node struct {
 	conn storing.Service
@@ -132,7 +132,7 @@ func (m *Membership) Nodes() (res []storing.Service) {
 }
 
 // RemovedVolumeIDs returns the list of removed VolumeIDs from
-// the cluser.
+// the cluster.
 // WARNING: Each call to it empties the list so the list
 // of nodes have to be stored/used once called
 func (m *Membership) RemovedVolumeIDs() []string {

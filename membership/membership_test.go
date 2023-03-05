@@ -26,7 +26,7 @@ func TestVolumes(t *testing.T) {
 		p, err := util.FreePort()
 		require.NoError(t, err)
 
-		m, err := membership.New(&config.Config{Memberlist: config.Memberlist{Port: p}}, []volume.Local{v}, "", kitlog.NewNopLogger())
+		m, err := membership.New(&config.Config{Memberlist: config.Memberlist{Port: p}, Cache: config.Cache{Size: config.DefaultCacheSize}}, []volume.Local{v}, "", kitlog.NewNopLogger())
 		require.NoError(t, err)
 		assert.Len(t, m.Nodes(), 0)
 		assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
@@ -43,17 +43,18 @@ func TestVolumes(t *testing.T) {
 			v2.EXPECT().ID().Return("id")
 			p2, err := util.FreePort()
 			require.NoError(t, err)
-			cfg2 := &config.Config{Name: "am2", Replica: -1, Memberlist: config.Memberlist{Port: p2}}
+			cfg2 := &config.Config{Name: "am2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
 			require.NoError(t, err)
 
-			s := storing.New(cfg2, m2, kitlog.NewNopLogger())
+			s, err := storing.New(cfg2, m2, kitlog.NewNopLogger())
+			require.NoError(t, err)
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
 
 			p3, err := util.FreePort()
 			require.NoError(t, err)
-			cfg := &config.Config{Name: "am", Memberlist: config.Memberlist{Port: p3}}
+			cfg := &config.Config{Name: "am", Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m, err := membership.New(cfg, []volume.Local{v}, server.URL, kitlog.NewNopLogger())
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)
@@ -70,16 +71,17 @@ func TestVolumes(t *testing.T) {
 			v2.EXPECT().ID().Return("id2")
 			p2, err := util.FreePort()
 			require.NoError(t, err)
-			cfg2 := &config.Config{Name: "rm2", Replica: -1, Memberlist: config.Memberlist{Port: p2}}
+			cfg2 := &config.Config{Name: "rm2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
 			require.NoError(t, err)
-			s := storing.New(cfg2, m2, kitlog.NewNopLogger())
+			s, err := storing.New(cfg2, m2, kitlog.NewNopLogger())
+			require.NoError(t, err)
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
 
 			p3, err := util.FreePort()
 			require.NoError(t, err)
-			cfg := &config.Config{Name: "rm", Memberlist: config.Memberlist{Port: p3}}
+			cfg := &config.Config{Name: "rm", Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m, err := membership.New(cfg, []volume.Local{v}, server.URL, kitlog.NewNopLogger())
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)

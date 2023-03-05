@@ -122,20 +122,22 @@ func TestHasFile(t *testing.T) {
 		var (
 			key  = "fileName"
 			ctrl = gomock.NewController(t)
+			evid = "vid"
 		)
 		st := mock.NewStoring(ctrl)
 		defer ctrl.Finish()
 
-		st.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		st.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 
 		h := storing.MakeHandler(st)
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		ok, err := c.HasFile(context.Background(), key)
+		vid, ok, err := c.HasFile(context.Background(), key)
 		require.NoError(t, err)
 		assert.True(t, ok)
+		assert.Equal(t, evid, vid)
 	})
 	t.Run("False", func(t *testing.T) {
 		var (
@@ -145,16 +147,17 @@ func TestHasFile(t *testing.T) {
 		st := mock.NewStoring(ctrl)
 		defer ctrl.Finish()
 
-		st.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
+		st.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 
 		h := storing.MakeHandler(st)
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		ok, err := c.HasFile(context.Background(), key)
+		vid, ok, err := c.HasFile(context.Background(), key)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 	})
 	t.Run("Error", func(t *testing.T) {
 		var (
@@ -164,16 +167,17 @@ func TestHasFile(t *testing.T) {
 		st := mock.NewStoring(ctrl)
 		defer ctrl.Finish()
 
-		st.EXPECT().HasFile(gomock.Any(), key).Return(false, errors.New("some error"))
+		st.EXPECT().HasFile(gomock.Any(), key).Return("", false, errors.New("some error"))
 
 		h := storing.MakeHandler(st)
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		ok, err := c.HasFile(context.Background(), key)
+		vid, ok, err := c.HasFile(context.Background(), key)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 	})
 }
 

@@ -35,9 +35,10 @@ func TestCreateFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		err := s.CreateFile(ctx, key, buff, rep)
+		err = s.CreateFile(ctx, key, buff, rep)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessWithConfigReplica", func(t *testing.T) {
@@ -63,9 +64,10 @@ func TestCreateFile(t *testing.T) {
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
-		s := storing.New(&config.Config{Replica: rep}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: rep, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		err := s.CreateFile(ctx, key, buff, 0)
+		err = s.CreateFile(ctx, key, buff, 0)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
@@ -79,6 +81,7 @@ func TestGetFile(t *testing.T) {
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			vid  = "vid"
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
@@ -87,10 +90,12 @@ func TestGetFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		v.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
+
 		ior, err := s.GetFile(ctx, key)
 
 		require.NoError(t, err)
@@ -103,6 +108,7 @@ func TestGetFile(t *testing.T) {
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			vid  = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		s2 := mock.NewStoring(ctrl)
@@ -112,11 +118,12 @@ func TestGetFile(t *testing.T) {
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 		m.EXPECT().Nodes().Return([]storing.Service{s2})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
-		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
+		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
 		ior, err := s.GetFile(ctx, key)
 		require.NoError(t, err)
@@ -132,6 +139,7 @@ func TestDeleteFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			key  = "expectedkey"
 			ctx  = context.Background()
+			vid  = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
@@ -139,12 +147,13 @@ func TestDeleteFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		v.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		err := s.DeleteFile(ctx, key)
+		err = s.DeleteFile(ctx, key)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
@@ -152,6 +161,7 @@ func TestDeleteFile(t *testing.T) {
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			vid  = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		s2 := mock.NewStoring(ctrl)
@@ -161,13 +171,14 @@ func TestDeleteFile(t *testing.T) {
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 		m.EXPECT().Nodes().Return([]storing.Service{s2})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
-		s2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
+		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		err := s.DeleteFile(ctx, key)
+		err = s.DeleteFile(ctx, key)
 		require.NoError(t, err)
 	})
 }
@@ -178,6 +189,7 @@ func TestHasFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			key  = "expectedkey"
 			ctx  = context.Background()
+			evid = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
@@ -185,19 +197,22 @@ func TestHasFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		ok, err := s.HasFile(ctx, key)
+		vid, ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.True(t, ok)
+		assert.Equal(t, evid, vid)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
 			key  = "expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			evid = "vid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		v2 := mock.NewVolumeLocal(ctrl)
@@ -206,18 +221,20 @@ func TestHasFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v, v2})
 
-		// This call is execute in paralel to all the volumes
-		// so the orther is "unexpected". This means that some
+		// This call is execute in parallel to all the volumes
+		// so the order is "unexpected". This means that some
 		// times the first call it's not done. That's why the
 		// AnyTimes is used
-		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil).AnyTimes()
-		v2.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil).AnyTimes()
+		v2.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		ok, err := s.HasFile(ctx, key)
+		vid, ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.True(t, ok)
+		assert.Equal(t, evid, vid)
 	})
 	t.Run("SuccessFalse", func(t *testing.T) {
 		var (
@@ -231,13 +248,15 @@ func TestHasFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(false, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		ok, err := s.HasFile(ctx, key)
+		vid, ok, err := s.HasFile(ctx, key)
 		require.NoError(t, err)
 		assert.False(t, ok)
+		assert.Equal(t, "", vid)
 	})
 }
 
@@ -246,12 +265,13 @@ func TestConfig(t *testing.T) {
 		var (
 			ctrl   = gomock.NewController(t)
 			ctx    = context.Background()
-			expcfg = config.Config{Name: "Pepito", Replica: -1}
+			expcfg = config.Config{Name: "Pepito", Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}
 		)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s := storing.New(&expcfg, m, kitlog.NewNopLogger())
+		s, err := storing.New(&expcfg, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
 		cfg, err := s.Config(ctx)
 		require.NoError(t, err)
@@ -285,7 +305,8 @@ func TestCreateReplica(t *testing.T) {
 
 		v.EXPECT().ID().Return(createdToVolID)
 
-		s := storing.New(&config.Config{}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
 		volID, err := s.CreateReplica(ctx, key, buff)
 		require.NoError(t, err)
@@ -302,7 +323,8 @@ func TestCreateReplica(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
 		volID, err := s.CreateReplica(ctx, key, buff)
 		assert.EqualError(t, err, "can not store replicas")
@@ -318,13 +340,14 @@ func TestUpdateFileReplica(t *testing.T) {
 			ctx  = context.Background()
 			rep  = 4
 			vids = []string{"1", "2"}
+			vid  = "vid"
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().HasFile(gomock.Any(), key).Return(true, nil)
+		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		v.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(nil)
 
 		// It's AnyTimes as we have the config witha number of replicas
@@ -335,9 +358,10 @@ func TestUpdateFileReplica(t *testing.T) {
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
-		s := storing.New(&config.Config{}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		err := s.UpdateFileReplica(ctx, key, vids, rep)
+		err = s.UpdateFileReplica(ctx, key, vids, rep)
 		require.NoError(t, err)
 	})
 	t.Run("ErrorNoReplica", func(t *testing.T) {
@@ -352,9 +376,10 @@ func TestUpdateFileReplica(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s := storing.New(&config.Config{Replica: -1}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		require.NoError(t, err)
 
-		err := s.UpdateFileReplica(ctx, key, vids, rep)
+		err = s.UpdateFileReplica(ctx, key, vids, rep)
 		assert.EqualError(t, err, "can not store replicas")
 	})
 }

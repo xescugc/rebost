@@ -13,6 +13,9 @@ const (
 	// if none is defined
 	DefaultReplica = 3
 
+	// DefaultCacheSize is the default size of the cache
+	DefaultCacheSize = 200
+
 	// defaultNameLen is the default length of the
 	// auto generated Node name if none defined
 	defaultNameLen = 7
@@ -40,6 +43,8 @@ type Config struct {
 	// Name is the name the Node will have inside of the Memberlist
 	Name string `mapstructure:"name"`
 
+	Cache Cache
+
 	Memberlist Memberlist
 
 	Dashboard Dashboard
@@ -55,6 +60,11 @@ type Memberlist struct {
 type Dashboard struct {
 	Port    int  `mapstructure:"port"`
 	Enabled bool `mapstructure:"enabled"`
+}
+
+// Cache is the configuration required for the cache
+type Cache struct {
+	Size int `mapstructure:"size"`
 }
 
 // New returns a new Config from the viper.Viper, the ENV variables
