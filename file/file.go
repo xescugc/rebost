@@ -16,6 +16,9 @@ type File struct {
 
 	// VolumeIDs it's where this file it's replicated to
 	VolumeIDs []string
+
+	// Is the size of the object in bytes
+	Size int
 }
 
 // Path calculates the storage path for the File with the Signature
