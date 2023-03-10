@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/afero/mem"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/mock"
+	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/uow"
 	"github.com/xescugc/rebost/volume"
 )
@@ -21,6 +22,7 @@ type manageVolume struct {
 	IDXVolumes *mock.IDXVolumeRepository
 	Fs         *mock.Fs
 	Replicas   *mock.ReplicaRepository
+	State      *mock.StateRepository
 
 	V volume.Local
 
@@ -37,6 +39,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 	fs := mock.NewFs(ctrl)
 	rp := mock.NewReplicaRepository(ctrl)
+	sr := mock.NewStateRepository(ctrl)
 
 	uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
 		uw := mock.NewUnitOfWork(ctrl)
@@ -45,6 +48,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 		uw.EXPECT().IDXVolumes().Return(idxvolumes).AnyTimes()
 		uw.EXPECT().Fs().Return(fs).AnyTimes()
 		uw.EXPECT().Replicas().Return(rp).AnyTimes()
+		uw.EXPECT().State().Return(sr).AnyTimes()
 		return uowFn(ctx, uw)
 	}
 
@@ -54,7 +58,10 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	fs.EXPECT().Stat(gomock.Any()).Return(nil, os.ErrNotExist)
 	fs.EXPECT().Create(gomock.Any()).Return(mem.NewFileHandle(mem.CreateFile("")), nil)
 
-	v, err := volume.New(root, files, idxkeys, idxvolumes, rp, fs, uowFn)
+	sr.EXPECT().Find(gomock.Any(), gomock.Any()).Return(&state.State{}, nil)
+	sr.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+
+	v, err := volume.New(root, files, idxkeys, idxvolumes, rp, sr, fs, uowFn)
 	require.NoError(t, err)
 
 	return manageVolume{
@@ -63,11 +70,36 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 		IDXVolumes: idxvolumes,
 		Fs:         fs,
 		Replicas:   rp,
+		State:      sr,
 
 		V: v,
 
 		ctrl: ctrl,
 	}
+}
+
+// expectUpdateState is a helper for the case in which the state is updated with a new size
+func expectUpdateState(t *testing.T, mv manageVolume, ctx context.Context, size int) {
+	t.Helper()
+
+	dbs := state.State{
+		SystemTotalSize: 2000,
+		SystemUsedSize:  100,
+		VolumeTotalSize: 1000,
+		VolumeUsedSize:  100,
+	}
+
+	us := state.State{
+		SystemTotalSize: 2000,
+		SystemUsedSize:  dbs.SystemUsedSize + size,
+		VolumeTotalSize: 1000,
+		VolumeUsedSize:  dbs.VolumeUsedSize + size,
+	}
+
+	vid := mv.V.ID()
+
+	mv.State.EXPECT().Find(ctx, vid).Return(&dbs, nil)
+	mv.State.EXPECT().Update(ctx, vid, &us).Return(nil)
 }
 
 // Finish finishes all the *Ctrl for the 'gomock' at ones
