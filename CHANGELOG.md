@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Cache(LRU) to the logic to fetch an object form another node so we don't have to search for it again once we found it once [Issue#35](https://github.com/xescugc/rebost/issues/35)
+- Cache(LRU) to the logic to fetch an object form another node so we don't have to search for it again once we found it once
+  [Issue#35](https://github.com/xescugc/rebost/issues/35)
+- Volume fixed size, not the initialization of a volume can have `--vomue /:10G` to fix a maximum size to use
+  [Issue#33](https://github.com/xescugc/rebost/issues/33)
 
 ## Updated
 
