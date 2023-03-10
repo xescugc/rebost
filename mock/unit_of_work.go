@@ -13,6 +13,7 @@ import (
 	idxkey "github.com/xescugc/rebost/idxkey"
 	idxvolume "github.com/xescugc/rebost/idxvolume"
 	replica "github.com/xescugc/rebost/replica"
+	state "github.com/xescugc/rebost/state"
 )
 
 // UnitOfWork is a mock of UnitOfWork interface.
@@ -106,4 +107,18 @@ func (m *UnitOfWork) Replicas() replica.Repository {
 func (mr *UnitOfWorkMockRecorder) Replicas() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replicas", reflect.TypeOf((*UnitOfWork)(nil).Replicas))
+}
+
+// State mocks base method.
+func (m *UnitOfWork) State() state.Repository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "State")
+	ret0, _ := ret[0].(state.Repository)
+	return ret0
+}
+
+// State indicates an expected call of State.
+func (mr *UnitOfWorkMockRecorder) State() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "State", reflect.TypeOf((*UnitOfWork)(nil).State))
 }
