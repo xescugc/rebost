@@ -10,8 +10,10 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"code.cloudfoundry.org/bytefmt"
+	kitlog "github.com/go-kit/kit/log"
 	uuid "github.com/satori/go.uuid"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/spf13/afero"
@@ -100,6 +102,8 @@ type local struct {
 
 	startUnitOfWork uow.StartUnitOfWork
 
+	logger kitlog.Logger
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -108,7 +112,7 @@ type local struct {
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
 // To define a total size of the volume it has to be appended to the root like `/v1:1GB`
-func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, sr state.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, sr state.Repository, fileSystem afero.Fs, logger kitlog.Logger, suow uow.StartUnitOfWork) (Local, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sroot := strings.Split(root, ":")
 	ts := -1
@@ -182,44 +186,29 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 	}
 
 	l.id = id
+	l.logger = kitlog.With(logger, "src", "volume", "id", id)
 
 	// Initialize state
-	err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
-		s, err := uw.State().Find(ctx, l.id)
-		if err != nil {
-			return err
-		}
-		us, err := disk.Usage(root)
-		if err != nil {
-			fmt.Println("1", err)
-			return err
-		}
-
-		ps, err := disk.Partitions(true)
-		if err != nil {
-			return err
-		}
-		s.SystemTotalSize = int(us.Total)
-		s.SystemUsedSize = int(us.Used)
-		s.VolumeTotalSize = ts
-		for _, p := range ps {
-			mre := regexp.MustCompile(fmt.Sprintf("%s.*", p.Mountpoint))
-			if mre.MatchString(root) {
-				if len(s.Mountpoint) < len(p.Mountpoint) {
-					s.Mountpoint = p.Mountpoint
-				}
-			}
-		}
-		err = uw.State().Update(ctx, l.id, s)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}, l.state)
+	err = l.calculateSize(ctx, root, ts)
 	if err != nil {
 		return nil, err
 	}
+
+	// Every minute we update the State so
+	// we can check if anything has changed on
+	// the overall System
+	go func() {
+		tk := time.NewTicker(time.Minute)
+		for {
+			select {
+			case <-ctx.Done():
+				tk.Stop()
+			case <-tk.C:
+				err = l.calculateSize(ctx, root, ts)
+				l.logger.Log("msg", err.Error())
+			}
+		}
+	}()
 
 	return l, nil
 }
@@ -727,4 +716,43 @@ func (l *local) GetState(ctx context.Context) (*state.State, error) {
 	}
 
 	return s, nil
+}
+
+func (l *local) calculateSize(ctx context.Context, root string, ts int) error {
+	err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		s, err := uw.State().Find(ctx, l.id)
+		if err != nil {
+			return err
+		}
+		us, err := disk.Usage(root)
+		if err != nil {
+			return err
+		}
+
+		ps, err := disk.Partitions(true)
+		if err != nil {
+			return err
+		}
+		s.SystemTotalSize = int(us.Total)
+		s.SystemUsedSize = int(us.Used)
+		s.VolumeTotalSize = ts
+		for _, p := range ps {
+			mre := regexp.MustCompile(fmt.Sprintf("%s.*", p.Mountpoint))
+			if mre.MatchString(root) {
+				if len(s.Mountpoint) < len(p.Mountpoint) {
+					s.Mountpoint = p.Mountpoint
+				}
+			}
+		}
+		err = uw.State().Update(ctx, l.id, s)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, l.state)
+	if err != nil {
+		return err
+	}
+	return nil
 }

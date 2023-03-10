@@ -58,7 +58,7 @@ func TestNew(t *testing.T) {
 		sr.EXPECT().Find(gomock.Any(), gomock.Any()).Return(&state.State{}, nil)
 		sr.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -111,7 +111,7 @@ func TestNew(t *testing.T) {
 			return nil
 		})
 
-		v, err := volume.New(rootDirWithSize, files, idxkeys, idxvolumes, rp, sr, fs, uowFn)
+		v, err := volume.New(rootDirWithSize, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -164,7 +164,7 @@ func TestNew(t *testing.T) {
 		sr.EXPECT().Find(gomock.Any(), gomock.Any()).Return(&state.State{}, nil)
 		sr.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -189,7 +189,7 @@ func TestNew(t *testing.T) {
 
 		defer ctrl.Finish()
 
-		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
 		assert.Equal(t, "byte quantity must be a positive integer with a unit of measurement like M, MB, MiB, G, GiB, or GB", err.Error())
 		assert.Empty(t, v)
 	})

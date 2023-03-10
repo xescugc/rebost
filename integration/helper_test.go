@@ -43,6 +43,9 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 		log.Fatal(err)
 	}
 
+	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
+
 	server := httptest.NewUnstartedServer(nil)
 	server.Listener.Close()
 	server.Listener = l
@@ -70,7 +73,7 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 
 	suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-	v, err := volume.New(tmpDir, files, idxkeys, idxvolumes, replicas, state, osfs, suow)
+	v, err := volume.New(tmpDir, files, idxkeys, idxvolumes, replicas, state, osfs, logger, suow)
 	require.NoError(t, err)
 
 	mbp, err := util.FreePort()
@@ -85,9 +88,6 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 		Remote: remote,
 		Cache:  config.Cache{Size: config.DefaultCacheSize},
 	}
-
-	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
-	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
 	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote, logger)
 	require.NoError(t, err)

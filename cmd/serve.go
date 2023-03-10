@@ -79,7 +79,7 @@ var (
 				}
 				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, state, osfs, suow)
+				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, state, osfs, logger, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
