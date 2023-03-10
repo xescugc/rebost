@@ -11,6 +11,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	replica "github.com/xescugc/rebost/replica"
+	state "github.com/xescugc/rebost/state"
 )
 
 // VolumeLocal is a mock of Local interface.
@@ -91,6 +92,21 @@ func (m *VolumeLocal) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser,
 func (mr *VolumeLocalMockRecorder) GetFile(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*VolumeLocal)(nil).GetFile), arg0, arg1)
+}
+
+// GetState mocks base method.
+func (m *VolumeLocal) GetState(arg0 context.Context) (*state.State, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetState", arg0)
+	ret0, _ := ret[0].(*state.State)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetState indicates an expected call of GetState.
+func (mr *VolumeLocalMockRecorder) GetState(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetState", reflect.TypeOf((*VolumeLocal)(nil).GetState), arg0)
 }
 
 // HasFile mocks base method.

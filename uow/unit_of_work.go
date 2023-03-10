@@ -14,6 +14,7 @@ import (
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
+	"github.com/xescugc/rebost/state"
 )
 
 //go:generate mockgen -destination=../mock/unit_of_work.go -mock_names=UnitOfWork=UnitOfWork -package mock github.com/xescugc/rebost/uow UnitOfWork
@@ -38,6 +39,7 @@ type UnitOfWork interface {
 	IDXVolumes() idxvolume.Repository
 	Fs() afero.Fs
 	Replicas() replica.Repository
+	State() state.Repository
 }
 
 // StartUnitOfWork it's the way to initialize a typed UoW, it has a uowFn

@@ -5,7 +5,7 @@ type Replica struct {
 	// ID is the identifier of the replica
 	ID string
 
-	// OriginalCount it's the original numer of replicas
+	// OriginalCount it's the original number of replicas
 	OriginalCount int
 
 	// Count it's the number of missing replicas
@@ -26,6 +26,6 @@ type Replica struct {
 
 	// VolumeReplicaID represents the unique ID of the replica
 	// inside the Volume. It's used to index in a
-	// uinique incress order on the DB
+	// unique increase order on the DB
 	VolumeReplicaID []byte
 }

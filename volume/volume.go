@@ -8,13 +8,20 @@ import (
 	"io"
 	"os"
 	"path"
+	"regexp"
+	"strings"
+	"time"
 
+	"code.cloudfoundry.org/bytefmt"
+	kitlog "github.com/go-kit/kit/log"
 	uuid "github.com/satori/go.uuid"
+	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
+	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/uow"
 )
 
@@ -76,6 +83,9 @@ type Local interface {
 	// if this volume is the resposable (next after the removed ID on the files)
 	// will start replication of those files which have to
 	SynchronizeReplicas(ctx context.Context, vID string) error
+
+	// GetState returns the current State of the volume
+	GetState(ctx context.Context) (*state.State, error)
 }
 
 type local struct {
@@ -88,8 +98,11 @@ type local struct {
 	idxkeys    idxkey.Repository
 	replicas   replica.Repository
 	idxvolumes idxvolume.Repository
+	state      state.Repository
 
 	startUnitOfWork uow.StartUnitOfWork
+
+	logger kitlog.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -98,8 +111,20 @@ type local struct {
 // New returns an implementation of the volume.Local interface using the provided parameters
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
-func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, fileSystem afero.Fs, suow uow.StartUnitOfWork) (Local, error) {
+// To define a total size of the volume it has to be appended to the root like `/v1:1GB`
+func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, sr state.Repository, fileSystem afero.Fs, logger kitlog.Logger, suow uow.StartUnitOfWork) (Local, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	sroot := strings.Split(root, ":")
+	ts := -1
+	if len(sroot) > 1 {
+		b, err := bytefmt.ToBytes(sroot[1])
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		ts = int(b)
+		root = sroot[0]
+	}
 	l := &local{
 		fileDir: path.Join(root, "file"),
 		tempDir: path.Join(root, "tmps"),
@@ -109,6 +134,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 		idxkeys:    idxkeys,
 		idxvolumes: idxvolumes,
 		replicas:   rp,
+		state:      sr,
 
 		startUnitOfWork: suow,
 
@@ -160,6 +186,29 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 	}
 
 	l.id = id
+	l.logger = kitlog.With(logger, "src", "volume", "id", id)
+
+	// Initialize state
+	err = l.calculateSize(ctx, root, ts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Every minute we update the State so
+	// we can check if anything has changed on
+	// the overall System
+	go func() {
+		tk := time.NewTicker(time.Minute)
+		for {
+			select {
+			case <-ctx.Done():
+				tk.Stop()
+			case <-tk.C:
+				err = l.calculateSize(ctx, root, ts)
+				l.logger.Log("msg", err.Error())
+			}
+		}
+	}()
 
 	return l, nil
 }
@@ -185,10 +234,15 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 	io.Copy(w, r)
 	r.Close()
 
+	fi, err := fh.Stat()
+	if err != nil {
+		return err
+	}
 	f := &file.File{
 		Keys:      []string{key},
 		Signature: fmt.Sprintf("%x", sh1.Sum(nil)),
 		Replica:   rep,
+		Size:      int(fi.Size()),
 	}
 
 	p := f.Path(l.fileDir)
@@ -224,6 +278,21 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			}
 			dbf.Keys = append(dbf.Keys, key)
 			f = dbf
+		} else {
+			// Update the State with the new file
+			// created size
+			st, err := uw.State().Find(ctx, l.id)
+			if err != nil {
+				return err
+			}
+			if !st.Use(f.Size) {
+				return errors.New("file is too large for the dedicated space left")
+			}
+
+			err = uw.State().Update(ctx, l.id, st)
+			if err != nil {
+				return err
+			}
 		}
 
 		f.VolumeIDs = append(f.VolumeIDs, l.ID())
@@ -239,7 +308,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		}
 
 		// If we have an IDXKey with the same key we are storing
-		// means that we have a name colision. We will:
+		// means that we have a name collision. We will:
 		// * Remove the new key from the File.Keys
 		// * If the len(File.Keys) == 0 we'll remove that File/IDXKey
 		// * If the len(File.Keys) != 0 we'll update that File
@@ -312,7 +381,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		}
 
 		return nil
-	}, l.idxkeys, l.files, l.fs, l.replicas)
+	}, l.idxkeys, l.files, l.fs, l.replicas, l.state)
 
 	if err != nil {
 		return err
@@ -374,6 +443,22 @@ func (l *local) DeleteFile(ctx context.Context, key string) error {
 			if err != nil {
 				return err
 			}
+
+			// Update the State with the new file
+			// created size
+			st, err := uw.State().Find(ctx, l.id)
+			if err != nil {
+				return err
+			}
+			if !st.Use(-dbf.Size) {
+				return errors.New("file is too large for the dedicated space left")
+			}
+
+			err = uw.State().Update(ctx, l.id, st)
+			if err != nil {
+				return err
+			}
+
 		} else {
 			dbf.Keys = newKeys
 
@@ -384,7 +469,7 @@ func (l *local) DeleteFile(ctx context.Context, key string) error {
 		}
 
 		return uw.IDXKeys().DeleteByKey(ctx, key)
-	}, l.idxkeys, l.files, l.fs)
+	}, l.idxkeys, l.files, l.fs, l.state)
 }
 
 func (l *local) HasFile(ctx context.Context, k string) (string, bool, error) {
@@ -609,5 +694,65 @@ func (l *local) SynchronizeReplicas(ctx context.Context, vID string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (l *local) GetState(ctx context.Context) (*state.State, error) {
+	var (
+		s   *state.State
+		err error
+	)
+
+	err = l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		s, err = uw.State().Find(ctx, l.id)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, l.state)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+func (l *local) calculateSize(ctx context.Context, root string, ts int) error {
+	err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		s, err := uw.State().Find(ctx, l.id)
+		if err != nil {
+			return err
+		}
+		us, err := disk.Usage(root)
+		if err != nil {
+			return err
+		}
+
+		ps, err := disk.Partitions(true)
+		if err != nil {
+			return err
+		}
+		s.SystemTotalSize = int(us.Total)
+		s.SystemUsedSize = int(us.Used)
+		s.VolumeTotalSize = ts
+		for _, p := range ps {
+			mre := regexp.MustCompile(fmt.Sprintf("%s.*", p.Mountpoint))
+			if mre.MatchString(root) {
+				if len(s.Mountpoint) < len(p.Mountpoint) {
+					s.Mountpoint = p.Mountpoint
+				}
+			}
+		}
+		err = uw.State().Update(ctx, l.id, s)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, l.state)
+	if err != nil {
+		return err
+	}
 	return nil
 }

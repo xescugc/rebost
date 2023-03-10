@@ -9,6 +9,7 @@ import (
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
+	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/uow"
 	bolt "go.etcd.io/bbolt"
 )
@@ -22,6 +23,7 @@ type unitOfWork struct {
 	idxvolumeRepository idxvolume.Repository
 	fs                  afero.Fs
 	replicaRepository   replica.Repository
+	stateRepository     state.Repository
 }
 
 type key int
@@ -99,6 +101,10 @@ func (uw *unitOfWork) Replicas() replica.Repository {
 	return uw.replicaRepository
 }
 
+func (uw *unitOfWork) State() state.Repository {
+	return uw.stateRepository
+}
+
 func newUnitOfWork(t uow.Type) *unitOfWork {
 	return &unitOfWork{
 		t: t,
@@ -116,7 +122,7 @@ func (uw *unitOfWork) begin(db *bolt.DB) error {
 	} else if uw.t == uow.Write {
 		tx, err = db.Begin(true)
 	} else {
-		err = fmt.Errorf("unsoported uow.Type: %d", uw.t)
+		err = fmt.Errorf("unsupported uw.Type: %d", uw.t)
 	}
 	if err != nil {
 		return err
@@ -137,7 +143,7 @@ func (uw *unitOfWork) commit() error {
 	} else if uw.t == uow.Write {
 		return uw.tx.Commit()
 	} else {
-		return fmt.Errorf("unsoported uow.Type: %d", uw.t)
+		return fmt.Errorf("unsupported uw.Type: %d", uw.t)
 	}
 }
 
@@ -187,11 +193,22 @@ func (uw *unitOfWork) add(r interface{}) error {
 			uw.replicaRepository = &r
 		}
 		return nil
+	case *stateRepository:
+		if uw.stateRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.stateRepository = &r
+		}
+		return nil
 	default:
 		if v, ok := r.(afero.Fs); ok {
 			uw.fs = v
 			return nil
 		}
-		return fmt.Errorf("inalid respository of type: %T", rep)
+		return fmt.Errorf("invalid repository of type: %T", rep)
 	}
 }

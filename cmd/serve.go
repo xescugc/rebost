@@ -73,9 +73,13 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating Replica Repository: %s", err)
 				}
+				state, err := boltdb.NewStateRepository(bdb)
+				if err != nil {
+					return fmt.Errorf("error creating State Repository: %s", err)
+				}
 				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, osfs, suow)
+				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, state, osfs, logger, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
@@ -194,7 +198,7 @@ func init() {
 	serveCmd.PersistentFlags().String("name", "", "The name of this node. This must be unique in the cluster.")
 	viper.BindPFlag("name", serveCmd.PersistentFlags().Lookup("name"))
 
-	serveCmd.PersistentFlags().StringSliceP("volumes", "v", []string{}, "Volumes to store the data")
+	serveCmd.PersistentFlags().StringSliceP("volumes", "v", []string{}, "Volumes to store the data, to specify a fixed size for the volume do it as so '/:20G'")
 	viper.BindPFlag("volumes", serveCmd.PersistentFlags().Lookup("volumes"))
 
 	serveCmd.PersistentFlags().StringP("remote", "r", "", "The URL of a remote Node to join on the cluster")
