@@ -65,9 +65,12 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	replicas, err := boltdb.NewReplicaRepository(bdb)
 	require.NoError(t, err)
 
+	state, err := boltdb.NewStateRepository(bdb)
+	require.NoError(t, err)
+
 	suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-	v, err := volume.New(tmpDir, files, idxkeys, idxvolumes, replicas, osfs, suow)
+	v, err := volume.New(tmpDir, files, idxkeys, idxvolumes, replicas, state, osfs, suow)
 	require.NoError(t, err)
 
 	mbp, err := util.FreePort()
