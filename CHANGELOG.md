@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2023-03-11
+
 ### Added
 
 - Cache(LRU) to the logic to fetch an object form another node so we don't have to search for it again once we found it once
