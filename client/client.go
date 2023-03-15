@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/xescugc/rebost/config"
@@ -16,6 +17,12 @@ import (
 // Client is the client structure that fulfills the storing.Service
 // interface and it's ment to be used to access to a remote node
 type Client struct {
+	clientsLock sync.Mutex
+	nextClient  int
+	clients     []*client
+}
+
+type client struct {
 	createFile endpoint.Endpoint
 	getFile    endpoint.Endpoint
 	deleteFile endpoint.Endpoint
@@ -27,28 +34,50 @@ type Client struct {
 }
 
 // New returns an client to connect to a remote Storing service
-func New(host string) (*Client, error) {
-	c := &Client{}
-	if host == "" {
-		return nil, fmt.Errorf("can't initialize the %q with an empty host", "rebost")
+func New(hosts ...string) (*Client, error) {
+	cl := &Client{
+		clients: make([]*client, len(hosts)),
 	}
-	if !strings.HasPrefix(host, "http") {
-		host = fmt.Sprintf("http://%s", host)
-	}
-	u, err := url.Parse(host)
-	if err != nil {
-		return nil, err
+	for i, h := range hosts {
+		c := &client{}
+		if h == "" {
+			return nil, fmt.Errorf("can't initialize the %q with an empty host", "rebost")
+		}
+		if !strings.HasPrefix(h, "http") {
+			h = fmt.Sprintf("http://%s", h)
+		}
+		u, err := url.Parse(h)
+		if err != nil {
+			return nil, err
+		}
+
+		c.createFile = makeCreatFileEndpoint(*u)
+		c.createReplica = makeCreatReplicaEndpoint(*u)
+		c.updateFileReplica = makeUpdateFileReplica(*u)
+		c.getFile = makeGetFileEndpoint(*u)
+		c.deleteFile = makeDeleteFileEndpoint(*u)
+		c.hasFile = makeHasFileEndpoint(*u)
+		c.getConfig = makeGetConfigEndpoint(*u)
+
+		cl.clients[i] = c
 	}
 
-	c.createFile = makeCreatFileEndpoint(*u)
-	c.createReplica = makeCreatReplicaEndpoint(*u)
-	c.updateFileReplica = makeUpdateFileReplica(*u)
-	c.getFile = makeGetFileEndpoint(*u)
-	c.deleteFile = makeDeleteFileEndpoint(*u)
-	c.hasFile = makeHasFileEndpoint(*u)
-	c.getConfig = makeGetConfigEndpoint(*u)
+	return cl, nil
+}
 
-	return c, nil
+// getClient returns the next client from the
+// list of clients to use
+func (cl *Client) getClient() *client {
+	cl.clientsLock.Lock()
+	defer cl.clientsLock.Unlock()
+
+	rc := cl.clients[cl.nextClient]
+	if cl.nextClient == len(cl.clients)-1 {
+		cl.nextClient = 0
+	} else {
+		cl.nextClient++
+	}
+	return rc
 }
 
 type getConfigResponse struct {
@@ -57,7 +86,8 @@ type getConfigResponse struct {
 }
 
 // Config returns the config of the Node
-func (c Client) Config(ctx context.Context) (*config.Config, error) {
+func (cl *Client) Config(ctx context.Context) (*config.Config, error) {
+	c := cl.getClient()
 	response, err := c.getConfig(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -82,7 +112,8 @@ type createFileResponse struct {
 }
 
 // CreateFile creates a file with the  given key and the r content with rep replicas
-func (c Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
+func (cl *Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
+	c := cl.getClient()
 	response, err := c.createFile(ctx, createFileRequest{Key: key, IORC: r, Replica: rep})
 	if err != nil {
 		return err
@@ -108,7 +139,8 @@ type createReplicaResponse struct {
 }
 
 // CreateReplica creates a new replica to the Node
-func (c Client) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
+func (cl *Client) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
+	c := cl.getClient()
 	response, err := c.createReplica(ctx, createReplicaRequest{Key: key, IORC: reader})
 	if err != nil {
 		return "", err
@@ -133,7 +165,8 @@ type updateFileReplicaResponse struct {
 }
 
 // UpdateFileReplica updtes the file replica information
-func (c Client) UpdateFileReplica(ctx context.Context, key string, vids []string, replica int) error {
+func (cl *Client) UpdateFileReplica(ctx context.Context, key string, vids []string, replica int) error {
+	c := cl.getClient()
 	response, err := c.updateFileReplica(ctx, updateFileReplicaRequest{
 		Key:               key,
 		UpdateFileReplica: model.UpdateFileReplica{VolumeIDs: vids, Replica: replica},
@@ -161,7 +194,8 @@ type getFileResponse struct {
 }
 
 // GetFile returns the requested file
-func (c Client) GetFile(ctx context.Context, key string) (io.ReadCloser, error) {
+func (cl *Client) GetFile(ctx context.Context, key string) (io.ReadCloser, error) {
+	c := cl.getClient()
 	response, err := c.getFile(ctx, getFileRequest{Key: key})
 	if err != nil {
 		return nil, err
@@ -187,7 +221,8 @@ type hasFileResponse struct {
 }
 
 // HasFile returns if the file exists
-func (c Client) HasFile(ctx context.Context, key string) (string, bool, error) {
+func (cl *Client) HasFile(ctx context.Context, key string) (string, bool, error) {
+	c := cl.getClient()
 	response, err := c.hasFile(ctx, hasFileRequest{Key: key})
 	if err != nil {
 		return "", false, err
@@ -211,7 +246,8 @@ type deleteFileResponse struct {
 }
 
 // DeleteFile deletes the file with the given key
-func (c Client) DeleteFile(ctx context.Context, key string) error {
+func (cl *Client) DeleteFile(ctx context.Context, key string) error {
+	c := cl.getClient()
 	response, err := c.deleteFile(ctx, deleteFileRequest{Key: key})
 	if err != nil {
 		return err
