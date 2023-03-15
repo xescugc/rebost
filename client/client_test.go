@@ -17,6 +17,61 @@ import (
 	"github.com/xescugc/rebost/storing"
 )
 
+func TestNew(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			key  = "fileName"
+			ctrl = gomock.NewController(t)
+			evid = "vid"
+		)
+		st := mock.NewStoring(ctrl)
+		defer ctrl.Finish()
+
+		st.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
+
+		h := storing.MakeHandler(st)
+		server := httptest.NewServer(h)
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		vid, ok, err := c.HasFile(context.Background(), key)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, evid, vid)
+	})
+	t.Run("SuccessWithMultipleHosts", func(t *testing.T) {
+		var (
+			key  = "fileName"
+			ctrl = gomock.NewController(t)
+			evid = "vid"
+		)
+		st1 := mock.NewStoring(ctrl)
+		st2 := mock.NewStoring(ctrl)
+		st3 := mock.NewStoring(ctrl)
+		defer ctrl.Finish()
+
+		st1.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil).Times(2)
+		st2.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil).Times(2)
+		st3.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
+
+		h1 := storing.MakeHandler(st1)
+		h2 := storing.MakeHandler(st2)
+		h3 := storing.MakeHandler(st3)
+
+		server1 := httptest.NewServer(h1)
+		server2 := httptest.NewServer(h2)
+		server3 := httptest.NewServer(h3)
+
+		c, err := client.New(server1.URL, server2.URL, server3.URL)
+		require.NoError(t, err)
+
+		for i := 0; i < 5; i++ {
+			_, _, err = c.HasFile(context.Background(), key)
+			require.NoError(t, err)
+		}
+	})
+}
+
 func TestCreateFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (

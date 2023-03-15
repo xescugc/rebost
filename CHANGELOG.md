@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Client can be initialized with multiple hosts and will request one at a time in order as a load balancer
+  [Issue#16](https://github.com/xescugc/rebost/issues/16)
+
 ## [0.2.0] - 2023-03-11
 
 ### Added
