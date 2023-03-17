@@ -205,7 +205,9 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 				tk.Stop()
 			case <-tk.C:
 				err = l.calculateSize(ctx, root, ts)
-				l.logger.Log("msg", err.Error())
+				if err != nil {
+					l.logger.Log("msg", err.Error())
+				}
 			}
 		}
 	}()
