@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initializing with a volume with size was causing an error
   [PR#52](https://github.com/xescugc/rebost/pull/52)
+- Error check on volume goroutine to recalculate size
+  [PR#53](https://github.com/xescugc/rebost/pull/53)
 
 ## [0.2.0] - 2023-03-11
 
