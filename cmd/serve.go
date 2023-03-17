@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 
 	kitlog "github.com/go-kit/kit/log"
@@ -53,7 +54,8 @@ var (
 
 			vs := make([]volume.Local, 0, len(cfg.Volumes))
 			for _, vp := range cfg.Volumes {
-				bdb, err := createDB(vp)
+				// We split the vp as it may contain the size of the volume as the second position like : /root:20G
+				bdb, err := createDB(strings.Split(vp, ":")[0])
 				if err != nil {
 					return fmt.Errorf("error creating the BoltDB: %s", err)
 				}
