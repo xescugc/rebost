@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http/httptest"
 	"testing"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
@@ -115,8 +117,13 @@ func TestGetFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
+		h := storing.MakeHandler(s2)
+		server := httptest.NewServer(h)
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
-		m.EXPECT().Nodes().Return([]storing.Service{s2})
+		m.EXPECT().Nodes().Return([]*client.Client{c})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
@@ -168,8 +175,13 @@ func TestDeleteFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
+		h := storing.MakeHandler(s2)
+		server := httptest.NewServer(h)
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
-		m.EXPECT().Nodes().Return([]storing.Service{s2})
+		m.EXPECT().Nodes().Return([]*client.Client{c})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)

@@ -8,7 +8,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	storing "github.com/xescugc/rebost/storing"
+	client "github.com/xescugc/rebost/client"
+	membership "github.com/xescugc/rebost/membership"
 	volume "github.com/xescugc/rebost/volume"
 )
 
@@ -35,11 +36,26 @@ func (m *Membership) EXPECT() *MembershipMockRecorder {
 	return m.recorder
 }
 
+// GetNodeState mocks base method.
+func (m *Membership) GetNodeState(arg0 string) (*membership.State, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNodeState", arg0)
+	ret0, _ := ret[0].(*membership.State)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNodeState indicates an expected call of GetNodeState.
+func (mr *MembershipMockRecorder) GetNodeState(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNodeState", reflect.TypeOf((*Membership)(nil).GetNodeState), arg0)
+}
+
 // GetNodeWithVolumeByID mocks base method.
-func (m *Membership) GetNodeWithVolumeByID(arg0 string) (storing.Service, error) {
+func (m *Membership) GetNodeWithVolumeByID(arg0 string) (*client.Client, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNodeWithVolumeByID", arg0)
-	ret0, _ := ret[0].(storing.Service)
+	ret0, _ := ret[0].(*client.Client)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -77,10 +93,10 @@ func (mr *MembershipMockRecorder) LocalVolumes() *gomock.Call {
 }
 
 // Nodes mocks base method.
-func (m *Membership) Nodes() []storing.Service {
+func (m *Membership) Nodes() []*client.Client {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Nodes")
-	ret0, _ := ret[0].([]storing.Service)
+	ret0, _ := ret[0].([]*client.Client)
 	return ret0
 }
 
