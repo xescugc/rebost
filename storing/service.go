@@ -10,6 +10,7 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/volume"
 )
@@ -194,7 +195,7 @@ func (s *service) getVolume(ctx context.Context, k string) (string, volume.Volum
 		return vid, v, nil
 	}
 
-	vid, v, err = s.findVolume(ctx, servicesToVolumes(s.members.Nodes()), k)
+	vid, v, err = s.findVolume(ctx, clientsToVolumes(s.members.Nodes()), k)
 	if err != nil && err.Error() != "not found" {
 		return "", nil, err
 	}
@@ -282,11 +283,11 @@ func localVolumesToVolumes(lvs []volume.Local) []volume.Volume {
 	return rvs
 }
 
-// servicesToVolumes convert []Service to []volume.Volume
-func servicesToVolumes(ns []Service) []volume.Volume {
-	rvs := make([]volume.Volume, 0, len(ns))
-	for _, v := range ns {
-		rvs = append(rvs, v)
+// clientsToVolumes convert []*client.Client to []volume.Volume
+func clientsToVolumes(cs []*client.Client) []volume.Volume {
+	rvs := make([]volume.Volume, 0, len(cs))
+	for _, c := range cs {
+		rvs = append(rvs, c)
 	}
 	return rvs
 }

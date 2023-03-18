@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/dashboard"
 )
 
@@ -26,7 +25,7 @@ type HomeRequest struct {
 
 // HomeResponse defines the response of the Home page
 type HomeResponse struct {
-	Nodes []*config.Config
+	Nodes []*dashboard.Node
 	Err   error
 }
 

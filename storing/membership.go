@@ -1,6 +1,10 @@
 package storing
 
-import "github.com/xescugc/rebost/volume"
+import (
+	"github.com/xescugc/rebost/client"
+	"github.com/xescugc/rebost/membership"
+	"github.com/xescugc/rebost/volume"
+)
 
 //go:generate mockgen -destination=../mock/membership.go -mock_names=Membership=Membership -package=mock github.com/xescugc/rebost/storing Membership
 
@@ -9,14 +13,17 @@ import "github.com/xescugc/rebost/volume"
 // are considered volume.Volume.
 type Membership interface {
 	// Nodes return all the Nodes of the cluster except the current one
-	Nodes() []Service
+	Nodes() []*client.Client
 
 	// LocalVolumes returns only the local volumes
 	LocalVolumes() []volume.Local
 
 	// GetNodeWithVolumeByID returns the Node that has the
 	// vid in his volumes
-	GetNodeWithVolumeByID(vid string) (Service, error)
+	GetNodeWithVolumeByID(vid string) (*client.Client, error)
+
+	// GetNodeState returns the Staet of the Node
+	GetNodeState(nn string) (*membership.State, error)
 
 	// RemovedVolumeIDs returns a list of are the volumeIDs
 	// that left the cluster

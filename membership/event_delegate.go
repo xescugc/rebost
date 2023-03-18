@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/client"
+	"github.com/xescugc/rebost/state"
 )
 
 type eventDelegate struct {
@@ -22,7 +23,7 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 		return
 	}
 
-	var meta metadata
+	var meta Metadata
 	err := json.Unmarshal(n.Meta, &meta)
 	if err != nil {
 		panic(err)
@@ -37,6 +38,9 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 	nn := node{
 		conn: c,
 		meta: meta,
+		state: State{
+			Volumes: make(map[string]state.State),
+		},
 	}
 
 	e.members.nodesLock.Lock()
@@ -50,7 +54,9 @@ func (e *eventDelegate) NotifyLeave(n *memberlist.Node) {
 	e.members.removedVolumeIDsLock.Lock()
 
 	nn := e.members.nodes[n.Name]
-	e.members.removedVolumeIDs = append(e.members.removedVolumeIDs, nn.meta.VolumeIDs...)
+	for vid := range nn.meta.Volumes {
+		e.members.removedVolumeIDs = append(e.members.removedVolumeIDs, vid)
+	}
 	delete(e.members.nodes, n.Name)
 	e.members.logger.Log("action", "leave", "name", n.Name)
 

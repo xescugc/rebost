@@ -2,22 +2,46 @@
 {{define "content"}}
   <div class="container">
     <h1>Nodes</h1>
+    <p>General state of the cluster</p>
+    <p class="card-text">Used {{ humanizeNodesUsedSize .Nodes }} out of {{ humanizeNodesTotalSize .Nodes }}</p>
+    {{ $percentage := percentageNodesUsedSize .Nodes }}
+    {{ $color := percentageUsedColor $percentage }}
+    <div class="progress" role="progressbar" aria-valuenow="{{$percentage}}" aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar bg-{{$color}}" style="width: {{$percentage}}%">{{$percentage}}%</div>
+    </div>
     {{ range .Nodes }} 
-      <p>
-        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ .MemberlistName }}" aria-expanded="false" aria-controls="{{ .MemberlistName }}">
-          {{ .MemberlistName }}
-        </button>
-      </p>
-      <div class="collapse" id="{{ .MemberlistName }}">
-        <div class="card card-body">
-          <p><strong>Port:</strong> {{ .Port }}</p>
-          <p><strong>Volumes:</strong> {{ .Volumes }}</p>
-          <p><strong>Remote:</strong> {{ .Remote }}</p>
-          <p><strong>Replica:</strong> {{ .Replica }}</p>
-          <p><strong>Memberlist Bind Port:</strong> {{ .MemberlistBindPort }}</p>
-          <p><strong>Memberlist Name:</strong> {{ .MemberlistName }}</p>
-          <p><strong>Dashboard Enabled:</strong> {{ .Dashboard.Enabled }}</p>
-          <p><strong>Dashboard Port:</strong> {{ .Dashboard.Port }}</p>
+      <div class="row">
+        <div class="col-sm-6 mb-3 mb-sm-0">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">{{ .Config.Name }}</h5>
+              {{ range $id, $state := .State.Volumes }}
+                <p class="card-text">Used {{ humanizeUsedSize $state }} out of {{ humanizeTotalSize $state }}</p>
+                {{ $percentage := percentageStateUsedSize $state }}
+                {{ $color := percentageUsedColor $percentage }}
+                <div class="progress" role="progressbar" aria-valuenow="{{$percentage}}" aria-valuemin="0" aria-valuemax="100">
+                  <div class="progress-bar bg-{{$color}}" style="width: {{$percentage}}%">{{$percentage}}%</div>
+                </div>
+              {{ end }}
+              <p>
+                <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ .Config.Name }}" aria-expanded="false" aria-controls="{{ .Config.Name }}">
+                  See Config
+                </button>
+              </p>
+              <div class="collapse" id="{{ .Config.Name }}">
+                <div class="card card-body">
+                  <p><strong>Port:</strong> {{ .Config.Port }}</p>
+                  <p><strong>Name:</strong> {{ .Config.Name }}</p>
+                  <p><strong>Volumes:</strong> {{ .Config.Volumes }}</p>
+                  <p><strong>Remote:</strong> {{ .Config.Remote }}</p>
+                  <p><strong>Replica:</strong> {{ .Config.Replica }}</p>
+                  <p><strong>Memberlist Bind Port:</strong> {{ .Config.Memberlist.Port }}</p>
+                  <p><strong>Dashboard Enabled:</strong> {{ .Config.Dashboard.Enabled }}</p>
+                  <p><strong>Dashboard Port:</strong> {{ .Config.Dashboard.Port }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     {{ end }}
