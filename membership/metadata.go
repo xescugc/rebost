@@ -1,11 +1,11 @@
 package membership
 
-// metadata is the metadata that it's send for each node
-type metadata struct {
+// Metadata is the metadata that it's send for each node
+type Metadata struct {
 	// Port is the port in which the storing.Service is
 	// raised, needed to connect to the client
 	Port int `json:"port"`
 
-	// VolumeIDs list of all VolumeIDs of the Node
-	VolumeIDs []string `json:"volume_ids"`
+	// Volumes list of all VolumeIDs of the Node
+	Volumes map[string]struct{} `json:"volumes"`
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
-	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -39,11 +38,12 @@ type Membership struct {
 	logger kitlog.Logger
 }
 
-// node represents a Node in the cluster, with the metadata (meta)
+// node represents a Node in the cluster, with the Metadata (meta)
 // and the connection (conn) to it
 type node struct {
-	conn storing.Service
-	meta metadata
+	conn  *client.Client
+	meta  Metadata
+	state State
 }
 
 // New returns an implementation of the Membership interface
@@ -104,24 +104,47 @@ func (m *Membership) LocalVolumes() []volume.Local {
 	return m.localVolumes
 }
 
-// GetNodeWithVolumeByID returns the Node/storing.Service that has
+// GetNodeWithVolumeByID returns the Node/client.Client that has
 // the gicen vid
-func (m *Membership) GetNodeWithVolumeByID(vid string) (storing.Service, error) {
+func (m *Membership) GetNodeWithVolumeByID(vid string) (*client.Client, error) {
 	m.nodesLock.RLock()
 	defer m.nodesLock.RUnlock()
 	for _, n := range m.nodes {
-		for _, nvid := range n.meta.VolumeIDs {
-			if nvid == vid {
-				return n.conn, nil
-			}
+		if _, ok := n.meta.Volumes[vid]; ok {
+			return n.conn, nil
 		}
 	}
 
 	return nil, errors.New("not found")
 }
 
+// GetNodeState returns the volume State
+func (m *Membership) GetNodeState(nn string) (*State, error) {
+	m.nodesLock.RLock()
+	defer m.nodesLock.RUnlock()
+	for kn, n := range m.nodes {
+		if kn == nn {
+			return &n.state, nil
+		}
+	}
+
+	return nil, errors.New("not found")
+}
+
+func (m *Membership) updateNodeState(s State) error {
+	m.nodesLock.RLock()
+	defer m.nodesLock.RUnlock()
+	if n, ok := m.nodes[s.Node]; ok {
+		n.state = s
+		m.nodes[s.Node] = n
+		return nil
+	}
+
+	return errors.New("not found")
+}
+
 // Nodes return all the nodes of the Cluster
-func (m *Membership) Nodes() (res []storing.Service) {
+func (m *Membership) Nodes() (res []*client.Client) {
 	m.nodesLock.RLock()
 	for _, r := range m.nodes {
 		res = append(res, r.conn)

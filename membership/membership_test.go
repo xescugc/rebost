@@ -1,6 +1,7 @@
 package membership_test
 
 import (
+	"context"
 	"net/http/httptest"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/mock"
+	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/util"
 	"github.com/xescugc/rebost/volume"
@@ -22,6 +24,7 @@ func TestVolumes(t *testing.T) {
 		defer ctrl.Finish()
 		v := mock.NewVolumeLocal(ctrl)
 		v.EXPECT().ID().Return("id")
+		//v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 
 		p, err := util.FreePort()
 		require.NoError(t, err)
@@ -37,10 +40,12 @@ func TestVolumes(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			v := mock.NewVolumeLocal(ctrl)
-			v.EXPECT().ID().Return("id")
+			v.EXPECT().ID().Return("id").Times(2)
+			v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 
 			v2 := mock.NewVolumeLocal(ctrl)
-			v2.EXPECT().ID().Return("id")
+			v2.EXPECT().ID().Return("id").Times(2)
+			v2.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{Name: "am2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
@@ -65,10 +70,12 @@ func TestVolumes(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			v := mock.NewVolumeLocal(ctrl)
-			v.EXPECT().ID().Return("id")
+			v.EXPECT().ID().Return("id").Times(2)
+			v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 
 			v2 := mock.NewVolumeLocal(ctrl)
-			v2.EXPECT().ID().Return("id2")
+			v2.EXPECT().ID().Return("id2").Times(2)
+			v2.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{Name: "rm2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
