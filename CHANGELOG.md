@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [PR#52](https://github.com/xescugc/rebost/pull/52)
 - Error check on volume goroutine to recalculate size
   [PR#53](https://github.com/xescugc/rebost/pull/53)
+- No longer trying to replicate a file with a node with a replica of the file
+  [Issue#61](https://github.com/xescugc/rebost/issues/61)
 
 ## [0.2.0] - 2023-03-11
 

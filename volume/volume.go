@@ -79,8 +79,8 @@ type Local interface {
 	// the vID as a volume with the Replica
 	UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error
 
-	// SynchronizeReplicas cheks the replicas related with vID and
-	// if this volume is the resposable (next after the removed ID on the files)
+	// SynchronizeReplicas checks the replicas related with vID and
+	// if this volume is the responsible (next after the removed ID on the files)
 	// will start replication of those files which have to
 	SynchronizeReplicas(ctx context.Context, vID string) error
 
@@ -652,7 +652,7 @@ func (l *local) SynchronizeReplicas(ctx context.Context, vID string) error {
 			return err
 		}
 
-		// Two use cases, one to check if you are he next
+		// Two use cases, one to check if you are the next
 		for _, s := range idxvol.Signatures {
 			f, err := uw.Files().FindBySignature(ctx, s)
 			if err != nil {
@@ -670,9 +670,9 @@ func (l *local) SynchronizeReplicas(ctx context.Context, vID string) error {
 
 				// TODO: We do not know which key was assigned
 				// to that Volume so we use the 0 by default
-				// this is another argumet to not use "Key" and
-				// autogenerate an ID for each file and we just
-				// aggrupate by Signature and not Key
+				// this is another argument to not use "Key" and
+				// generate an ID for each file and we just
+				// group by Signature and not Key
 				rp := &replica.Replica{
 					ID:            uuid.NewV4().String(),
 					Key:           f.Keys[0],
