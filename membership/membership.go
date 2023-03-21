@@ -154,6 +154,25 @@ func (m *Membership) Nodes() (res []*client.Client) {
 	return
 }
 
+// NodesWithoutVolumeIDs return all the nodes of the Cluster
+func (m *Membership) NodesWithoutVolumeIDs(vids []string) (res []*client.Client) {
+	m.nodesLock.RLock()
+	for _, r := range m.nodes {
+		var found bool
+		for _, vid := range vids {
+			if _, ok := r.meta.Volumes[vid]; ok {
+				found = true
+			}
+		}
+		if !found {
+			res = append(res, r.conn)
+		}
+	}
+	m.nodesLock.RUnlock()
+
+	return
+}
+
 // RemovedVolumeIDs returns the list of removed VolumeIDs from
 // the cluster.
 // WARNING: Each call to it empties the list so the list

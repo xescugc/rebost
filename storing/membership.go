@@ -15,6 +15,10 @@ type Membership interface {
 	// Nodes return all the Nodes of the cluster except the current one
 	Nodes() []*client.Client
 
+	// NodesWithoutVolumeIDs return all the Nodes of the cluster except the current one that
+	// do not have any of the provided vids
+	NodesWithoutVolumeIDs(vids []string) []*client.Client
+
 	// LocalVolumes returns only the local volumes
 	LocalVolumes() []volume.Local
 

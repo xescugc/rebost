@@ -22,15 +22,16 @@ func (s *service) loopVolumesReplicas() {
 					}
 					continue
 				}
-				for _, n := range s.members.Nodes() {
+				for _, n := range s.members.NodesWithoutVolumeIDs(rp.VolumeIDs) {
 					_, ok, err := n.HasFile(s.ctx, rp.Key)
 					if err != nil {
 						s.logger.Log("msg", err.Error())
 						continue
 					}
-					//If the volume already has this key we ignore it
-					//It means the replica is already on that Node
-					//Or that it has a file with that name
+					// If the volume already has this key we ignore it
+					// It means the replica is already on that Node
+					// Or that it has a file with that name
+					// TODO: https://github.com/xescugc/rebost/issues/55
 					if ok {
 						continue
 					}

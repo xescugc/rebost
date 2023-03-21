@@ -106,6 +106,20 @@ func (mr *MembershipMockRecorder) Nodes() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Nodes", reflect.TypeOf((*Membership)(nil).Nodes))
 }
 
+// NodesWithoutVolumeIDs mocks base method.
+func (m *Membership) NodesWithoutVolumeIDs(arg0 []string) []*client.Client {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NodesWithoutVolumeIDs", arg0)
+	ret0, _ := ret[0].([]*client.Client)
+	return ret0
+}
+
+// NodesWithoutVolumeIDs indicates an expected call of NodesWithoutVolumeIDs.
+func (mr *MembershipMockRecorder) NodesWithoutVolumeIDs(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NodesWithoutVolumeIDs", reflect.TypeOf((*Membership)(nil).NodesWithoutVolumeIDs), arg0)
+}
+
 // RemovedVolumeIDs mocks base method.
 func (m *Membership) RemovedVolumeIDs() []string {
 	m.ctrl.T.Helper()
