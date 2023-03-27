@@ -51,3 +51,12 @@ func (r *fileRepository) FindBySignature(ctx context.Context, sig string) (*file
 func (r *fileRepository) DeleteBySignature(ctx context.Context, sig string) error {
 	return r.bucket.Delete([]byte(sig))
 }
+
+func (r *fileRepository) DeleteAll(ctx context.Context) error {
+	bk, err := recreateBucket(r.bucket, r.bucketName)
+	if err != nil {
+		return err
+	}
+	r.bucket = bk
+	return nil
+}

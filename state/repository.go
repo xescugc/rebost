@@ -7,8 +7,11 @@ import "context"
 // Repository are the actions that can be done to modify the volume State
 type Repository interface {
 	// Find returns the State, if there is no State it'll return an empty State
-	Find(ctx context.Context, vid string) (*State, error)
+	Find(ctx context.Context) (*State, error)
 
 	// Update updates the State
-	Update(ctx context.Context, vid string, s *State) error
+	Update(ctx context.Context, s *State) error
+
+	// DeleteAll deletes all the state data
+	DeleteAll(ctx context.Context) error
 }

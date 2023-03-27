@@ -25,6 +25,12 @@ import (
 	"github.com/xescugc/rebost/uow"
 )
 
+const (
+	// TickerDuration is the duration of the internal loop of the volume
+	// to recalculate the state
+	TickerDuration = 30 * time.Second
+)
+
 //go:generate mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
 
 // Volume is an interface to deal with the simples actions
@@ -86,12 +92,18 @@ type Local interface {
 
 	// GetState returns the current State of the volume
 	GetState(ctx context.Context) (*state.State, error)
+
+	// Reset will clean all the data of the volume and even change the ID
+	Reset(ctx context.Context) error
 }
 
 type local struct {
 	fileDir string
 	tempDir string
 	id      string
+
+	root      string
+	totalSize int
 
 	fs         afero.Fs
 	files      file.Repository
@@ -102,7 +114,8 @@ type local struct {
 
 	startUnitOfWork uow.StartUnitOfWork
 
-	logger kitlog.Logger
+	logger         kitlog.Logger
+	originalLogger kitlog.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -126,8 +139,10 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 		root = sroot[0]
 	}
 	l := &local{
-		fileDir: path.Join(root, "file"),
-		tempDir: path.Join(root, "tmps"),
+		fileDir:   path.Join(root, "file"),
+		tempDir:   path.Join(root, "tmps"),
+		root:      root,
+		totalSize: ts,
 
 		files:      files,
 		fs:         fileSystem,
@@ -135,6 +150,8 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 		idxvolumes: idxvolumes,
 		replicas:   rp,
 		state:      sr,
+
+		originalLogger: logger,
 
 		startUnitOfWork: suow,
 
@@ -157,14 +174,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 	// Creates or reads the id from the idPath as a Volume
 	// must have always the same ID
 	if _, err = l.fs.Stat(idPath); os.IsNotExist(err) {
-		id = uuid.NewV4().String()
-		fh, err := l.fs.Create(idPath)
-		if err != nil {
-			return nil, err
-		}
-		defer fh.Close()
-
-		_, err = io.WriteString(fh, id)
+		id, err = l.createID(idPath)
 		if err != nil {
 			return nil, err
 		}
@@ -189,25 +199,34 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 	l.logger = kitlog.With(logger, "src", "volume", "id", id)
 
 	// Initialize state
-	err = l.calculateSize(ctx, root, ts)
+	err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		err = l.calculateSize(ctx, uw, root, ts)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, l.state)
 	if err != nil {
 		return nil, err
 	}
 
-	// Every minute we update the State so
+	// Loop that updates the State so
 	// we can check if anything has changed on
 	// the overall System
 	go func() {
-		tk := time.NewTicker(time.Minute)
+		tk := time.NewTicker(TickerDuration)
 		for {
 			select {
 			case <-ctx.Done():
 				tk.Stop()
 			case <-tk.C:
-				err = l.calculateSize(ctx, root, ts)
-				if err != nil {
-					l.logger.Log("msg", err.Error())
-				}
+				err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+					err = l.calculateSize(ctx, uw, root, ts)
+					if err != nil {
+						l.logger.Log("msg", err.Error())
+					}
+					return nil
+				}, l.state)
 			}
 		}
 	}()
@@ -283,7 +302,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		} else {
 			// Update the State with the new file
 			// created size
-			st, err := uw.State().Find(ctx, l.id)
+			st, err := uw.State().Find(ctx)
 			if err != nil {
 				return err
 			}
@@ -291,7 +310,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 				return errors.New("file is too large for the dedicated space left")
 			}
 
-			err = uw.State().Update(ctx, l.id, st)
+			err = uw.State().Update(ctx, st)
 			if err != nil {
 				return err
 			}
@@ -448,7 +467,7 @@ func (l *local) DeleteFile(ctx context.Context, key string) error {
 
 			// Update the State with the new file
 			// created size
-			st, err := uw.State().Find(ctx, l.id)
+			st, err := uw.State().Find(ctx)
 			if err != nil {
 				return err
 			}
@@ -456,7 +475,7 @@ func (l *local) DeleteFile(ctx context.Context, key string) error {
 				return errors.New("file is too large for the dedicated space left")
 			}
 
-			err = uw.State().Update(ctx, l.id, st)
+			err = uw.State().Update(ctx, st)
 			if err != nil {
 				return err
 			}
@@ -706,7 +725,7 @@ func (l *local) GetState(ctx context.Context) (*state.State, error) {
 	)
 
 	err = l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
-		s, err = uw.State().Find(ctx, l.id)
+		s, err = uw.State().Find(ctx)
 		if err != nil {
 			return err
 		}
@@ -720,41 +739,108 @@ func (l *local) GetState(ctx context.Context) (*state.State, error) {
 	return s, nil
 }
 
-func (l *local) calculateSize(ctx context.Context, root string, ts int) error {
+func (l *local) Reset(ctx context.Context) error {
 	err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
-		s, err := uw.State().Find(ctx, l.id)
-		if err != nil {
-			return err
-		}
-		us, err := disk.Usage(root)
+		err := uw.Files().DeleteAll(ctx)
 		if err != nil {
 			return err
 		}
 
-		ps, err := disk.Partitions(true)
-		if err != nil {
-			return err
-		}
-		s.SystemTotalSize = int(us.Total)
-		s.SystemUsedSize = int(us.Used)
-		s.VolumeTotalSize = ts
-		for _, p := range ps {
-			mre := regexp.MustCompile(fmt.Sprintf("%s.*", p.Mountpoint))
-			if mre.MatchString(root) {
-				if len(s.Mountpoint) < len(p.Mountpoint) {
-					s.Mountpoint = p.Mountpoint
-				}
-			}
-		}
-		err = uw.State().Update(ctx, l.id, s)
+		err = uw.IDXKeys().DeleteAll(ctx)
 		if err != nil {
 			return err
 		}
 
+		err = uw.Replicas().DeleteAll(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = uw.IDXVolumes().DeleteAll(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = uw.Fs().RemoveAll(l.fileDir)
+		if err != nil {
+			return err
+		}
+
+		err = uw.Fs().RemoveAll(l.tempDir)
+		if err != nil {
+			return err
+		}
+
+		err = uw.State().DeleteAll(ctx)
+		if err != nil {
+			return err
+		}
+
+		idPath := path.Join(l.root, "id")
+		err = uw.Fs().Remove(idPath)
+		if err != nil {
+			return err
+		}
+
+		id, err := l.createID(idPath)
+		l.id = id
+		l.logger = kitlog.With(l.originalLogger, "src", "volume", "id", id)
+
+		l.calculateSize(ctx, uw, l.root, l.totalSize)
 		return nil
-	}, l.state)
+	}, l.files, l.idxkeys, l.fs, l.replicas, l.idxvolumes, l.state)
 	if err != nil {
 		return err
 	}
+	// TODO: Recreate the ID
+	return nil
+}
+
+func (l *local) createID(idPath string) (string, error) {
+	id := uuid.NewV4().String()
+	fh, err := l.fs.Create(idPath)
+	if err != nil {
+		return "", err
+	}
+	defer fh.Close()
+
+	_, err = io.WriteString(fh, id)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (l *local) calculateSize(ctx context.Context, uw uow.UnitOfWork, root string, ts int) error {
+	s, err := uw.State().Find(ctx)
+	if err != nil {
+		return err
+	}
+	us, err := disk.Usage(root)
+	if err != nil {
+		return err
+	}
+
+	ps, err := disk.Partitions(true)
+	if err != nil {
+		return err
+	}
+	s.SystemTotalSize = int(us.Total)
+	s.SystemUsedSize = int(us.Used)
+	s.VolumeTotalSize = ts
+	for _, p := range ps {
+		mre := regexp.MustCompile(fmt.Sprintf("%s.*", p.Mountpoint))
+		if mre.MatchString(root) {
+			if len(s.Mountpoint) < len(p.Mountpoint) {
+				s.Mountpoint = p.Mountpoint
+			}
+		}
+	}
+	s.UpdatedAt = time.Now()
+	err = uw.State().Update(ctx, s)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

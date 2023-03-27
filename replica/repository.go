@@ -15,4 +15,6 @@ type Repository interface {
 
 	// Delete removes the Pendent
 	Delete(ctx context.Context, r *Replica) error
+
+	DeleteAll(ctx context.Context) error
 }

@@ -154,6 +154,20 @@ func (mr *VolumeLocalMockRecorder) NextReplica(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextReplica", reflect.TypeOf((*VolumeLocal)(nil).NextReplica), arg0)
 }
 
+// Reset mocks base method.
+func (m *VolumeLocal) Reset(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reset", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Reset indicates an expected call of Reset.
+func (mr *VolumeLocalMockRecorder) Reset(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*VolumeLocal)(nil).Reset), arg0)
+}
+
 // SynchronizeReplicas mocks base method.
 func (m *VolumeLocal) SynchronizeReplicas(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()

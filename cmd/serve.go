@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -25,7 +26,9 @@ import (
 	dhttp "github.com/xescugc/rebost/dashboard/transport/http"
 	"github.com/xescugc/rebost/fs"
 	"github.com/xescugc/rebost/membership"
+	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/storing"
+	"github.com/xescugc/rebost/uow"
 	"github.com/xescugc/rebost/volume"
 	bolt "go.etcd.io/bbolt"
 )
@@ -36,6 +39,7 @@ var (
 		Short: "Starts the rebost server",
 		Long:  "Starts the rebost server",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
 			cfg, err := config.New(viper.GetViper())
 			if err != nil {
 				return err
@@ -75,15 +79,38 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating Replica Repository: %s", err)
 				}
-				state, err := boltdb.NewStateRepository(bdb)
+				stater, err := boltdb.NewStateRepository(bdb)
 				if err != nil {
 					return fmt.Errorf("error creating State Repository: %s", err)
 				}
 				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, state, osfs, logger, suow)
+				var (
+					st *state.State
+				)
+
+				err = suow(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+					st, err = uw.State().Find(ctx)
+					if err != nil {
+						return err
+					}
+					return nil
+				}, stater)
+				if err != nil {
+					return fmt.Errorf("error getting the state of Volume: %s", err)
+				}
+
+				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, stater, osfs, logger, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
+				}
+
+				if st.IsInDowntimeRange(cfg.VolumeDowntime) {
+					logger.Log("msg", fmt.Sprintf("Resetting the volume due to downtime: %q", vp))
+					err = v.Reset(ctx)
+					if err != nil {
+						return fmt.Errorf("error resetting the Volume due to downtime: %s", err)
+					}
 				}
 
 				logger.Log("msg", fmt.Sprintf("Attached to volume: %q", vp))
@@ -194,7 +221,7 @@ func createDB(p string) (*bolt.DB, error) {
 }
 
 func init() {
-	serveCmd.PersistentFlags().IntP("port", "p", 3805, "Destination port")
+	serveCmd.PersistentFlags().IntP("port", "p", config.DefaultPort, "Destination port")
 	viper.BindPFlag("port", serveCmd.PersistentFlags().Lookup("port"))
 
 	serveCmd.PersistentFlags().String("name", "", "The name of this node. This must be unique in the cluster.")
@@ -208,6 +235,9 @@ func init() {
 
 	serveCmd.PersistentFlags().Int("replica", config.DefaultReplica, "The default number of replicas used if none specified on the requests")
 	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("replica"))
+
+	serveCmd.PersistentFlags().Duration("volume-downtime", config.DefaultVolumeDowntime, fmt.Sprintf("The time a volume can be down before start replicating and also the time the node can be restarted before it's old and all the data would be cleaned. The value cannot be lower or equal to %s", volume.TickerDuration))
+	viper.BindPFlag("volume-downtime", serveCmd.PersistentFlags().Lookup("volume-downtime"))
 
 	serveCmd.PersistentFlags().Int("memberlist.port", 0, "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist.port", serveCmd.PersistentFlags().Lookup("memberlist.port"))

@@ -1,5 +1,9 @@
 package state
 
+import (
+	"time"
+)
+
 // State is the current state in which the volume is
 type State struct {
 	// The Mountpoint of the volume, so we can make
@@ -17,6 +21,11 @@ type State struct {
 
 	// UsedSize is the total used size of the volume objects
 	VolumeUsedSize int
+
+	// UpdatedAt is useful to be able to know on restart
+	// how long has it been since the last check, it's like
+	// a heartbeat
+	UpdatedAt time.Time
 }
 
 // CanStore will check if the b bytes fit into the defined sizes
@@ -54,4 +63,10 @@ func (s *State) Use(b int) bool {
 		return true
 	}
 	return false
+}
+
+// IsInDowntimeRange will check if the s.UpdatedAt plus the duration
+// is older than the current date, meaning it's not on range
+func (s *State) IsInDowntimeRange(d time.Duration) bool {
+	return s.UpdatedAt.Add(d).Before(time.Now())
 }

@@ -55,8 +55,8 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, os.ErrNotExist)
 		fs.EXPECT().Create(idPath).Return(fh, nil)
 
-		sr.EXPECT().Find(gomock.Any(), gomock.Any()).Return(&state.State{}, nil)
-		sr.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
+		sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
 		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
 		require.NoError(t, err)
@@ -105,8 +105,8 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, os.ErrNotExist)
 		fs.EXPECT().Create(idPath).Return(fh, nil)
 
-		sr.EXPECT().Find(gomock.Any(), gomock.Any()).Return(&state.State{}, nil)
-		sr.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ string, s *state.State) error {
+		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
+		sr.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, s *state.State) error {
 			assert.Equal(t, 21474836480, s.VolumeTotalSize)
 			return nil
 		})
@@ -161,8 +161,8 @@ func TestNew(t *testing.T) {
 		fs.EXPECT().Stat(idPath).Return(nil, nil)
 		fs.EXPECT().Open(idPath).Return(fh, nil)
 
-		sr.EXPECT().Find(gomock.Any(), gomock.Any()).Return(&state.State{}, nil)
-		sr.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
+		sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
 		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
 		require.NoError(t, err)
@@ -634,7 +634,7 @@ func TestCreateFile(t *testing.T) {
 			VolumeUsedSize:  0,
 		}
 
-		mv.State.EXPECT().Find(ctx, mv.V.ID()).Return(&dbs, nil)
+		mv.State.EXPECT().Find(ctx).Return(&dbs, nil)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep)
 		assert.Equal(t, "file is too large for the dedicated space left", err.Error())
@@ -1058,7 +1058,7 @@ func TestGetState(t *testing.T) {
 
 		defer mv.Finish()
 
-		mv.State.EXPECT().Find(ctx, mv.V.ID()).Return(&dbs, nil)
+		mv.State.EXPECT().Find(ctx).Return(&dbs, nil)
 
 		rs, err := mv.V.GetState(ctx)
 		require.NoError(t, err)
@@ -1078,5 +1078,48 @@ func TestGetState(t *testing.T) {
 
 		_, err := mv.V.GetFile(ctx, key)
 		assert.EqualError(t, err, errors.New("not found").Error())
+	})
+}
+
+func TestReset(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			mv      = newManageVolume(t, rootDir)
+			ctx     = context.Background()
+			fileDir = path.Join(rootDir, "file")
+			tempDir = path.Join(rootDir, "tmps")
+			idPath  = path.Join(rootDir, "id")
+			fh      = mem.NewFileHandle(mem.CreateFile(idPath))
+		)
+		defer mv.Finish()
+
+		mv.Files.EXPECT().DeleteAll(ctx).Return(nil)
+		mv.IDXKeys.EXPECT().DeleteAll(ctx).Return(nil)
+		mv.Replicas.EXPECT().DeleteAll(ctx).Return(nil)
+		mv.IDXVolumes.EXPECT().DeleteAll(ctx).Return(nil)
+		mv.Fs.EXPECT().RemoveAll(fileDir).Return(nil)
+		mv.Fs.EXPECT().RemoveAll(tempDir).Return(nil)
+		mv.State.EXPECT().DeleteAll(ctx).Return(nil)
+		mv.Fs.EXPECT().Remove(idPath).Return(nil)
+
+		mv.Fs.EXPECT().Create(idPath).Return(fh, nil)
+
+		mv.State.EXPECT().Find(ctx).Return(&state.State{}, nil)
+		mv.State.EXPECT().Update(ctx, gomock.Any()).Return(nil)
+
+		err := mv.V.Reset(ctx)
+		require.NoError(t, err)
+
+		// As the FH is closed on the tests,
+		// we have to open it again
+		err = fh.Open()
+		require.NoError(t, err)
+
+		id, err := io.ReadAll(fh)
+		require.NoError(t, err)
+
+		_, err = uuid.FromString(string(id))
+		require.NoError(t, err, "Validates that it's a UUID")
 	})
 }

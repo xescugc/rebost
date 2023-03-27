@@ -35,31 +35,45 @@ func (m *StateRepository) EXPECT() *StateRepositoryMockRecorder {
 	return m.recorder
 }
 
-// Find mocks base method.
-func (m *StateRepository) Find(arg0 context.Context, arg1 string) (*state.State, error) {
+// DeleteAll mocks base method.
+func (m *StateRepository) DeleteAll(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Find", arg0, arg1)
+	ret := m.ctrl.Call(m, "DeleteAll", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteAll indicates an expected call of DeleteAll.
+func (mr *StateRepositoryMockRecorder) DeleteAll(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAll", reflect.TypeOf((*StateRepository)(nil).DeleteAll), arg0)
+}
+
+// Find mocks base method.
+func (m *StateRepository) Find(arg0 context.Context) (*state.State, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Find", arg0)
 	ret0, _ := ret[0].(*state.State)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Find indicates an expected call of Find.
-func (mr *StateRepositoryMockRecorder) Find(arg0, arg1 interface{}) *gomock.Call {
+func (mr *StateRepositoryMockRecorder) Find(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*StateRepository)(nil).Find), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*StateRepository)(nil).Find), arg0)
 }
 
 // Update mocks base method.
-func (m *StateRepository) Update(arg0 context.Context, arg1 string, arg2 *state.State) error {
+func (m *StateRepository) Update(arg0 context.Context, arg1 *state.State) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Update", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *StateRepositoryMockRecorder) Update(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *StateRepositoryMockRecorder) Update(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*StateRepository)(nil).Update), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*StateRepository)(nil).Update), arg0, arg1)
 }

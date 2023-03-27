@@ -52,3 +52,12 @@ func (r *replicaRepository) First(ctx context.Context) (*replica.Replica, error)
 func (r *replicaRepository) Delete(ctx context.Context, rp *replica.Replica) error {
 	return r.bucket.Delete(rp.VolumeReplicaID)
 }
+
+func (r *replicaRepository) DeleteAll(ctx context.Context) error {
+	bk, err := recreateBucket(r.bucket, r.bucketName)
+	if err != nil {
+		return err
+	}
+	r.bucket = bk
+	return nil
+}

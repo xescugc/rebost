@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"time"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/hashicorp/memberlist"
@@ -31,8 +32,9 @@ type Membership struct {
 	nodes     map[string]node
 
 	// removedVolumeIDs list of all the volumeIDs removed by
-	// nodes leaving the cluster
-	removedVolumeIDs     []string
+	// nodes leaving the cluster and the time in which
+	// this was detected
+	removedVolumeIDs     map[string]time.Time
 	removedVolumeIDsLock sync.Mutex
 
 	logger kitlog.Logger
@@ -52,7 +54,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Log
 		localVolumes:     lv,
 		nodes:            make(map[string]node),
 		cfg:              cfg,
-		removedVolumeIDs: make([]string, 0),
+		removedVolumeIDs: make(map[string]time.Time),
 		logger:           kitlog.With(logger, "src", "membership", "name", cfg.Name),
 	}
 
@@ -181,10 +183,12 @@ func (m *Membership) RemovedVolumeIDs() []string {
 	m.removedVolumeIDsLock.Lock()
 
 	rvids := make([]string, 0, len(m.removedVolumeIDs))
-	for _, vid := range m.removedVolumeIDs {
-		rvids = append(rvids, vid)
+	for vid, t := range m.removedVolumeIDs {
+		if t.Add(m.cfg.VolumeDowntime).Before(time.Now()) {
+			rvids = append(rvids, vid)
+			delete(m.removedVolumeIDs, vid)
+		}
 	}
-	m.removedVolumeIDs = make([]string, 0)
 
 	m.removedVolumeIDsLock.Unlock()
 	return rvids

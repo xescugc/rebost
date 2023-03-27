@@ -9,4 +9,5 @@ type Repository interface {
 	CreateOrReplace(ctx context.Context, ik *IDXKey) error
 	FindByKey(ctx context.Context, key string) (*IDXKey, error)
 	DeleteByKey(ctx context.Context, key string) error
+	DeleteAll(ctx context.Context) error
 }

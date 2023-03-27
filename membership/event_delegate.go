@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/client"
@@ -47,6 +48,13 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 	e.members.nodes[n.Name] = nn
 	e.members.logger.Log("action", "join", "name", n.Name, "url", url)
 	e.members.nodesLock.Unlock()
+
+	// We remove any vid that was marked as to be deleted
+	e.members.removedVolumeIDsLock.Lock()
+	for vid := range meta.Volumes {
+		delete(e.members.removedVolumeIDs, vid)
+	}
+	e.members.removedVolumeIDsLock.Unlock()
 }
 
 func (e *eventDelegate) NotifyLeave(n *memberlist.Node) {
@@ -55,7 +63,7 @@ func (e *eventDelegate) NotifyLeave(n *memberlist.Node) {
 
 	nn := e.members.nodes[n.Name]
 	for vid := range nn.meta.Volumes {
-		e.members.removedVolumeIDs = append(e.members.removedVolumeIDs, vid)
+		e.members.removedVolumeIDs[vid] = time.Now()
 	}
 	delete(e.members.nodes, n.Name)
 	e.members.logger.Log("action", "leave", "name", n.Name)
