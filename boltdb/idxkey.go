@@ -41,3 +41,12 @@ func (r *idxkeyRepository) FindByKey(ctx context.Context, k string) (*idxkey.IDX
 func (r *idxkeyRepository) DeleteByKey(ctx context.Context, k string) error {
 	return r.bucket.Delete([]byte(k))
 }
+
+func (r *idxkeyRepository) DeleteAll(ctx context.Context) error {
+	bk, err := recreateBucket(r.bucket, r.bucketName)
+	if err != nil {
+		return err
+	}
+	r.bucket = bk
+	return nil
+}

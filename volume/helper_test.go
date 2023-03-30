@@ -58,8 +58,8 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	fs.EXPECT().Stat(gomock.Any()).Return(nil, os.ErrNotExist)
 	fs.EXPECT().Create(gomock.Any()).Return(mem.NewFileHandle(mem.CreateFile("")), nil)
 
-	sr.EXPECT().Find(gomock.Any(), gomock.Any()).Return(&state.State{}, nil)
-	sr.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
+	sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
 	v, err := volume.New(root, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
 	require.NoError(t, err)
@@ -96,10 +96,8 @@ func expectUpdateState(t *testing.T, mv manageVolume, ctx context.Context, size 
 		VolumeUsedSize:  dbs.VolumeUsedSize + size,
 	}
 
-	vid := mv.V.ID()
-
-	mv.State.EXPECT().Find(ctx, vid).Return(&dbs, nil)
-	mv.State.EXPECT().Update(ctx, vid, &us).Return(nil)
+	mv.State.EXPECT().Find(ctx).Return(&dbs, nil)
+	mv.State.EXPECT().Update(ctx, &us).Return(nil)
 }
 
 // Finish finishes all the *Ctrl for the 'gomock' at ones

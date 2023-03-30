@@ -49,6 +49,20 @@ func (mr *IDXVolumeRepositoryMockRecorder) CreateOrReplace(arg0, arg1 interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrReplace", reflect.TypeOf((*IDXVolumeRepository)(nil).CreateOrReplace), arg0, arg1)
 }
 
+// DeleteAll mocks base method.
+func (m *IDXVolumeRepository) DeleteAll(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteAll", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteAll indicates an expected call of DeleteAll.
+func (mr *IDXVolumeRepositoryMockRecorder) DeleteAll(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAll", reflect.TypeOf((*IDXVolumeRepository)(nil).DeleteAll), arg0)
+}
+
 // DeleteByKey mocks base method.
 func (m *IDXVolumeRepository) DeleteByKey(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()

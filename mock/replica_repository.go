@@ -63,6 +63,20 @@ func (mr *ReplicaRepositoryMockRecorder) Delete(arg0, arg1 interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*ReplicaRepository)(nil).Delete), arg0, arg1)
 }
 
+// DeleteAll mocks base method.
+func (m *ReplicaRepository) DeleteAll(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteAll", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteAll indicates an expected call of DeleteAll.
+func (mr *ReplicaRepositoryMockRecorder) DeleteAll(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAll", reflect.TypeOf((*ReplicaRepository)(nil).DeleteAll), arg0)
+}
+
 // First mocks base method.
 func (m *ReplicaRepository) First(arg0 context.Context) (*replica.Replica, error) {
 	m.ctrl.T.Helper()

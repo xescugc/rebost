@@ -9,4 +9,5 @@ type Repository interface {
 	CreateOrReplace(ctx context.Context, ik *IDXVolume) error
 	FindByVolumeID(ctx context.Context, volumeID string) (*IDXVolume, error)
 	DeleteByKey(ctx context.Context, volumeID string) error
+	DeleteAll(ctx context.Context) error
 }

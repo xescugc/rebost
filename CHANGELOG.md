@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [Issue#16](https://github.com/xescugc/rebost/issues/16)
 - Visualization of the size of the Nodes (used and total) and the size of the cluster (use and total) to the Dashboard
   [Issue#49](https://github.com/xescugc/rebost/issues/49)
+- `--volume-downtime` flag to set a custom time to start replicating after a Volumes goes down as we start replicating
+  [Issue#56](https://github.com/xescugc/rebost/issues/56)
 
 ### Fixed
 

@@ -2,6 +2,7 @@ package state_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/xescugc/rebost/state"
@@ -164,4 +165,10 @@ func TestUse(t *testing.T) {
 			assert.Equal(t, tt.estate, tt.state)
 		})
 	}
+}
+
+func TestIsInDowntimeRange(t *testing.T) {
+	s := state.State{UpdatedAt: time.Now().Add(-time.Hour)}
+	assert.False(t, s.IsInDowntimeRange(2*time.Hour))
+	assert.True(t, s.IsInDowntimeRange(30*time.Minute))
 }

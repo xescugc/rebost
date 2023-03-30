@@ -16,3 +16,16 @@ func createBucket(db *bolt.DB, name []byte) error {
 		return nil
 	})
 }
+
+// recreateBucket will delete and create a new bucket
+func recreateBucket(bk *bolt.Bucket, name []byte) (*bolt.Bucket, error) {
+	err := bk.Tx().DeleteBucket(name)
+	if err != nil {
+		return nil, fmt.Errorf("delete bucket: %s", err)
+	}
+	nbk, err := bk.Tx().CreateBucketIfNotExists(name)
+	if err != nil {
+		return nil, fmt.Errorf("create bucket: %s", err)
+	}
+	return nbk, nil
+}

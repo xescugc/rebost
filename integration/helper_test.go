@@ -9,10 +9,12 @@ import (
 	"path"
 	"strconv"
 	"testing"
+	"time"
 
 	kitlog "github.com/go-kit/kit/log"
 
 	"github.com/spf13/afero"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/boltdb"
 	"github.com/xescugc/rebost/client"
@@ -32,6 +34,17 @@ import (
 func newClient(t *testing.T, name string, remote string) (*client.Client, string, string, cancelFn) {
 	port, err := util.FreePort()
 	require.NoError(t, err)
+
+	vp := viper.New()
+	vp.Set("name", name)
+	vp.Set("remote", remote)
+	vp.Set("port", port)
+	cfg, err := config.New(vp)
+	require.NoError(t, err)
+
+	// We set it outside of the New because we want to be fast for testing
+	// and it has a validation on the New to not allow it
+	cfg.VolumeDowntime = time.Second
 
 	tmpDir, err := os.MkdirTemp("", "rebost")
 	if err != nil {
@@ -75,19 +88,6 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 
 	v, err := volume.New(tmpDir, files, idxkeys, idxvolumes, replicas, state, osfs, logger, suow)
 	require.NoError(t, err)
-
-	mbp, err := util.FreePort()
-	require.NoError(t, err)
-
-	cfg := &config.Config{
-		Port: port,
-		Name: name,
-		Memberlist: config.Memberlist{
-			Port: mbp,
-		},
-		Remote: remote,
-		Cache:  config.Cache{Size: config.DefaultCacheSize},
-	}
 
 	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote, logger)
 	require.NoError(t, err)

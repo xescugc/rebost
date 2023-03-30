@@ -53,3 +53,12 @@ func (r *idxvolumeRepository) FindByVolumeID(ctx context.Context, vid string) (*
 func (r *idxvolumeRepository) DeleteByKey(ctx context.Context, k string) error {
 	return r.bucket.Delete([]byte(k))
 }
+
+func (r *idxvolumeRepository) DeleteAll(ctx context.Context) error {
+	bk, err := recreateBucket(r.bucket, r.bucketName)
+	if err != nil {
+		return err
+	}
+	r.bucket = bk
+	return nil
+}
