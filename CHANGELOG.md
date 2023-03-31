@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2023-03-31
+
 ### Added
 
 - Client can be initialized with multiple hosts and will request one at a time in order as a load balancer
