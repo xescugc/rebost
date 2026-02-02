@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -81,10 +83,12 @@ func TestCreateFile(t *testing.T) {
 			iorcContent = io.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
 			rep         = 10
+			ttl         = 10 * time.Minute
+			ca          = time.Now()
 		)
 		defer ctrl.Finish()
 
-		st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep).Do(func(_ context.Context, _ string, b io.ReadCloser, _ int) {
+		st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, b io.ReadCloser, _ int, _ time.Duration, _ time.Time) {
 			c, err := io.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
@@ -95,7 +99,7 @@ func TestCreateFile(t *testing.T) {
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		err = c.CreateFile(context.Background(), key, iorcContent, rep)
+		err = c.CreateFile(context.Background(), key, iorcContent, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("Error", func(t *testing.T) {
@@ -106,10 +110,12 @@ func TestCreateFile(t *testing.T) {
 			iorcContent = io.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
 			rep         = 10
+			ttl         = 10 * time.Minute
+			ca          = time.Now()
 		)
 		defer ctrl.Finish()
 
-		st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep).Do(func(_ context.Context, _ string, b io.ReadCloser, _ int) {
+		st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, b io.ReadCloser, _ int, _ time.Duration, _ time.Time) {
 			c, err := io.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
@@ -120,7 +126,7 @@ func TestCreateFile(t *testing.T) {
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		err = c.CreateFile(context.Background(), key, iorcContent, rep)
+		err = c.CreateFile(context.Background(), key, iorcContent, rep, ttl, ca)
 		assert.EqualError(t, err, "some error")
 	})
 }
@@ -317,10 +323,12 @@ func TestCreateReplica(t *testing.T) {
 			iorcContent = io.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
 			volID       = "volID"
+			ttl         = 2 * time.Minute
+			ca          = time.Now()
 		)
 		defer ctrl.Finish()
 
-		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, b io.ReadCloser) {
+		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any(), ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, b io.ReadCloser, _ time.Duration, _ time.Time) {
 			c, err := io.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
@@ -331,7 +339,7 @@ func TestCreateReplica(t *testing.T) {
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		vID, err := c.CreateReplica(context.Background(), key, iorcContent)
+		vID, err := c.CreateReplica(context.Background(), key, iorcContent, ttl, ca)
 		require.NoError(t, err)
 		assert.Equal(t, volID, vID)
 	})
@@ -342,10 +350,12 @@ func TestCreateReplica(t *testing.T) {
 			content     = make([]byte, 6000)
 			iorcContent = io.NopCloser(bytes.NewBuffer(content))
 			key         = "filename"
+			ttl         = 2 * time.Minute
+			ca          = time.Now()
 		)
 		defer ctrl.Finish()
 
-		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, b io.ReadCloser) {
+		st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any(), ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, b io.ReadCloser, _ time.Duration, _ time.Time) {
 			c, err := io.ReadAll(b)
 			require.NoError(t, err)
 			assert.Equal(t, content, c)
@@ -356,7 +366,7 @@ func TestCreateReplica(t *testing.T) {
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		vID, err := c.CreateReplica(context.Background(), key, iorcContent)
+		vID, err := c.CreateReplica(context.Background(), key, iorcContent, ttl, ca)
 		assert.EqualError(t, err, "some-error")
 		assert.Equal(t, "", vID)
 	})
@@ -403,4 +413,21 @@ func TestUpdateFileReplica(t *testing.T) {
 		err = c.UpdateFileReplica(context.Background(), key, vids, rep)
 		assert.EqualError(t, err, "some-error")
 	})
+}
+
+type timeMatcher struct {
+	t time.Time
+}
+
+func (tm timeMatcher) Matches(x interface{}) bool {
+	t, ok := x.(time.Time)
+	if !ok {
+		return false
+	}
+
+	return t.Format(time.RFC3339) == tm.t.Format(time.RFC3339)
+}
+
+func (tm timeMatcher) String() string {
+	return fmt.Sprintf("is equal to %s", tm.t.Format(time.RFC3339))
 }

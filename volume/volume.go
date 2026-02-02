@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/idxttl"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/state"
@@ -29,6 +30,10 @@ const (
 	// TickerDuration is the duration of the internal loop of the volume
 	// to recalculate the state
 	TickerDuration = 30 * time.Second
+
+	// noTTL is used to have a readable comparison
+	// when dealing with TTL logic
+	noTTL = 0
 )
 
 //go:generate mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
@@ -36,13 +41,13 @@ const (
 // Volume is an interface to deal with the simples actions
 // and basic ones
 type Volume interface {
-	// CreateFile creates a new file from the reader with the key, there are
-	// 4 different use cases to consider:
+	// CreateFile creates a new file from the reader with the key, ttl and time of creation (if empty will be set to now)
+	// There are 4 different use cases to consider:
 	// * New key and reader
 	// * New key with already known reader
 	// * Already known key with new reader
 	// * Already known key and reader
-	CreateFile(ctx context.Context, key string, reader io.ReadCloser, replica int) error
+	CreateFile(ctx context.Context, key string, reader io.ReadCloser, replica int, ttl time.Duration, ca time.Time) error
 
 	// GetFile search for the file with the key
 	GetFile(ctx context.Context, key string) (io.ReadCloser, error)
@@ -108,6 +113,7 @@ type local struct {
 	fs         afero.Fs
 	files      file.Repository
 	idxkeys    idxkey.Repository
+	idxttls    idxttl.Repository
 	replicas   replica.Repository
 	idxvolumes idxvolume.Repository
 	state      state.Repository
@@ -125,7 +131,7 @@ type local struct {
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
 // To define a total size of the volume it has to be appended to the root like `/v1:1GB`
-func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, sr state.Repository, fileSystem afero.Fs, logger kitlog.Logger, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls idxttl.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, sr state.Repository, fileSystem afero.Fs, logger kitlog.Logger, suow uow.StartUnitOfWork) (Local, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sroot := strings.Split(root, ":")
 	ts := -1
@@ -147,6 +153,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 		files:      files,
 		fs:         fileSystem,
 		idxkeys:    idxkeys,
+		idxttls:    idxttls,
 		idxvolumes: idxvolumes,
 		replicas:   rp,
 		state:      sr,
@@ -231,6 +238,9 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxvolum
 		}
 	}()
 
+	// We check if there is any TTL expiring
+	go l.loopTTL()
+
 	return l, nil
 }
 
@@ -241,7 +251,7 @@ func (l *local) Close() error {
 	return nil
 }
 
-func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
+func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int, ttl time.Duration, ca time.Time) error {
 	tmp := path.Join(l.tempDir, uuid.NewV4().String())
 
 	fh, err := l.fs.Create(tmp)
@@ -259,11 +269,17 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 	if err != nil {
 		return err
 	}
+	// If no time is set then we use the current date
+	if ca.IsZero() {
+		ca = time.Now()
+	}
 	f := &file.File{
 		Keys:      []string{key},
 		Signature: fmt.Sprintf("%x", sh1.Sum(nil)),
 		Replica:   rep,
 		Size:      int(fi.Size()),
+		TTL:       ttl,
+		CreatedAt: ca,
 	}
 
 	p := f.Path(l.fileDir)
@@ -379,6 +395,26 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			return err
 		}
 
+		// We check if there is an expiration date for the file
+		// already on the IDXTTLs
+		if ttl != noTTL {
+			dbidxttl, err := uw.IDXTTLs().Find(ctx, f.ExpiresAt())
+			if err != nil && err.Error() != "not found" {
+				return err
+			}
+
+			// The case of the not found
+			if dbidxttl == nil {
+				dbidxttl = &idxttl.IDXTTL{ExpiresAt: f.ExpiresAt()}
+			}
+			dbidxttl.AddSignatures(f.Signature)
+
+			err = uw.IDXTTLs().CreateOrReplace(ctx, dbidxttl)
+			if err != nil {
+				return err
+			}
+		}
+
 		// As one is already stored on this volume we can reduce it
 		rep--
 		if rep >= 1 {
@@ -387,12 +423,14 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 				Key: key,
 				// TODO: For now we are ignoring the fact
 				// that if the file exists the replicas may
-				// chage and be more or lesss
+				// change and be more or less
 				Count:         rep,
 				OriginalCount: rep + 1,
 				Signature:     f.Signature,
 				VolumeIDs:     []string{l.id},
 				VolumeID:      l.id,
+				TTL:           ttl,
+				CreatedAt:     ca,
 			}
 
 			err = uw.Replicas().Create(ctx, rp)
@@ -402,7 +440,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		}
 
 		return nil
-	}, l.idxkeys, l.files, l.fs, l.replicas, l.state)
+	}, l.idxkeys, l.files, l.fs, l.replicas, l.state, l.idxttls)
 
 	if err != nil {
 		return err
@@ -439,58 +477,62 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 
 func (l *local) DeleteFile(ctx context.Context, key string) error {
 	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
-		ik, err := uw.IDXKeys().FindByKey(ctx, key)
+		return l.deleteFile(ctx, uw, key)
+	}, l.idxkeys, l.files, l.fs, l.state)
+}
+
+func (l *local) deleteFile(ctx context.Context, uw uow.UnitOfWork, key string) error {
+	ik, err := uw.IDXKeys().FindByKey(ctx, key)
+	if err != nil {
+		return err
+	}
+	dbf, err := uw.Files().FindBySignature(ctx, ik.Value)
+	if err != nil && err.Error() != "not found" {
+		return err
+	}
+	newKeys := make([]string, 0, len(dbf.Keys)-1)
+	for _, k := range dbf.Keys {
+		if k == key {
+			continue
+		}
+		newKeys = append(newKeys, k)
+	}
+	if len(newKeys) == 0 {
+		err = uw.Files().DeleteBySignature(ctx, ik.Value)
 		if err != nil {
 			return err
 		}
-		dbf, err := uw.Files().FindBySignature(ctx, ik.Value)
-		if err != nil && err.Error() != "not found" {
+
+		err = uw.Fs().Remove(file.Path(l.fileDir, ik.Value))
+		if err != nil {
 			return err
 		}
-		newKeys := make([]string, 0, len(dbf.Keys)-1)
-		for _, k := range dbf.Keys {
-			if k == key {
-				continue
-			}
-			newKeys = append(newKeys, k)
+
+		// Update the State with the new file
+		// created size
+		st, err := uw.State().Find(ctx)
+		if err != nil {
+			return err
 		}
-		if len(newKeys) == 0 {
-			err = uw.Files().DeleteBySignature(ctx, ik.Value)
-			if err != nil {
-				return err
-			}
-
-			err = uw.Fs().Remove(file.Path(l.fileDir, ik.Value))
-			if err != nil {
-				return err
-			}
-
-			// Update the State with the new file
-			// created size
-			st, err := uw.State().Find(ctx)
-			if err != nil {
-				return err
-			}
-			if !st.Use(-dbf.Size) {
-				return errors.New("file is too large for the dedicated space left")
-			}
-
-			err = uw.State().Update(ctx, st)
-			if err != nil {
-				return err
-			}
-
-		} else {
-			dbf.Keys = newKeys
-
-			err = uw.Files().CreateOrReplace(ctx, dbf)
-			if err != nil {
-				return err
-			}
+		if !st.Use(-dbf.Size) {
+			return errors.New("file is too large for the dedicated space left")
 		}
 
-		return uw.IDXKeys().DeleteByKey(ctx, key)
-	}, l.idxkeys, l.files, l.fs, l.state)
+		err = uw.State().Update(ctx, st)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		dbf.Keys = newKeys
+
+		err = uw.Files().CreateOrReplace(ctx, dbf)
+		if err != nil {
+			return err
+		}
+	}
+
+	return uw.IDXKeys().DeleteByKey(ctx, key)
 }
 
 func (l *local) HasFile(ctx context.Context, k string) (string, bool, error) {

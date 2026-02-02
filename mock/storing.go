@@ -8,6 +8,7 @@ import (
 	context "context"
 	io "io"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	config "github.com/xescugc/rebost/config"
@@ -52,32 +53,32 @@ func (mr *StoringMockRecorder) Config(arg0 interface{}) *gomock.Call {
 }
 
 // CreateFile mocks base method.
-func (m *Storing) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 int) error {
+func (m *Storing) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 int, arg4 time.Duration, arg5 time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "CreateFile", arg0, arg1, arg2, arg3, arg4, arg5)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateFile indicates an expected call of CreateFile.
-func (mr *StoringMockRecorder) CreateFile(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *StoringMockRecorder) CreateFile(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*Storing)(nil).CreateFile), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*Storing)(nil).CreateFile), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // CreateReplica mocks base method.
-func (m *Storing) CreateReplica(arg0 context.Context, arg1 string, arg2 io.ReadCloser) (string, error) {
+func (m *Storing) CreateReplica(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 time.Duration, arg4 time.Time) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateReplica", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "CreateReplica", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateReplica indicates an expected call of CreateReplica.
-func (mr *StoringMockRecorder) CreateReplica(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *StoringMockRecorder) CreateReplica(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateReplica", reflect.TypeOf((*Storing)(nil).CreateReplica), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateReplica", reflect.TypeOf((*Storing)(nil).CreateReplica), arg0, arg1, arg2, arg3, arg4)
 }
 
 // DeleteFile mocks base method.

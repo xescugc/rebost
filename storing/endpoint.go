@@ -3,15 +3,18 @@ package storing
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/xescugc/rebost/storing/model"
 )
 
 type createFileRequest struct {
-	Key     string
-	Body    io.ReadCloser
-	Replica int
+	Key       string
+	Body      io.ReadCloser
+	Replica   int
+	TTL       time.Duration
+	CreatedAt time.Time
 }
 
 type createFileResponse struct {
@@ -23,7 +26,7 @@ func (r createFileResponse) error() error { return r.Err }
 func makeCreateFileEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createFileRequest)
-		err := s.CreateFile(ctx, req.Key, req.Body, req.Replica)
+		err := s.CreateFile(ctx, req.Key, req.Body, req.Replica, req.TTL, req.CreatedAt)
 		return createFileResponse{Err: err}, nil
 	}
 }
@@ -103,14 +106,16 @@ func makeGetConfigEndpoint(s Service) endpoint.Endpoint {
 }
 
 type createReplicaRequest struct {
-	Key  string
-	Body io.ReadCloser
+	Key       string
+	Body      io.ReadCloser
+	TTL       time.Duration
+	CreatedAt time.Time
 }
 
 func makeCreateReplicaEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createReplicaRequest)
-		volID, err := s.CreateReplica(ctx, req.Key, req.Body)
+		volID, err := s.CreateReplica(ctx, req.Key, req.Body, req.TTL, req.CreatedAt)
 		if err != nil {
 			return response{Err: err}, nil
 		}

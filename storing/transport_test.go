@@ -8,7 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -27,6 +29,8 @@ func TestMakeHandler(t *testing.T) {
 		cfg                  = config.Config{Name: "Pepito"}
 		createReplicaVolmeID = "createReplicaVolmeID"
 		rep                  = 2
+		ttl                  = 2 * time.Minute
+		ca                   = time.Now()
 		vid                  = "vid"
 	)
 
@@ -37,7 +41,7 @@ func TestMakeHandler(t *testing.T) {
 	server := httptest.NewServer(h)
 	client := server.Client()
 
-	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep).Do(func(_ context.Context, _ string, r io.Reader, _ int) {
+	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, r io.Reader, _ int, _ time.Duration, _ time.Time) {
 		b, err := io.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
@@ -51,7 +55,7 @@ func TestMakeHandler(t *testing.T) {
 		return "", false, nil
 	}).AnyTimes()
 	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
-	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any()).Do(func(_ context.Context, _ string, r io.Reader) {
+	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any(), ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, r io.Reader, _ time.Duration, _ time.Time) {
 		b, err := io.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
@@ -68,7 +72,7 @@ func TestMakeHandler(t *testing.T) {
 	}{
 		{
 			Name:        "CreateFile",
-			URL:         "/files/fileName?replica=2",
+			URL:         fmt.Sprintf("/files/fileName?replica=%d&ttl=%s&created_at=%s", rep, ttl, url.QueryEscape(ca.Format(time.RFC3339))),
 			Method:      http.MethodPut,
 			Body:        []byte("content"),
 			EStatusCode: http.StatusCreated,
@@ -113,7 +117,7 @@ func TestMakeHandler(t *testing.T) {
 		},
 		{
 			Name:        "CreateReplica",
-			URL:         "/replicas/fileName",
+			URL:         fmt.Sprintf("/replicas/fileName?ttl=%s&created_at=%s", ttl, url.QueryEscape(ca.Format(time.RFC3339))),
 			Method:      http.MethodPut,
 			Body:        []byte("content"),
 			EStatusCode: http.StatusOK,
@@ -126,7 +130,7 @@ func TestMakeHandler(t *testing.T) {
 		{
 			Name:        "UpdateFileReplica",
 			URL:         "/replicas/fileName",
-			Body:        []byte(`{"volume_ids": ["1","2"], "replica": 2}`),
+			Body:        []byte(fmt.Sprintf(`{"volume_ids": ["1","2"], "replica": %d}`, rep)),
 			Method:      http.MethodPatch,
 			EStatusCode: http.StatusOK,
 		},
@@ -150,4 +154,21 @@ func TestMakeHandler(t *testing.T) {
 			require.Equal(t, tt.EStatusCode, resp.StatusCode)
 		})
 	}
+}
+
+type timeMatcher struct {
+	t time.Time
+}
+
+func (tm timeMatcher) Matches(x interface{}) bool {
+	t, ok := x.(time.Time)
+	if !ok {
+		return false
+	}
+
+	return t.Format(time.RFC3339) == tm.t.Format(time.RFC3339)
+}
+
+func (tm timeMatcher) String() string {
+	return fmt.Sprintf("is equal to %s", tm.t.Format(time.RFC3339))
 }

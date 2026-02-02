@@ -1,6 +1,6 @@
 module github.com/xescugc/rebost
 
-go 1.20
+go 1.25
 
 require (
 	code.cloudfoundry.org/bytefmt v0.0.0-20211005130812-5bb3c17173e5
@@ -16,6 +16,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.4
+	github.com/xescugc/duration v1.1.0
 	github.com/xyproto/randomstring v1.0.5
 	go.etcd.io/bbolt v1.3.7
 )

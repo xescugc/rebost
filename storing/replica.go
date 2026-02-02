@@ -40,7 +40,7 @@ func (s *service) loopVolumesReplicas() {
 						s.logger.Log("msg", err.Error())
 						continue
 					}
-					vID, err := n.CreateReplica(s.ctx, rp.Key, iorc)
+					vID, err := n.CreateReplica(s.ctx, rp.Key, iorc, rp.TTL, rp.CreatedAt)
 					if err != nil {
 						s.logger.Log("msg", err.Error())
 						continue
@@ -50,7 +50,7 @@ func (s *service) loopVolumesReplicas() {
 
 					for _, vid := range rp.VolumeIDs {
 						// If is this node we do not need to do it
-						// as it's the owener master
+						// as it's the owner master
 						if vid == v.ID() {
 							continue
 						}

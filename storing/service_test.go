@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/golang/mock/gomock"
@@ -19,6 +20,10 @@ import (
 	"github.com/xescugc/rebost/volume"
 )
 
+var (
+	noRep int
+)
+
 func TestCreateFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
@@ -27,20 +32,22 @@ func TestCreateFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 2
+			ttl  = 2 * time.Minute
+			ca   = time.Now()
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep).Return(nil)
+		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep, ttl, ca).Return(nil)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
 		require.NoError(t, err)
 
-		err = s.CreateFile(ctx, key, buff, rep)
+		err = s.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessWithConfigReplica", func(t *testing.T) {
@@ -50,13 +57,15 @@ func TestCreateFile(t *testing.T) {
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 2
+			ttl  = 2 * time.Minute
+			ca   = time.Now()
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep).Return(nil)
+		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep, ttl, ca).Return(nil)
 
 		// It's AnyTimes as we have the config witha number of replicas
 		// which activates the goroutines that also calls this
@@ -69,7 +78,7 @@ func TestCreateFile(t *testing.T) {
 		s, err := storing.New(&config.Config{Replica: rep, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
 		require.NoError(t, err)
 
-		err = s.CreateFile(ctx, key, buff, 0)
+		err = s.CreateFile(ctx, key, buff, noRep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
@@ -299,13 +308,15 @@ func TestCreateReplica(t *testing.T) {
 			ctrl           = gomock.NewController(t)
 			ctx            = context.Background()
 			createdToVolID = "createdToVolID"
+			ttl            = 2 * time.Minute
+			ca             = time.Now()
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().CreateFile(gomock.Any(), key, buff, 1).Return(nil)
+		v.EXPECT().CreateFile(gomock.Any(), key, buff, 1, ttl, ca).Return(nil)
 
 		// It's AnyTimes as we have the config witha number of replicas
 		// which activates the goroutines that also calls this
@@ -320,7 +331,7 @@ func TestCreateReplica(t *testing.T) {
 		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
 		require.NoError(t, err)
 
-		volID, err := s.CreateReplica(ctx, key, buff)
+		volID, err := s.CreateReplica(ctx, key, buff, ttl, ca)
 		require.NoError(t, err)
 		assert.Equal(t, createdToVolID, volID)
 	})
@@ -330,6 +341,8 @@ func TestCreateReplica(t *testing.T) {
 			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
+			ttl  = 2 * time.Minute
+			ca   = time.Now()
 		)
 
 		m := mock.NewMembership(ctrl)
@@ -338,7 +351,7 @@ func TestCreateReplica(t *testing.T) {
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
 		require.NoError(t, err)
 
-		volID, err := s.CreateReplica(ctx, key, buff)
+		volID, err := s.CreateReplica(ctx, key, buff, ttl, ca)
 		assert.EqualError(t, err, "can not store replicas")
 		assert.Equal(t, "", volID)
 	})
