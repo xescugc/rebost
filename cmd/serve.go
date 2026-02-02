@@ -71,6 +71,10 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating IDXKeys Repository: %s", err)
 				}
+				idxttl, err := boltdb.NewIDXTTLRepository(bdb)
+				if err != nil {
+					return fmt.Errorf("error creating IDXTTL Repository: %s", err)
+				}
 				idxvolumes, err := boltdb.NewIDXVolumeRepository(bdb)
 				if err != nil {
 					return fmt.Errorf("error creating IDXVolumes Repository: %s", err)
@@ -100,7 +104,7 @@ var (
 					return fmt.Errorf("error getting the state of Volume: %s", err)
 				}
 
-				v, err := volume.New(vp, files, idxkeys, idxvolumes, replicas, stater, osfs, logger, suow)
+				v, err := volume.New(vp, files, idxkeys, idxttl, idxvolumes, replicas, stater, osfs, logger, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}

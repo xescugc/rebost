@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/xescugc/rebost/config"
@@ -102,9 +103,11 @@ func (cl *Client) Config(ctx context.Context) (*config.Config, error) {
 }
 
 type createFileRequest struct {
-	Key     string
-	IORC    io.ReadCloser
-	Replica int
+	Key       string
+	IORC      io.ReadCloser
+	Replica   int
+	TTL       time.Duration
+	CreatedAt time.Time
 }
 
 type createFileResponse struct {
@@ -112,9 +115,9 @@ type createFileResponse struct {
 }
 
 // CreateFile creates a file with the  given key and the r content with rep replicas
-func (cl *Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int) error {
+func (cl *Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep int, ttl time.Duration, ca time.Time) error {
 	c := cl.getClient()
-	response, err := c.createFile(ctx, createFileRequest{Key: key, IORC: r, Replica: rep})
+	response, err := c.createFile(ctx, createFileRequest{Key: key, IORC: r, Replica: rep, TTL: ttl, CreatedAt: ca})
 	if err != nil {
 		return err
 	}
@@ -129,8 +132,10 @@ func (cl *Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, r
 }
 
 type createReplicaRequest struct {
-	Key  string
-	IORC io.ReadCloser
+	Key       string
+	IORC      io.ReadCloser
+	TTL       time.Duration
+	CreatedAt time.Time
 }
 
 type createReplicaResponse struct {
@@ -139,9 +144,9 @@ type createReplicaResponse struct {
 }
 
 // CreateReplica creates a new replica to the Node
-func (cl *Client) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
+func (cl *Client) CreateReplica(ctx context.Context, key string, reader io.ReadCloser, ttl time.Duration, ca time.Time) (string, error) {
 	c := cl.getClient()
-	response, err := c.createReplica(ctx, createReplicaRequest{Key: key, IORC: reader})
+	response, err := c.createReplica(ctx, createReplicaRequest{Key: key, IORC: reader, TTL: ttl, CreatedAt: ca})
 	if err != nil {
 		return "", err
 	}

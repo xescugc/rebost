@@ -31,7 +31,7 @@ type Service interface {
 	Config(context.Context) (*config.Config, error)
 
 	// CreateReplica creates a new File replica
-	CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (vID string, err error)
+	CreateReplica(ctx context.Context, key string, reader io.ReadCloser, ttl time.Duration, ca time.Time) (vID string, err error)
 }
 
 type service struct {
@@ -71,6 +71,7 @@ func New(cfg *config.Config, m Membership, logger kitlog.Logger) (Service, error
 		go s.loopVolumesReplicas()
 		go s.loopRemovedVolumeDIs()
 	}
+	//go s.loopTLL()
 
 	return s, nil
 }
@@ -79,11 +80,11 @@ func (s *service) Config(_ context.Context) (*config.Config, error) {
 	return s.cfg, nil
 }
 
-func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep int) error {
+func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep int, ttl time.Duration, ca time.Time) error {
 	if rep == 0 {
 		rep = s.cfg.Replica
 	}
-	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r, rep)
+	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r, rep, ttl, ca)
 	if err != nil {
 		return err
 	}
@@ -137,12 +138,12 @@ func (s *service) HasFile(ctx context.Context, k string) (string, bool, error) {
 	return "", false, nil
 }
 
-func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadCloser) (string, error) {
+func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadCloser, ttl time.Duration, ca time.Time) (string, error) {
 	if s.cfg.Replica == -1 {
 		return "", errors.New("can not store replicas")
 	}
 	v := s.getLocalVolume(ctx, key)
-	err := v.CreateFile(ctx, key, reader, noReplica)
+	err := v.CreateFile(ctx, key, reader, noReplica, ttl, ca)
 	if err != nil {
 		return "", err
 	}

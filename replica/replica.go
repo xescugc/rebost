@@ -1,5 +1,7 @@
 package replica
 
+import "time"
+
 // Replica is the struct holding a pending file to replicate
 type Replica struct {
 	// ID is the identifier of the replica
@@ -28,4 +30,10 @@ type Replica struct {
 	// inside the Volume. It's used to index in a
 	// unique increase order on the DB
 	VolumeReplicaID []byte
+
+	// TTL is the duration the original file has
+	TTL time.Duration
+
+	// CreatedAt is the time of creation of the original file
+	CreatedAt time.Time
 }

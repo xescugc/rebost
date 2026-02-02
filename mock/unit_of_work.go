@@ -11,6 +11,7 @@ import (
 	afero "github.com/spf13/afero"
 	file "github.com/xescugc/rebost/file"
 	idxkey "github.com/xescugc/rebost/idxkey"
+	idxttl "github.com/xescugc/rebost/idxttl"
 	idxvolume "github.com/xescugc/rebost/idxvolume"
 	replica "github.com/xescugc/rebost/replica"
 	state "github.com/xescugc/rebost/state"
@@ -79,6 +80,20 @@ func (m *UnitOfWork) IDXKeys() idxkey.Repository {
 func (mr *UnitOfWorkMockRecorder) IDXKeys() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXKeys", reflect.TypeOf((*UnitOfWork)(nil).IDXKeys))
+}
+
+// IDXTTLs mocks base method.
+func (m *UnitOfWork) IDXTTLs() idxttl.Repository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IDXTTLs")
+	ret0, _ := ret[0].(idxttl.Repository)
+	return ret0
+}
+
+// IDXTTLs indicates an expected call of IDXTTLs.
+func (mr *UnitOfWorkMockRecorder) IDXTTLs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDXTTLs", reflect.TypeOf((*UnitOfWork)(nil).IDXTTLs))
 }
 
 // IDXVolumes mocks base method.

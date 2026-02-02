@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/xescugc/rebost/storing/model"
 )
@@ -81,6 +82,8 @@ func encodeCreateFileRequest(_ context.Context, r *http.Request, request interfa
 	r.URL.Path += "/" + cfr.Key
 	q := r.URL.Query()
 	q.Set("replica", strconv.Itoa(cfr.Replica))
+	q.Set("ttl", cfr.TTL.String())
+	q.Set("created_at", cfr.CreatedAt.Format(time.RFC3339))
 	r.URL.RawQuery = q.Encode()
 	r.Body = cfr.IORC
 	return nil
@@ -100,6 +103,10 @@ func decodeCreateFileResponse(_ context.Context, r *http.Response) (interface{},
 func encodeCreateReplicaRequest(_ context.Context, r *http.Request, request interface{}) error {
 	crr := request.(createReplicaRequest)
 	r.URL.Path += "/" + crr.Key
+	q := r.URL.Query()
+	q.Set("ttl", crr.TTL.String())
+	q.Set("created_at", crr.CreatedAt.Format(time.RFC3339))
+	r.URL.RawQuery = q.Encode()
 	r.Body = crr.IORC
 	return nil
 }

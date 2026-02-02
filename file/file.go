@@ -1,6 +1,9 @@
 package file
 
-import "path"
+import (
+	"path"
+	"time"
+)
 
 // File represents the structure of a stored File with the Signature (SHA1 of the content of the File)
 // and the key which is the name of the file
@@ -19,6 +22,13 @@ type File struct {
 
 	// Is the size of the object in bytes
 	Size int
+
+	// TTL is the duration the file has before it'll be automatically deleted
+	// if 0 it means it has no expiration
+	TTL time.Duration
+
+	// CreatedAt is the time in which the object was created originally
+	CreatedAt time.Time
 }
 
 // Path calculates the storage path for the File with the Signature
@@ -53,3 +63,6 @@ func (f *File) DeleteVolumeID(vid string) {
 	}
 	f.VolumeIDs = vids
 }
+
+// ExpiresAt returns the expiration date of the File based on the CreatedAt and the TTL
+func (f *File) ExpiresAt() time.Time { return f.CreatedAt.Add(f.TTL) }

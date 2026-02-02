@@ -18,6 +18,11 @@ import (
 const (
 	firstNode = ""
 	noReplica = 0
+	noTTL     = 0
+)
+
+var (
+	noCA time.Time
 )
 
 func init() {
@@ -57,10 +62,10 @@ func TestCRUD(t *testing.T) {
 
 	t.Run("CreateFile", func(t *testing.T) {
 
-		err = cl1.CreateFile(ctx, keytxt, iorctxt, noReplica)
+		err = cl1.CreateFile(ctx, keytxt, iorctxt, noReplica, noTTL, noCA)
 		require.NoError(t, err)
 
-		err = cl3.CreateFile(ctx, keyimg, iorcimg, noReplica)
+		err = cl3.CreateFile(ctx, keyimg, iorcimg, noReplica, noTTL, noCA)
 		require.NoError(t, err)
 
 	})
@@ -177,7 +182,7 @@ func TestReplica(t *testing.T) {
 	time.Sleep(time.Second)
 
 	t.Run("HasFileReplicatedOn3/5", func(t *testing.T) {
-		err := cl1.CreateFile(ctx, keytxt, iorctxt, 3)
+		err := cl1.CreateFile(ctx, keytxt, iorctxt, 3, noTTL, noCA)
 		require.NoError(t, err)
 
 		// As the goroutine has a delay of 1s we may have to
@@ -271,6 +276,95 @@ func TestReplica(t *testing.T) {
 		}
 		assert.Equal(t, 3, okCount)
 		assert.Equal(t, 0, nokCount)
+	})
+
+}
+
+func TestTTL(t *testing.T) {
+	var (
+		keytxt     = "keytxt"
+		txtcontent = []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+		iorctxt    = io.NopCloser(bytes.NewBuffer(txtcontent))
+
+		ctx = context.Background()
+		ttl = 5 * time.Second
+	)
+
+	cl1, u1, vid1, ca1 := newClient(t, "n1", firstNode)
+	defer ca1()
+	cl2, _, vid2, ca2 := newClient(t, "n2", u1)
+	defer ca2()
+	cl3, _, vid3, ca3 := newClient(t, "n3", u1)
+	defer ca3()
+	cl4, _, vid4, ca4 := newClient(t, "n4", u1)
+	defer ca4()
+	cl5, _, vid5, ca5 := newClient(t, "n5", u1)
+	defer ca5()
+
+	clients := []*client.Client{cl1, cl2, cl3, cl4, cl5}
+	vids := []string{vid1, vid2, vid3, vid4, vid5}
+	cancels := []cancelFn{ca1, ca2, ca3, ca4, ca5}
+
+	defer func() {
+		for _, c := range cancels {
+			c()
+		}
+	}()
+
+	// Sleep one second to let the nodes communicate between each other
+	// and have the cluster stable
+	time.Sleep(time.Second)
+
+	t.Run("HasFileReplicatedOn3/5", func(t *testing.T) {
+		err := cl1.CreateFile(ctx, keytxt, iorctxt, 3, ttl, noCA)
+		require.NoError(t, err)
+
+		// As the goroutine has a delay of 1s we may have to
+		// w8 for it
+		time.Sleep(2 * time.Second)
+
+		// As it's a replica 3 so 3/5 have to have it
+		var (
+			okCount  int
+			nokCount int
+		)
+		for i, c := range clients {
+			vid, ok, err := c.HasFile(ctx, keytxt)
+			require.NoError(t, err)
+			if ok {
+				okCount++
+				assert.Equal(t, vids[i], vid)
+			} else {
+				nokCount++
+				assert.Equal(t, "", vid)
+			}
+		}
+		assert.Equal(t, 3, okCount)
+		assert.Equal(t, 2, nokCount)
+	})
+
+	// We sleep the TTL so we can check that then the file is deleted
+	time.Sleep(5 * time.Second)
+
+	t.Run("After TTL", func(t *testing.T) {
+		// As it's a replica 3 so 3/5 have to have it
+		var (
+			okCount  int
+			nokCount int
+		)
+		for i, c := range clients {
+			vid, ok, err := c.HasFile(ctx, keytxt)
+			require.NoError(t, err)
+			if ok {
+				okCount++
+				assert.Equal(t, vids[i], vid)
+			} else {
+				nokCount++
+				assert.Equal(t, "", vid)
+			}
+		}
+		assert.Equal(t, 0, okCount)
+		assert.Equal(t, 5, nokCount)
 	})
 
 }

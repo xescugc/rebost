@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/idxttl"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/state"
@@ -20,6 +21,7 @@ type unitOfWork struct {
 
 	fileRepository      file.Repository
 	idxkeyRepository    idxkey.Repository
+	idxttlRepository    idxttl.Repository
 	idxvolumeRepository idxvolume.Repository
 	fs                  afero.Fs
 	replicaRepository   replica.Repository
@@ -87,6 +89,10 @@ func (uw *unitOfWork) Files() file.Repository {
 
 func (uw *unitOfWork) IDXKeys() idxkey.Repository {
 	return uw.idxkeyRepository
+}
+
+func (uw *unitOfWork) IDXTTLs() idxttl.Repository {
+	return uw.idxttlRepository
 }
 
 func (uw *unitOfWork) IDXVolumes() idxvolume.Repository {
@@ -169,6 +175,17 @@ func (uw *unitOfWork) add(r interface{}) error {
 			}
 			r.bucket = b
 			uw.idxkeyRepository = &r
+		}
+		return nil
+	case *idxttlRepository:
+		if uw.idxttlRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.idxttlRepository = &r
 		}
 		return nil
 	case *idxvolumeRepository:

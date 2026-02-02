@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- TTL to the files so they can have an expiration date
+  [Issue#71](https://github.com/xescugc/rebost/issues/71)
+
 ## [0.3.0] - 2023-03-31
 
 ### Added

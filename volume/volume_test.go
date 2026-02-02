@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	uuid "github.com/satori/go.uuid"
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
+	"github.com/xescugc/rebost/idxttl"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/replica"
@@ -34,6 +36,7 @@ func TestNew(t *testing.T) {
 
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
+		idxttls := mock.NewIDXTTLRepository(ctrl)
 		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
@@ -58,7 +61,7 @@ func TestNew(t *testing.T) {
 		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 		sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -84,6 +87,7 @@ func TestNew(t *testing.T) {
 
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
+		idxttls := mock.NewIDXTTLRepository(ctrl)
 		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
@@ -111,7 +115,7 @@ func TestNew(t *testing.T) {
 			return nil
 		})
 
-		v, err := volume.New(rootDirWithSize, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDirWithSize, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -135,6 +139,7 @@ func TestNew(t *testing.T) {
 
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
+		idxttls := mock.NewIDXTTLRepository(ctrl)
 		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
@@ -164,7 +169,7 @@ func TestNew(t *testing.T) {
 		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 		sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -177,6 +182,7 @@ func TestNew(t *testing.T) {
 
 		files := mock.NewFileRepository(ctrl)
 		idxkeys := mock.NewIDXKeyRepository(ctrl)
+		idxttls := mock.NewIDXTTLRepository(ctrl)
 		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
@@ -189,7 +195,7 @@ func TestNew(t *testing.T) {
 
 		defer ctrl.Finish()
 
-		v, err := volume.New(rootDir, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
 		assert.Equal(t, "byte quantity must be a positive integer with a unit of measurement like M, MB, MiB, G, GiB, or GB", err.Error())
 		assert.Empty(t, v)
 	})
@@ -202,6 +208,8 @@ func TestCreateFile(t *testing.T) {
 			rootDir  = "/"
 			mv       = newManageVolume(t, rootDir)
 			rep      = 2
+			ttl      = 2 * time.Minute
+			ca       = time.Now()
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
@@ -212,16 +220,21 @@ func TestCreateFile(t *testing.T) {
 				Replica:   2,
 				VolumeIDs: []string{mv.V.ID()},
 				Size:      19,
+				TTL:       ttl,
+				CreatedAt: ca,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
 			}
+			eittl = idxttl.New(ef.ExpiresAt(), "1", ef.Signature)
 
 			ctx = context.Background()
 		)
 
 		defer mv.Finish()
+
+		mv.IDXTTLs.EXPECT().Filter(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
 		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
 			assert.True(t, strings.HasPrefix(p, tmpsDir))
@@ -244,6 +257,9 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
+		mv.IDXTTLs.EXPECT().Find(ctx, ef.ExpiresAt()).Return(idxttl.New(ef.ExpiresAt(), eittl.Signatures[0]), nil)
+		mv.IDXTTLs.EXPECT().CreateOrReplace(ctx, eittl).Return(nil)
+
 		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
 			func(_ context.Context, rp *replica.Replica) error {
 				assert.Equal(t, mv.V.ID(), rp.VolumeID)
@@ -257,7 +273,7 @@ func TestCreateFile(t *testing.T) {
 
 		expectUpdateState(t, mv, ctx, ef.Size)
 
-		err := mv.V.CreateFile(ctx, key, buff, rep)
+		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessUpdateFileKey", func(t *testing.T) {
@@ -270,16 +286,21 @@ func TestCreateFile(t *testing.T) {
 			key      = "expectedkey"
 			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			rep      = 2
+			ttl      = 2 * time.Minute
+			ca       = time.Now()
 			ef       = file.File{
 				Keys:      []string{"b", key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   rep,
 				VolumeIDs: []string{mv.V.ID()},
+				TTL:       ttl,
+				CreatedAt: ca,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
 			}
+			eittl = idxttl.New(ef.ExpiresAt(), "1", ef.Signature)
 
 			ctx = context.Background()
 		)
@@ -303,6 +324,8 @@ func TestCreateFile(t *testing.T) {
 			Keys:      []string{"b"},
 			Signature: ef.Signature,
 			Replica:   rep,
+			TTL:       ttl,
+			CreatedAt: ca,
 		}, nil)
 
 		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
@@ -310,6 +333,9 @@ func TestCreateFile(t *testing.T) {
 		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
+
+		mv.IDXTTLs.EXPECT().Find(ctx, ef.ExpiresAt()).Return(idxttl.New(ef.ExpiresAt(), eittl.Signatures[0]), nil)
+		mv.IDXTTLs.EXPECT().CreateOrReplace(ctx, eittl).Return(nil)
 
 		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
 			func(_ context.Context, rp *replica.Replica) error {
@@ -322,7 +348,7 @@ func TestCreateFile(t *testing.T) {
 			},
 		).Return(nil)
 
-		err := mv.V.CreateFile(ctx, key, buff, rep)
+		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessSame", func(t *testing.T) {
@@ -334,12 +360,16 @@ func TestCreateFile(t *testing.T) {
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
 			rep      = 2
+			ttl      = 2 * time.Minute
+			ca       = time.Now()
 			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   rep,
 				VolumeIDs: []string{mv.V.ID()},
+				TTL:       ttl,
+				CreatedAt: ca,
 			}
 
 			ctx = context.Background()
@@ -365,7 +395,7 @@ func TestCreateFile(t *testing.T) {
 			Signature: ef.Signature,
 		}, nil)
 
-		err := mv.V.CreateFile(ctx, key, buff, rep)
+		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessRemoveFileKey", func(t *testing.T) {
@@ -378,17 +408,22 @@ func TestCreateFile(t *testing.T) {
 			key      = "expectedkey"
 			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			rep      = 2
+			ttl      = 2 * time.Minute
+			ca       = time.Now()
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   rep,
 				VolumeIDs: []string{mv.V.ID()},
 				Size:      19,
+				TTL:       ttl,
+				CreatedAt: ca,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
 			}
+			eittl     = idxttl.New(ef.ExpiresAt(), "1", ef.Signature)
 			foundFile = file.File{
 				Keys:      []string{key, "b"},
 				Signature: "123123123",
@@ -437,6 +472,9 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
+		mv.IDXTTLs.EXPECT().Find(ctx, ef.ExpiresAt()).Return(idxttl.New(ef.ExpiresAt(), eittl.Signatures[0]), nil)
+		mv.IDXTTLs.EXPECT().CreateOrReplace(ctx, eittl).Return(nil)
+
 		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
 			func(_ context.Context, rp *replica.Replica) error {
 				assert.Equal(t, mv.V.ID(), rp.VolumeID)
@@ -450,7 +488,7 @@ func TestCreateFile(t *testing.T) {
 
 		expectUpdateState(t, mv, ctx, ef.Size)
 
-		err := mv.V.CreateFile(ctx, key, buff, rep)
+		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessRemoveFileKeyAndFile", func(t *testing.T) {
@@ -463,17 +501,22 @@ func TestCreateFile(t *testing.T) {
 			key      = "expectedkey"
 			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
 			rep      = 2
+			ttl      = 2 * time.Minute
+			ca       = time.Now()
 			ef       = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   rep,
 				VolumeIDs: []string{mv.V.ID()},
 				Size:      19,
+				TTL:       ttl,
+				CreatedAt: ca,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
 			}
+			eittl     = idxttl.New(ef.ExpiresAt(), "1", ef.Signature)
 			foundFile = file.File{
 				Keys:      []string{key},
 				Signature: "123123123",
@@ -520,6 +563,9 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
+		mv.IDXTTLs.EXPECT().Find(ctx, ef.ExpiresAt()).Return(idxttl.New(ef.ExpiresAt(), eittl.Signatures[0]), nil)
+		mv.IDXTTLs.EXPECT().CreateOrReplace(ctx, eittl).Return(nil)
+
 		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
 			func(_ context.Context, rp *replica.Replica) error {
 				assert.Equal(t, mv.V.ID(), rp.VolumeID)
@@ -533,7 +579,7 @@ func TestCreateFile(t *testing.T) {
 
 		expectUpdateState(t, mv, ctx, ef.Size)
 
-		err := mv.V.CreateFile(ctx, key, buff, rep)
+		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessWithNoReplica", func(t *testing.T) {
@@ -542,6 +588,8 @@ func TestCreateFile(t *testing.T) {
 			rootDir  = "/"
 			mv       = newManageVolume(t, rootDir)
 			rep      = 1
+			ttl      = 2 * time.Minute
+			ca       = time.Now()
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
@@ -552,11 +600,14 @@ func TestCreateFile(t *testing.T) {
 				Replica:   1,
 				VolumeIDs: []string{mv.V.ID()},
 				Size:      19,
+				TTL:       ttl,
+				CreatedAt: ca,
 			}
 			eik = idxkey.IDXKey{
 				Key:   key,
 				Value: ef.Signature,
 			}
+			eittl = idxttl.New(ef.ExpiresAt(), "1", ef.Signature)
 
 			ctx = context.Background()
 		)
@@ -584,9 +635,12 @@ func TestCreateFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().CreateOrReplace(ctx, &eik).Return(nil)
 
+		mv.IDXTTLs.EXPECT().Find(ctx, ef.ExpiresAt()).Return(idxttl.New(ef.ExpiresAt(), eittl.Signatures[0]), nil)
+		mv.IDXTTLs.EXPECT().CreateOrReplace(ctx, eittl).Return(nil)
+
 		expectUpdateState(t, mv, ctx, ef.Size)
 
-		err := mv.V.CreateFile(ctx, key, buff, rep)
+		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("FailsForSize", func(t *testing.T) {
@@ -595,6 +649,8 @@ func TestCreateFile(t *testing.T) {
 			rootDir  = "/"
 			mv       = newManageVolume(t, rootDir)
 			rep      = 2
+			ttl      = 2 * time.Minute
+			ca       = time.Now()
 			tmpsDir  = path.Join(rootDir, "tmps")
 			fileDir  = path.Join(rootDir, "file")
 			key      = "expectedkey"
@@ -636,7 +692,7 @@ func TestCreateFile(t *testing.T) {
 
 		mv.State.EXPECT().Find(ctx).Return(&dbs, nil)
 
-		err := mv.V.CreateFile(ctx, key, buff, rep)
+		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
 		assert.Equal(t, "file is too large for the dedicated space left", err.Error())
 	})
 }

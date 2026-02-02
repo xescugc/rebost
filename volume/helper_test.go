@@ -19,6 +19,7 @@ import (
 type manageVolume struct {
 	Files      *mock.FileRepository
 	IDXKeys    *mock.IDXKeyRepository
+	IDXTTLs    *mock.IDXTTLRepository
 	IDXVolumes *mock.IDXVolumeRepository
 	Fs         *mock.Fs
 	Replicas   *mock.ReplicaRepository
@@ -36,6 +37,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 
 	files := mock.NewFileRepository(ctrl)
 	idxkeys := mock.NewIDXKeyRepository(ctrl)
+	idxttls := mock.NewIDXTTLRepository(ctrl)
 	idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 	fs := mock.NewFs(ctrl)
 	rp := mock.NewReplicaRepository(ctrl)
@@ -45,6 +47,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 		uw := mock.NewUnitOfWork(ctrl)
 		uw.EXPECT().Files().Return(files).AnyTimes()
 		uw.EXPECT().IDXKeys().Return(idxkeys).AnyTimes()
+		uw.EXPECT().IDXTTLs().Return(idxttls).AnyTimes()
 		uw.EXPECT().IDXVolumes().Return(idxvolumes).AnyTimes()
 		uw.EXPECT().Fs().Return(fs).AnyTimes()
 		uw.EXPECT().Replicas().Return(rp).AnyTimes()
@@ -61,12 +64,13 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 	sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	v, err := volume.New(root, files, idxkeys, idxvolumes, rp, sr, fs, nil, uowFn)
+	v, err := volume.New(root, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
 	require.NoError(t, err)
 
 	return manageVolume{
 		Files:      files,
 		IDXKeys:    idxkeys,
+		IDXTTLs:    idxttls,
 		IDXVolumes: idxvolumes,
 		Fs:         fs,
 		Replicas:   rp,

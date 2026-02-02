@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -116,10 +117,26 @@ func decodeCreateFileRequest(_ context.Context, r *http.Request) (interface{}, e
 		rep = 0
 	}
 
+	ttl, err := time.ParseDuration(r.URL.Query().Get("ttl"))
+	if err != nil {
+		// If we can not transform the ttl to a duration we
+		// assume there is none
+		ttl = 0
+	}
+
+	ca, err := time.Parse(time.RFC3339, r.URL.Query().Get("created_at"))
+	if err != nil {
+		// If we can not transform the created_at to a time
+		// we just set it emtpy
+		ca = time.Time{}
+	}
+
 	return createFileRequest{
-		Key:     mux.Vars(r)["key"],
-		Body:    iorc,
-		Replica: rep,
+		Key:       mux.Vars(r)["key"],
+		Body:      iorc,
+		Replica:   rep,
+		TTL:       ttl,
+		CreatedAt: ca,
 	}, nil
 }
 
@@ -212,9 +229,25 @@ func decodeCreateReplicaRequest(_ context.Context, r *http.Request) (interface{}
 		iorc = r.Body
 	}
 
+	ttl, err := time.ParseDuration(r.URL.Query().Get("ttl"))
+	if err != nil {
+		// If we can not transform the ttl to a duration we
+		// assume there is none
+		ttl = 0
+	}
+
+	ca, err := time.Parse(time.RFC3339, r.URL.Query().Get("created_at"))
+	if err != nil {
+		// If we can not transform the created_at to a time
+		// we just set it emtpy
+		ca = time.Time{}
+	}
+
 	return createReplicaRequest{
-		Key:  mux.Vars(r)["key"],
-		Body: iorc,
+		Key:       mux.Vars(r)["key"],
+		Body:      iorc,
+		TTL:       ttl,
+		CreatedAt: ca,
 	}, nil
 }
 
