@@ -3,7 +3,7 @@ module github.com/xescugc/rebost
 go 1.25
 
 require (
-	code.cloudfoundry.org/bytefmt v0.0.0-20211005130812-5bb3c17173e5
+	code.cloudfoundry.org/bytefmt v0.63.0
 	github.com/go-kit/kit v0.13.0
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/handlers v1.5.1
@@ -50,8 +50,8 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.4.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
