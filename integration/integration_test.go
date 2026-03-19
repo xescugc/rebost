@@ -277,7 +277,29 @@ func TestReplica(t *testing.T) {
 		assert.Equal(t, 3, okCount)
 		assert.Equal(t, 0, nokCount)
 	})
+	t.Run("DeleteFile", func(t *testing.T) {
+		clients[0].DeleteFile(ctx, keytxt)
+		time.Sleep(5 * time.Second)
 
+		// As it's a replica 3 so 3/4 have to have it
+		var (
+			okCount  int
+			nokCount int
+		)
+		for i, c := range clients {
+			vid, ok, err := c.HasFile(ctx, keytxt)
+			require.NoError(t, err)
+			if ok {
+				okCount++
+				assert.Equal(t, vids[i], vid)
+			} else {
+				nokCount++
+				assert.Equal(t, "", vid)
+			}
+		}
+		assert.Equal(t, 0, okCount)
+		assert.Equal(t, 3, nokCount)
+	})
 }
 
 func TestTTL(t *testing.T) {

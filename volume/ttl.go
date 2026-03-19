@@ -43,7 +43,7 @@ func (l *local) loopTTL() {
 					}
 				}
 				return nil
-			}, l.idxttls, l.files, l.idxkeys, l.files, l.fs, l.state)
+			}, l.idxttls, l.files, l.idxkeys, l.files, l.fs, l.state, l.replicas, l.deletions)
 			if err != nil {
 				l.logger.Log("msg", err.Error())
 			}

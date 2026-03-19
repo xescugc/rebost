@@ -10,6 +10,7 @@ import (
 	"context"
 
 	"github.com/spf13/afero"
+	"github.com/xescugc/rebost/deletion"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/idxttl"
@@ -41,6 +42,7 @@ type UnitOfWork interface {
 	IDXVolumes() idxvolume.Repository
 	Fs() afero.Fs
 	Replicas() replica.Repository
+	Deletions() deletion.Repository
 	State() state.Repository
 }
 
