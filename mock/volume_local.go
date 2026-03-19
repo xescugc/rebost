@@ -95,6 +95,20 @@ func (mr *VolumeLocalMockRecorder) DeleteFile(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFile", reflect.TypeOf((*VolumeLocal)(nil).DeleteFile), arg0, arg1)
 }
 
+// DeleteReplica mocks base method.
+func (m *VolumeLocal) DeleteReplica(arg0 context.Context, arg1 *replica.Replica) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteReplica", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteReplica indicates an expected call of DeleteReplica.
+func (mr *VolumeLocalMockRecorder) DeleteReplica(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteReplica", reflect.TypeOf((*VolumeLocal)(nil).DeleteReplica), arg0, arg1)
+}
+
 // GetFile mocks base method.
 func (m *VolumeLocal) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, error) {
 	m.ctrl.T.Helper()

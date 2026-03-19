@@ -42,6 +42,18 @@ func (s *service) processNextReplica(v volume.Local) bool {
 		}
 		return false
 	}
+	_, ok, err := v.HasFile(s.ctx, rp.Key)
+	if err != nil {
+		s.logger.Error(err.Error())
+		return false
+	}
+	if !ok {
+		s.logger.Info("file no longer exists, removing stale replica job", "key", rp.Key)
+		if err = v.DeleteReplica(s.ctx, rp); err != nil {
+			s.logger.Error(err.Error())
+		}
+		return true
+	}
 	s.logger.Info("trying to replicate file", "key", rp.Key, "count", rp.Count)
 	for _, n := range s.members.NodesWithoutVolumeIDs(rp.VolumeIDs) {
 		_, ok, err := n.HasFile(s.ctx, rp.Key)

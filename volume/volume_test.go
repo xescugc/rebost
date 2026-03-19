@@ -854,6 +854,25 @@ func TestNextReplica(t *testing.T) {
 	})
 }
 
+func TestDeleteReplica(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+			rp      = &replica.Replica{
+				ID: "1",
+			}
+		)
+		defer mv.Finish()
+
+		mv.Replicas.EXPECT().Delete(ctx, rp).Return(nil)
+
+		err := mv.V.DeleteReplica(ctx, rp)
+		require.NoError(t, err)
+	})
+}
+
 func TestUpdateReplica(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
