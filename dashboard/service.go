@@ -10,7 +10,7 @@ import (
 	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/storing"
 
-	kitlog "github.com/go-kit/kit/log"
+	"log/slog"
 )
 
 // Service exposes the Dashboard service interface
@@ -23,7 +23,7 @@ type service struct {
 	members storing.Membership
 	cfg     *config.Config
 
-	logger kitlog.Logger
+	logger *slog.Logger
 }
 
 // Node defines the aggregation of other entities
@@ -35,12 +35,12 @@ type Node struct {
 
 // New returns an implementation of the Dashboard with
 // the given parameters
-func New(cfg *config.Config, m storing.Membership, logger kitlog.Logger) Service {
+func New(cfg *config.Config, m storing.Membership, logger *slog.Logger) Service {
 	return &service{
 		members: m,
 		cfg:     cfg,
 
-		logger: kitlog.With(logger, "src", "dashboard", "name", cfg.Name),
+		logger: logger.With("src", "dashboard", "name", cfg.Name),
 	}
 }
 

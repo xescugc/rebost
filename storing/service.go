@@ -8,7 +8,8 @@ import (
 	"sync"
 	"time"
 
-	kitlog "github.com/go-kit/kit/log"
+	"log/slog"
+
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
@@ -43,12 +44,12 @@ type service struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	logger kitlog.Logger
+	logger *slog.Logger
 }
 
 // New returns an implementation of the Node with
 // the given parameters
-func New(cfg *config.Config, m Membership, logger kitlog.Logger) (Service, error) {
+func New(cfg *config.Config, m Membership, logger *slog.Logger) (Service, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cache, err := lru.NewARC[string, string](cfg.Cache.Size)
 	if err != nil {
@@ -64,7 +65,7 @@ func New(cfg *config.Config, m Membership, logger kitlog.Logger) (Service, error
 		ctx:    ctx,
 		cancel: cancel,
 
-		logger: kitlog.With(logger, "src", "storing", "name", cfg.Name),
+		logger: logger.With("src", "storing", "name", cfg.Name),
 	}
 
 	if s.cfg.Replica != -1 {

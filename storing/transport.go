@@ -1,7 +1,6 @@
 package storing
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,68 +9,25 @@ import (
 	"strconv"
 	"time"
 
-	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/xescugc/rebost/storing/model"
 )
 
 // MakeHandler returns a http.Handler that uses the storing.Service
-// to make the http calls, it links eac http endpoint to a
+// to make the http calls, it links each http endpoint to a
 // storing.Service method
 func MakeHandler(s Service) http.Handler {
-	createFileHandler := kithttp.NewServer(
-		makeCreateFileEndpoint(s),
-		decodeCreateFileRequest,
-		encodeCreateFileResponse,
-	)
-
-	getFileHandler := kithttp.NewServer(
-		makeGetFileEndpoint(s),
-		decodeGetFileRequest,
-		encodeGetFileResponse,
-	)
-
-	deleteFileHandler := kithttp.NewServer(
-		makeDeleteFileEndpoint(s),
-		decodeDeleteFileRequest,
-		encodeDeleteFileResponse,
-	)
-
-	hasFileHandler := kithttp.NewServer(
-		makeHasFileEndpoint(s),
-		decodeHasFileRequest,
-		encodeHasFileResponse,
-	)
-
-	createReplicaHandler := kithttp.NewServer(
-		makeCreateReplicaEndpoint(s),
-		decodeCreateReplicaRequest,
-		encodeJSONResponse,
-	)
-
-	updateFileReplicaHandler := kithttp.NewServer(
-		makeUpdateFileReplicaEndpoint(s),
-		decodeUpdateFileReplicaRequest,
-		encodeUpdateFileReplicaResponse,
-	)
-
-	getConfigHandler := kithttp.NewServer(
-		makeGetConfigEndpoint(s),
-		decodeGetConfigRequest,
-		encodeJSONResponse,
-	)
-
 	r := mux.NewRouter()
 
-	r.Handle("/files/{key:.*}", createFileHandler).Methods("PUT")
-	r.Handle("/files/{key:.*}", getFileHandler).Methods("GET")
-	r.Handle("/files/{key:.*}", deleteFileHandler).Methods("DELETE")
-	r.Handle("/files/{key:.*}", hasFileHandler).Methods("HEAD")
+	r.Handle("/files/{key:.*}", createFileHandler(s)).Methods("PUT")
+	r.Handle("/files/{key:.*}", getFileHandler(s)).Methods("GET")
+	r.Handle("/files/{key:.*}", deleteFileHandler(s)).Methods("DELETE")
+	r.Handle("/files/{key:.*}", hasFileHandler(s)).Methods("HEAD")
 
-	r.Handle("/replicas/{key:.*}", createReplicaHandler).Methods("PUT")
-	r.Handle("/replicas/{key:.*}", updateFileReplicaHandler).Methods("PATCH")
+	r.Handle("/replicas/{key:.*}", createReplicaHandler(s)).Methods("PUT")
+	r.Handle("/replicas/{key:.*}", updateFileReplicaHandler(s)).Methods("PATCH")
 
-	r.Handle("/config", getConfigHandler).Methods("GET")
+	r.Handle("/config", getConfigHandler(s)).Methods("GET")
 
 	r.NotFoundHandler = http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -84,229 +40,177 @@ func MakeHandler(s Service) http.Handler {
 	return r
 }
 
-func decodeCreateFileRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var iorc io.ReadCloser
+func createFileHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var iorc io.ReadCloser
 
-	if mr, _ := r.MultipartReader(); mr != nil {
-		ppr, ppw := io.Pipe()
+		if mr, _ := r.MultipartReader(); mr != nil {
+			ppr, ppw := io.Pipe()
 
-		go func() {
-			for {
-				p, err := mr.NextPart()
-				if err == io.EOF {
-					ppw.Close()
-					return
+			go func() {
+				for {
+					p, err := mr.NextPart()
+					if err == io.EOF {
+						ppw.Close()
+						return
+					}
+					if err != nil {
+						log.Println(err)
+						return
+					}
+					io.Copy(ppw, p)
 				}
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				io.Copy(ppw, p)
-			}
-		}()
+			}()
 
-		iorc = ppr
-	} else {
-		iorc = r.Body
+			iorc = ppr
+		} else {
+			iorc = r.Body
+		}
+
+		rep, err := strconv.Atoi(r.URL.Query().Get("replica"))
+		if err != nil {
+			rep = 0
+		}
+
+		ttl, err := time.ParseDuration(r.URL.Query().Get("ttl"))
+		if err != nil {
+			ttl = 0
+		}
+
+		ca, err := time.Parse(time.RFC3339, r.URL.Query().Get("created_at"))
+		if err != nil {
+			ca = time.Time{}
+		}
+
+		err = s.CreateFile(r.Context(), mux.Vars(r)["key"], iorc, rep, ttl, ca)
+		if err != nil {
+			encodeError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
 	}
-
-	rep, err := strconv.Atoi(r.URL.Query().Get("replica"))
-	if err != nil {
-		// If we can not transform the replica to an Int, we
-		// just use the default value of int, which is 0
-		rep = 0
-	}
-
-	ttl, err := time.ParseDuration(r.URL.Query().Get("ttl"))
-	if err != nil {
-		// If we can not transform the ttl to a duration we
-		// assume there is none
-		ttl = 0
-	}
-
-	ca, err := time.Parse(time.RFC3339, r.URL.Query().Get("created_at"))
-	if err != nil {
-		// If we can not transform the created_at to a time
-		// we just set it emtpy
-		ca = time.Time{}
-	}
-
-	return createFileRequest{
-		Key:       mux.Vars(r)["key"],
-		Body:      iorc,
-		Replica:   rep,
-		TTL:       ttl,
-		CreatedAt: ca,
-	}, nil
 }
 
-func encodeCreateFileResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
+func getFileHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		iorc, err := s.GetFile(r.Context(), mux.Vars(r)["key"])
+		if err != nil {
+			encodeError(w, err)
+			return
+		}
+		defer iorc.Close()
+		io.Copy(w, iorc)
 	}
-	w.WriteHeader(http.StatusCreated)
-	return nil
 }
 
-func decodeGetFileRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	return getFileRequest{
-		Key: mux.Vars(r)["key"],
-	}, nil
-}
-
-func encodeGetFileResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
-
-	gfr := response.(getFileResponse)
-	defer gfr.IORC.Close()
-	_, err := io.Copy(w, gfr.IORC)
-	return err
-}
-
-func decodeDeleteFileRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	return deleteFileRequest{
-		Key: mux.Vars(r)["key"],
-	}, nil
-}
-
-func encodeDeleteFileResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
-	w.WriteHeader(http.StatusNoContent)
-	return nil
-}
-
-func decodeHasFileRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	return hasFileRequest{
-		Key: mux.Vars(r)["key"],
-	}, nil
-}
-
-func encodeHasFileResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	hfr := response.(hasFileResponse)
-	w.Header().Add(model.HasFileVolumeIDHeader, hfr.VolumeID)
-	if hfr.Ok {
+func deleteFileHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := s.DeleteFile(r.Context(), mux.Vars(r)["key"])
+		if err != nil {
+			encodeError(w, err)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
-	} else {
-		w.WriteHeader(http.StatusNotFound)
 	}
-	return nil
 }
 
-func decodeGetConfigRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	return nil, nil
+func hasFileHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vid, ok, err := s.HasFile(r.Context(), mux.Vars(r)["key"])
+		if err != nil {
+			encodeError(w, err)
+			return
+		}
+		w.Header().Add(model.HasFileVolumeIDHeader, vid)
+		if ok {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}
 }
 
-func decodeCreateReplicaRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var iorc io.ReadCloser
+func createReplicaHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var iorc io.ReadCloser
 
-	if mr, _ := r.MultipartReader(); mr != nil {
-		ppr, ppw := io.Pipe()
+		if mr, _ := r.MultipartReader(); mr != nil {
+			ppr, ppw := io.Pipe()
 
-		go func() {
-			for {
-				p, err := mr.NextPart()
-				if err == io.EOF {
-					ppw.Close()
-					return
+			go func() {
+				for {
+					p, err := mr.NextPart()
+					if err == io.EOF {
+						ppw.Close()
+						return
+					}
+					if err != nil {
+						log.Println(err)
+						return
+					}
+					io.Copy(ppw, p)
 				}
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				io.Copy(ppw, p)
-			}
-		}()
+			}()
 
-		iorc = ppr
-	} else {
-		iorc = r.Body
+			iorc = ppr
+		} else {
+			iorc = r.Body
+		}
+
+		ttl, err := time.ParseDuration(r.URL.Query().Get("ttl"))
+		if err != nil {
+			ttl = 0
+		}
+
+		ca, err := time.Parse(time.RFC3339, r.URL.Query().Get("created_at"))
+		if err != nil {
+			ca = time.Time{}
+		}
+
+		volID, err := s.CreateReplica(r.Context(), mux.Vars(r)["key"], iorc, ttl, ca)
+		if err != nil {
+			encodeError(w, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		b, _ := json.Marshal(map[string]interface{}{"data": model.CreateReplica{VolumeID: volID}})
+		w.Write(b)
 	}
-
-	ttl, err := time.ParseDuration(r.URL.Query().Get("ttl"))
-	if err != nil {
-		// If we can not transform the ttl to a duration we
-		// assume there is none
-		ttl = 0
-	}
-
-	ca, err := time.Parse(time.RFC3339, r.URL.Query().Get("created_at"))
-	if err != nil {
-		// If we can not transform the created_at to a time
-		// we just set it emtpy
-		ca = time.Time{}
-	}
-
-	return createReplicaRequest{
-		Key:       mux.Vars(r)["key"],
-		Body:      iorc,
-		TTL:       ttl,
-		CreatedAt: ca,
-	}, nil
 }
 
-func decodeUpdateFileReplicaRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var ufr model.UpdateFileReplica
-	err := json.NewDecoder(r.Body).Decode(&ufr)
-	if err != nil {
-		return nil, err
+func updateFileReplicaHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var ufr model.UpdateFileReplica
+		if err := json.NewDecoder(r.Body).Decode(&ufr); err != nil {
+			encodeError(w, err)
+			return
+		}
+		err := s.UpdateFileReplica(r.Context(), mux.Vars(r)["key"], ufr.VolumeIDs, ufr.Replica)
+		if err != nil {
+			encodeError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
-	return updateFileReplicaRequest{
-		Key:       mux.Vars(r)["key"],
-		VolumeIDs: ufr.VolumeIDs,
-		Replica:   ufr.Replica,
-	}, nil
 }
 
-func encodeUpdateFileReplicaResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
+func getConfigHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cfg, err := s.Config(r.Context())
+		if err != nil {
+			encodeError(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		b, _ := json.Marshal(map[string]interface{}{"data": model.ConfigToModel(cfg)})
+		w.Write(b)
 	}
-
-	w.WriteHeader(http.StatusOK)
-	return nil
 }
 
-func encodeJSONResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
+func encodeError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	b, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-	_, err = fmt.Fprint(w, string(b))
-
-	return err
-}
-
-type errorer interface {
-	error() error
-}
-
-func encodeError(_ context.Context, err error, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	switch err.(type) {
-	//case errors.NotFound:
-	//w.WriteHeader(http.StatusNotFound)
-	//case errors.Invalid:
-	//w.WriteHeader(http.StatusBadRequest)
-	//case errors.AlreadyExists:
-	//w.WriteHeader(http.StatusUnprocessableEntity)
-	//case errors.Unexpected:
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-
+	w.WriteHeader(http.StatusInternalServerError)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": err.Error(),
 	})

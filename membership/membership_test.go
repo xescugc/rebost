@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
-	kitlog "github.com/go-kit/kit/log"
+	"io"
+	"log/slog"
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +31,7 @@ func TestVolumes(t *testing.T) {
 		p, err := util.FreePort()
 		require.NoError(t, err)
 
-		m, err := membership.New(&config.Config{Memberlist: config.Memberlist{Port: p}, Cache: config.Cache{Size: config.DefaultCacheSize}}, []volume.Local{v}, "", kitlog.NewNopLogger())
+		m, err := membership.New(&config.Config{Memberlist: config.Memberlist{Port: p}, Cache: config.Cache{Size: config.DefaultCacheSize}}, []volume.Local{v}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 		assert.Len(t, m.Nodes(), 0)
 		assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
@@ -49,10 +51,10 @@ func TestVolumes(t *testing.T) {
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{Name: "am2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
-			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
+			m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 
-			s, err := storing.New(cfg2, m2, kitlog.NewNopLogger())
+			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
@@ -60,7 +62,7 @@ func TestVolumes(t *testing.T) {
 			p3, err := util.FreePort()
 			require.NoError(t, err)
 			cfg := &config.Config{Name: "am", Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
-			m, err := membership.New(cfg, []volume.Local{v}, server.URL, kitlog.NewNopLogger())
+			m, err := membership.New(cfg, []volume.Local{v}, server.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
@@ -79,9 +81,9 @@ func TestVolumes(t *testing.T) {
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{Name: "rm2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
-			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
+			m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			s, err := storing.New(cfg2, m2, kitlog.NewNopLogger())
+			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
@@ -89,7 +91,7 @@ func TestVolumes(t *testing.T) {
 			p3, err := util.FreePort()
 			require.NoError(t, err)
 			cfg := &config.Config{Name: "rm", Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
-			m, err := membership.New(cfg, []volume.Local{v}, server.URL, kitlog.NewNopLogger())
+			m, err := membership.New(cfg, []volume.Local{v}, server.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
@@ -114,9 +116,9 @@ func TestVolumes(t *testing.T) {
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{Name: "rm2", Replica: -1, VolumeDowntime: 2 * time.Second, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
-			m2, err := membership.New(cfg2, []volume.Local{v2}, "", kitlog.NewNopLogger())
+			m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			s, err := storing.New(cfg2, m2, kitlog.NewNopLogger())
+			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 			server := httptest.NewServer(storing.MakeHandler(s))
 			defer server.Close()
@@ -124,7 +126,7 @@ func TestVolumes(t *testing.T) {
 			p3, err := util.FreePort()
 			require.NoError(t, err)
 			cfg := &config.Config{Name: "rm", VolumeDowntime: time.Second, Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
-			m, err := membership.New(cfg, []volume.Local{v}, server.URL, kitlog.NewNopLogger())
+			m, err := membership.New(cfg, []volume.Local{v}, server.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
