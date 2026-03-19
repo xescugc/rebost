@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	kitlog "github.com/go-kit/kit/log"
+	"log/slog"
 
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
@@ -56,8 +56,7 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 		log.Fatal(err)
 	}
 
-	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
-	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
 
 	server := httptest.NewUnstartedServer(nil)
 	server.Listener.Close()

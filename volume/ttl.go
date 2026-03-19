@@ -29,14 +29,14 @@ func (l *local) loopTTL() {
 					for _, sig := range ttl.Signatures {
 						dbf, err := uw.Files().FindBySignature(ctx, sig)
 						if err != nil {
-							l.logger.Log("msg", err.Error())
+							l.logger.Error(err.Error())
 							continue
 						}
 
 						for _, k := range dbf.Keys {
 							err = l.deleteFile(l.ctx, uw, k)
 							if err != nil {
-								l.logger.Log("msg", err.Error())
+								l.logger.Error(err.Error())
 								continue
 							}
 						}
@@ -45,7 +45,7 @@ func (l *local) loopTTL() {
 				return nil
 			}, l.idxttls, l.files, l.idxkeys, l.files, l.fs, l.state, l.replicas, l.deletions)
 			if err != nil {
-				l.logger.Log("msg", err.Error())
+				l.logger.Error(err.Error())
 			}
 		}
 	}

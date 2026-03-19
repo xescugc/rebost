@@ -46,7 +46,7 @@ func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 
 	e.members.nodesLock.Lock()
 	e.members.nodes[n.Name] = nn
-	e.members.logger.Log("action", "join", "name", n.Name, "url", url)
+	e.members.logger.Info("join", "name", n.Name, "url", url)
 	e.members.nodesLock.Unlock()
 
 	// We remove any vid that was marked as to be deleted
@@ -66,7 +66,7 @@ func (e *eventDelegate) NotifyLeave(n *memberlist.Node) {
 		e.members.removedVolumeIDs[vid] = time.Now()
 	}
 	delete(e.members.nodes, n.Name)
-	e.members.logger.Log("action", "leave", "name", n.Name)
+	e.members.logger.Info("leave", "name", n.Name)
 
 	e.members.nodesLock.Unlock()
 	e.members.removedVolumeIDsLock.Unlock()

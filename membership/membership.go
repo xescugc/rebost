@@ -10,7 +10,8 @@ import (
 	"sync"
 	"time"
 
-	kitlog "github.com/go-kit/kit/log"
+	"log/slog"
+
 	"github.com/hashicorp/memberlist"
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
@@ -37,7 +38,7 @@ type Membership struct {
 	removedVolumeIDs     map[string]time.Time
 	removedVolumeIDsLock sync.Mutex
 
-	logger kitlog.Logger
+	logger *slog.Logger
 }
 
 // node represents a Node in the cluster, with the Metadata (meta)
@@ -49,13 +50,13 @@ type node struct {
 }
 
 // New returns an implementation of the Membership interface
-func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Logger) (*Membership, error) {
+func New(cfg *config.Config, lv []volume.Local, remote string, logger *slog.Logger) (*Membership, error) {
 	m := &Membership{
 		localVolumes:     lv,
 		nodes:            make(map[string]node),
 		cfg:              cfg,
 		removedVolumeIDs: make(map[string]time.Time),
-		logger:           kitlog.With(logger, "src", "membership", "name", cfg.Name),
+		logger:           logger.With("src", "membership", "name", cfg.Name),
 	}
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
@@ -95,7 +96,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger kitlog.Log
 		if err != nil {
 			return nil, fmt.Errorf("Failed to join cluster: %s", err.Error())
 		}
-		m.logger.Log("msg", fmt.Sprintf("Joined remote cluster %q", hostPort))
+		m.logger.Info(fmt.Sprintf("Joined remote cluster %q", hostPort))
 	}
 
 	return m, nil

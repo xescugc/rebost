@@ -5,11 +5,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +44,7 @@ func TestCreateFile(t *testing.T) {
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		err = s.CreateFile(ctx, key, buff, rep, ttl, ca)
@@ -76,7 +76,7 @@ func TestCreateFile(t *testing.T) {
 		v.EXPECT().NextDeletion(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
-		s, err := storing.New(&config.Config{Replica: rep, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: rep, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		err = s.CreateFile(ctx, key, buff, noRep, ttl, ca)
@@ -105,7 +105,7 @@ func TestGetFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		v.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		ior, err := s.GetFile(ctx, key)
@@ -139,7 +139,7 @@ func TestGetFile(t *testing.T) {
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		ior, err := s.GetFile(ctx, key)
@@ -167,7 +167,7 @@ func TestDeleteFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		v.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		err = s.DeleteFile(ctx, key)
@@ -197,7 +197,7 @@ func TestDeleteFile(t *testing.T) {
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		err = s.DeleteFile(ctx, key)
@@ -221,7 +221,7 @@ func TestHasFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		vid, ok, err := s.HasFile(ctx, key)
@@ -250,7 +250,7 @@ func TestHasFile(t *testing.T) {
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil).AnyTimes()
 		v2.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		vid, ok, err := s.HasFile(ctx, key)
@@ -272,7 +272,7 @@ func TestHasFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		vid, ok, err := s.HasFile(ctx, key)
@@ -292,7 +292,7 @@ func TestConfig(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s, err := storing.New(&expcfg, m, kitlog.NewNopLogger())
+		s, err := storing.New(&expcfg, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		cfg, err := s.Config(ctx)
@@ -330,7 +330,7 @@ func TestCreateReplica(t *testing.T) {
 
 		v.EXPECT().ID().Return(createdToVolID)
 
-		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		volID, err := s.CreateReplica(ctx, key, buff, ttl, ca)
@@ -350,7 +350,7 @@ func TestCreateReplica(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		volID, err := s.CreateReplica(ctx, key, buff, ttl, ca)
@@ -386,7 +386,7 @@ func TestUpdateFileReplica(t *testing.T) {
 		v.EXPECT().NextDeletion(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
-		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		err = s.UpdateFileReplica(ctx, key, vids, rep)
@@ -404,7 +404,7 @@ func TestUpdateFileReplica(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
 		err = s.UpdateFileReplica(ctx, key, vids, rep)

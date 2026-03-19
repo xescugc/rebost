@@ -12,8 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"code.cloudfoundry.org/bytefmt"
-	kitlog "github.com/go-kit/kit/log"
+
 	uuid "github.com/satori/go.uuid"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/spf13/afero"
@@ -129,8 +131,8 @@ type local struct {
 
 	startUnitOfWork uow.StartUnitOfWork
 
-	logger         kitlog.Logger
-	originalLogger kitlog.Logger
+	logger         *slog.Logger
+	originalLogger *slog.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -140,7 +142,10 @@ type local struct {
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
 // To define a total size of the volume it has to be appended to the root like `/v1:1GB`
-func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls idxttl.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, dl deletion.Repository, sr state.Repository, fileSystem afero.Fs, logger kitlog.Logger, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls idxttl.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, dl deletion.Repository, sr state.Repository, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUnitOfWork) (Local, error) {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	sroot := strings.Split(root, ":")
 	ts := -1
@@ -213,7 +218,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls 
 	}
 
 	l.id = id
-	l.logger = kitlog.With(logger, "src", "volume", "id", id)
+	l.logger = logger.With("src", "volume", "id", id)
 
 	// Initialize state
 	err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
@@ -240,7 +245,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls 
 				err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 					err = l.calculateSize(ctx, uw, root, ts)
 					if err != nil {
-						l.logger.Log("msg", err.Error())
+						l.logger.Error(err.Error())
 					}
 					return nil
 				}, l.state)
@@ -858,7 +863,7 @@ func (l *local) Reset(ctx context.Context) error {
 
 		id, err := l.createID(idPath)
 		l.id = id
-		l.logger = kitlog.With(l.originalLogger, "src", "volume", "id", id)
+		l.logger = l.originalLogger.With("src", "volume", "id", id)
 
 		l.calculateSize(ctx, uw, l.root, l.totalSize)
 		return nil

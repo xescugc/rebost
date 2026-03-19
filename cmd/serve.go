@@ -14,7 +14,8 @@ import (
 	"strings"
 	"syscall"
 
-	kitlog "github.com/go-kit/kit/log"
+	"log/slog"
+
 	"github.com/gorilla/handlers"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -44,8 +45,7 @@ var (
 			if err != nil {
 				return err
 			}
-			logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
-			logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
 
 			if len(cfg.Volumes) == 0 {
 				return errors.New("at last one volume is required")
@@ -114,14 +114,14 @@ var (
 				}
 
 				if st.IsInDowntimeRange(cfg.VolumeDowntime) {
-					logger.Log("msg", fmt.Sprintf("Resetting the volume due to downtime: %q", vp))
+					logger.Info(fmt.Sprintf("Resetting the volume due to downtime: %q", vp))
 					err = v.Reset(ctx)
 					if err != nil {
 						return fmt.Errorf("error resetting the Volume due to downtime: %s", err)
 					}
 				}
 
-				logger.Log("msg", fmt.Sprintf("Attached to volume: %q", vp))
+				logger.Info(fmt.Sprintf("Attached to volume: %q", vp))
 				vs = append(vs, v)
 			}
 
@@ -163,7 +163,7 @@ var (
 				if uri == "" {
 					uri = params.URL.RequestURI()
 				}
-				logger.Log(
+				logger.Info("request",
 					"name", cfg.Name,
 					"host", host,
 					"username", username,
@@ -188,7 +188,7 @@ var (
 			}()
 
 			go func() {
-				logger.Log("port", cfg.Port, "msg", "started storing server")
+				logger.Info("started storing server", "port", cfg.Port)
 				errs <- svr.ListenAndServe()
 			}()
 
@@ -208,12 +208,12 @@ var (
 				}
 
 				go func() {
-					logger.Log("port", cfg.Dashboard.Port, "msg", "started dashboard server")
+					logger.Info("started dashboard server", "port", cfg.Dashboard.Port)
 					errs <- dsvr.ListenAndServe()
 				}()
 			}
 
-			logger.Log("exit", <-errs)
+			logger.Info("exit", "err", <-errs)
 
 			return nil
 		},
