@@ -12,42 +12,37 @@ import (
 
 //go:generate mockgen -destination=../mock/fs.go -mock_names=Fs=Fs -package=mock github.com/spf13/afero Fs
 
-// UOWWithFs creates a Unit of Work for the fs.Fs that will wrap a uow.StartUnitOfWork repositories that
-// fulfil the fs.Fs with a tracker. In order to 'rollback' and 'commit' all the actions done.
-// For now it only supports 'Create', 'Remove' and 'Rename' actions to Rollback.
-// TODO: Eventually add support for the uow.Type, if it's uow.Read only allow read operations
-// and if it's uow.Write allow all operations.
-func UOWWithFs(suow uow.StartUnitOfWork) uow.StartUnitOfWork {
-	return func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) error {
-		newRepos := make([]interface{}, 0, len(repos))
-		fsRepos := make([]*uowTracker, 0)
+// fsWrappedUoW embeds a UnitOfWork and overrides Fs() to return the tracker.
+type fsWrappedUoW struct {
+	uow.UnitOfWork
+	tracker *uowTracker
+}
 
-		for _, v := range repos {
-			if f, ok := v.(afero.Fs); ok {
-				uowt := newUOWTracker(f)
-				fsRepos = append(fsRepos, uowt)
-				v = uowt
-			}
-			newRepos = append(newRepos, v)
-		}
+func (w *fsWrappedUoW) Fs() afero.Fs { return w.tracker }
 
-		err := suow(ctx, t, uowFn, newRepos...)
+// UOWWithFs creates a Unit of Work wrapper that tracks filesystem operations
+// (Create, Remove, Rename) and rolls them back or commits them depending on
+// whether the inner UoW succeeds or fails.
+func UOWWithFs(baseFs afero.Fs, suow uow.StartUnitOfWork) uow.StartUnitOfWork {
+	return func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn) error {
+		tracker := newUOWTracker(baseFs)
+
+		err := suow(ctx, t, func(ctx context.Context, uw uow.UnitOfWork) error {
+			return uowFn(ctx, &fsWrappedUoW{UnitOfWork: uw, tracker: tracker})
+		})
+
 		if err != nil {
-			for _, r := range fsRepos {
-				for _, ra := range r.rollbackActions {
-					if rerr := ra(r.fs); rerr != nil {
-						// TODO: Do we stop execution or continue doing the Rollback actions?
-						return rerr
-					}
+			for _, ra := range tracker.rollbackActions {
+				if rerr := ra(tracker.fs); rerr != nil {
+					// TODO: Do we stop execution or continue doing the Rollback actions?
+					return rerr
 				}
 			}
 		} else {
-			for _, r := range fsRepos {
-				for _, ra := range r.commitActions {
-					if cerr := ra(r.fs); cerr != nil {
-						// TODO: Do we stop execution or continue doing the Commit actions?
-						return cerr
-					}
+			for _, ra := range tracker.commitActions {
+				if cerr := ra(tracker.fs); cerr != nil {
+					// TODO: Do we stop execution or continue doing the Commit actions?
+					return cerr
 				}
 			}
 		}

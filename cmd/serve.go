@@ -63,35 +63,11 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating the BoltDB: %s", err)
 				}
-				files, err := boltdb.NewFileRepository(bdb)
+				boltdbUow, err := boltdb.NewUOW(bdb)
 				if err != nil {
-					return fmt.Errorf("error creating File Repository: %s", err)
+					return fmt.Errorf("error creating BoltDB UoW: %s", err)
 				}
-				idxkeys, err := boltdb.NewIDXKeyRepository(bdb)
-				if err != nil {
-					return fmt.Errorf("error creating IDXKeys Repository: %s", err)
-				}
-				idxttl, err := boltdb.NewIDXTTLRepository(bdb)
-				if err != nil {
-					return fmt.Errorf("error creating IDXTTL Repository: %s", err)
-				}
-				idxvolumes, err := boltdb.NewIDXVolumeRepository(bdb)
-				if err != nil {
-					return fmt.Errorf("error creating IDXVolumes Repository: %s", err)
-				}
-				replicas, err := boltdb.NewReplicaRepository(bdb)
-				if err != nil {
-					return fmt.Errorf("error creating Replica Repository: %s", err)
-				}
-				deletions, err := boltdb.NewDeletionRepository(bdb)
-				if err != nil {
-					return fmt.Errorf("error creating Deletion Repository: %s", err)
-				}
-				stater, err := boltdb.NewStateRepository(bdb)
-				if err != nil {
-					return fmt.Errorf("error creating State Repository: %s", err)
-				}
-				suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
+				suow := fs.UOWWithFs(osfs, boltdbUow)
 
 				var (
 					st *state.State
@@ -103,12 +79,12 @@ var (
 						return err
 					}
 					return nil
-				}, stater)
+				})
 				if err != nil {
 					return fmt.Errorf("error getting the state of Volume: %s", err)
 				}
 
-				v, err := volume.New(vp, files, idxkeys, idxttl, idxvolumes, replicas, deletions, stater, osfs, logger, suow)
+				v, err := volume.New(vp, osfs, logger, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
