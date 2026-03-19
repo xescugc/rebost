@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stale replica jobs are now cleaned up when the source file no longer exists, preventing infinite retry loops
+  [Issue#100](https://github.com/xescugc/rebost/issues/100)
 - Replica deltion was not working properly and was leaving the file in a "deleting" state
   [PR#97](https://github.com/xescugc/rebost/pull/97)
 

@@ -93,6 +93,10 @@ type Local interface {
 	// the vID as a volume with the Replica
 	UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error
 
+	// DeleteReplica removes a pending replication job from the queue.
+	// Used to clean up stale jobs when the source file no longer exists.
+	DeleteReplica(ctx context.Context, rp *replica.Replica) error
+
 	// NextDeletion returns the next pending remote-deletion job.
 	// A "not found" error means the queue is empty.
 	NextDeletion(ctx context.Context) (*deletion.Deletion, error)
@@ -593,6 +597,12 @@ func (l *local) NextReplica(ctx context.Context) (*replica.Replica, error) {
 		return nil, err
 	}
 	return rp, nil
+}
+
+func (l *local) DeleteReplica(ctx context.Context, rp *replica.Replica) error {
+	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		return uw.Replicas().Delete(ctx, rp)
+	})
 }
 
 func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error {
