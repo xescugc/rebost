@@ -11,6 +11,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	deletion "github.com/xescugc/rebost/deletion"
 	replica "github.com/xescugc/rebost/replica"
 	state "github.com/xescugc/rebost/state"
 )
@@ -64,6 +65,20 @@ func (m *VolumeLocal) CreateFile(arg0 context.Context, arg1 string, arg2 io.Read
 func (mr *VolumeLocalMockRecorder) CreateFile(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFile", reflect.TypeOf((*VolumeLocal)(nil).CreateFile), arg0, arg1, arg2, arg3, arg4, arg5)
+}
+
+// DeleteDeletion mocks base method.
+func (m *VolumeLocal) DeleteDeletion(arg0 context.Context, arg1 *deletion.Deletion) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteDeletion", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteDeletion indicates an expected call of DeleteDeletion.
+func (mr *VolumeLocalMockRecorder) DeleteDeletion(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDeletion", reflect.TypeOf((*VolumeLocal)(nil).DeleteDeletion), arg0, arg1)
 }
 
 // DeleteFile mocks base method.
@@ -138,6 +153,21 @@ func (m *VolumeLocal) ID() string {
 func (mr *VolumeLocalMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*VolumeLocal)(nil).ID))
+}
+
+// NextDeletion mocks base method.
+func (m *VolumeLocal) NextDeletion(arg0 context.Context) (*deletion.Deletion, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NextDeletion", arg0)
+	ret0, _ := ret[0].(*deletion.Deletion)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NextDeletion indicates an expected call of NextDeletion.
+func (mr *VolumeLocalMockRecorder) NextDeletion(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextDeletion", reflect.TypeOf((*VolumeLocal)(nil).NextDeletion), arg0)
 }
 
 // NextReplica mocks base method.

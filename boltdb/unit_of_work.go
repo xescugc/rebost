@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/afero"
+	"github.com/xescugc/rebost/deletion"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/idxttl"
@@ -25,6 +26,7 @@ type unitOfWork struct {
 	idxvolumeRepository idxvolume.Repository
 	fs                  afero.Fs
 	replicaRepository   replica.Repository
+	deletionRepository  deletion.Repository
 	stateRepository     state.Repository
 }
 
@@ -105,6 +107,10 @@ func (uw *unitOfWork) Fs() afero.Fs {
 
 func (uw *unitOfWork) Replicas() replica.Repository {
 	return uw.replicaRepository
+}
+
+func (uw *unitOfWork) Deletions() deletion.Repository {
+	return uw.deletionRepository
 }
 
 func (uw *unitOfWork) State() state.Repository {
@@ -208,6 +214,17 @@ func (uw *unitOfWork) add(r interface{}) error {
 			}
 			r.bucket = b
 			uw.replicaRepository = &r
+		}
+		return nil
+	case *deletionRepository:
+		if uw.deletionRepository == nil {
+			r := *rep
+			b := uw.tx.Bucket(r.bucketName)
+			if b == nil {
+				return fmt.Errorf("bucker for %q not found", r.bucketName)
+			}
+			r.bucket = b
+			uw.deletionRepository = &r
 		}
 		return nil
 	case *stateRepository:

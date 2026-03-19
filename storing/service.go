@@ -68,7 +68,7 @@ func New(cfg *config.Config, m Membership, logger kitlog.Logger) (Service, error
 	}
 
 	if s.cfg.Replica != -1 {
-		go s.loopVolumesReplicas()
+		go s.loopVolumes()
 		go s.loopRemovedVolumeDIs()
 	}
 	//go s.loopTLL()
@@ -115,6 +115,7 @@ func (s *service) DeleteFile(ctx context.Context, k string) error {
 	if err != nil {
 		return err
 	}
+	s.cache.Remove(k)
 	return nil
 }
 

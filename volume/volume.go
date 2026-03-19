@@ -17,6 +17,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/spf13/afero"
+	"github.com/xescugc/rebost/deletion"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/idxttl"
@@ -90,6 +91,13 @@ type Local interface {
 	// the vID as a volume with the Replica
 	UpdateReplica(ctx context.Context, rp *replica.Replica, vID string) error
 
+	// NextDeletion returns the next pending remote-deletion job.
+	// A "not found" error means the queue is empty.
+	NextDeletion(ctx context.Context) (*deletion.Deletion, error)
+
+	// DeleteDeletion removes a processed deletion job from the queue.
+	DeleteDeletion(ctx context.Context, d *deletion.Deletion) error
+
 	// SynchronizeReplicas checks the replicas related with vID and
 	// if this volume is the responsible (next after the removed ID on the files)
 	// will start replication of those files which have to
@@ -115,6 +123,7 @@ type local struct {
 	idxkeys    idxkey.Repository
 	idxttls    idxttl.Repository
 	replicas   replica.Repository
+	deletions  deletion.Repository
 	idxvolumes idxvolume.Repository
 	state      state.Repository
 
@@ -131,7 +140,7 @@ type local struct {
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
 // To define a total size of the volume it has to be appended to the root like `/v1:1GB`
-func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls idxttl.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, sr state.Repository, fileSystem afero.Fs, logger kitlog.Logger, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls idxttl.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, dl deletion.Repository, sr state.Repository, fileSystem afero.Fs, logger kitlog.Logger, suow uow.StartUnitOfWork) (Local, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sroot := strings.Split(root, ":")
 	ts := -1
@@ -156,6 +165,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls 
 		idxttls:    idxttls,
 		idxvolumes: idxvolumes,
 		replicas:   rp,
+		deletions:  dl,
 		state:      sr,
 
 		originalLogger: logger,
@@ -478,7 +488,7 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 func (l *local) DeleteFile(ctx context.Context, key string) error {
 	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		return l.deleteFile(ctx, uw, key)
-	}, l.idxkeys, l.files, l.fs, l.state)
+	}, l.idxkeys, l.files, l.fs, l.state, l.replicas, l.deletions)
 }
 
 func (l *local) deleteFile(ctx context.Context, uw uow.UnitOfWork, key string) error {
@@ -503,6 +513,11 @@ func (l *local) deleteFile(ctx context.Context, uw uow.UnitOfWork, key string) e
 			return err
 		}
 
+		err = uw.Replicas().Delete(ctx, &replica.Replica{VolumeReplicaID: []byte(ik.Value)})
+		if err != nil {
+			return err
+		}
+
 		err = uw.Fs().Remove(file.Path(l.fileDir, ik.Value))
 		if err != nil {
 			return err
@@ -521,6 +536,23 @@ func (l *local) deleteFile(ctx context.Context, uw uow.UnitOfWork, key string) e
 		err = uw.State().Update(ctx, st)
 		if err != nil {
 			return err
+		}
+
+		// Schedule deletion on all remote replica volumes.
+		remoteVIDs := make([]string, 0, len(dbf.VolumeIDs))
+		for _, vid := range dbf.VolumeIDs {
+			if vid != l.id {
+				remoteVIDs = append(remoteVIDs, vid)
+			}
+		}
+		if len(remoteVIDs) > 0 {
+			err = uw.Deletions().Create(ctx, &deletion.Deletion{
+				Key:       key,
+				VolumeIDs: remoteVIDs,
+			})
+			if err != nil {
+				return err
+			}
 		}
 
 	} else {
@@ -836,6 +868,30 @@ func (l *local) Reset(ctx context.Context) error {
 	}
 	// TODO: Recreate the ID
 	return nil
+}
+
+func (l *local) NextDeletion(ctx context.Context) (*deletion.Deletion, error) {
+	var (
+		err error
+		d   *deletion.Deletion
+	)
+	err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		d, err = uw.Deletions().First(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, l.deletions)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func (l *local) DeleteDeletion(ctx context.Context, d *deletion.Deletion) error {
+	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		return uw.Deletions().Delete(ctx, d)
+	}, l.deletions)
 }
 
 func (l *local) createID(idPath string) (string, error) {

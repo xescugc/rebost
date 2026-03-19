@@ -84,12 +84,15 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	replicas, err := boltdb.NewReplicaRepository(bdb)
 	require.NoError(t, err)
 
+	deletions, err := boltdb.NewDeletionRepository(bdb)
+	require.NoError(t, err)
+
 	state, err := boltdb.NewStateRepository(bdb)
 	require.NoError(t, err)
 
 	suow := fs.UOWWithFs(boltdb.NewUOW(bdb))
 
-	v, err := volume.New(tmpDir, files, idxkeys, idxttl, idxvolumes, replicas, state, osfs, logger, suow)
+	v, err := volume.New(tmpDir, files, idxkeys, idxttl, idxvolumes, replicas, deletions, state, osfs, logger, suow)
 	require.NoError(t, err)
 
 	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote, logger)
