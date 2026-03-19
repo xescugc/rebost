@@ -73,6 +73,7 @@ func TestCreateFile(t *testing.T) {
 
 		// This is also because of the goroutine, it may call it or not
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+		v.EXPECT().NextDeletion(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
 		s, err := storing.New(&config.Config{Replica: rep, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())
@@ -324,6 +325,7 @@ func TestCreateReplica(t *testing.T) {
 
 		// This is also because of the goroutine, it may call it or not
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+		v.EXPECT().NextDeletion(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
 		v.EXPECT().ID().Return(createdToVolID)
@@ -381,6 +383,7 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		// This is also because of the goroutine, it may call it or not
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
+		v.EXPECT().NextDeletion(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
 
 		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, kitlog.NewNopLogger())

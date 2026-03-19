@@ -9,6 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	afero "github.com/spf13/afero"
+	deletion "github.com/xescugc/rebost/deletion"
 	file "github.com/xescugc/rebost/file"
 	idxkey "github.com/xescugc/rebost/idxkey"
 	idxttl "github.com/xescugc/rebost/idxttl"
@@ -38,6 +39,20 @@ func NewUnitOfWork(ctrl *gomock.Controller) *UnitOfWork {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *UnitOfWork) EXPECT() *UnitOfWorkMockRecorder {
 	return m.recorder
+}
+
+// Deletions mocks base method.
+func (m *UnitOfWork) Deletions() deletion.Repository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Deletions")
+	ret0, _ := ret[0].(deletion.Repository)
+	return ret0
+}
+
+// Deletions indicates an expected call of Deletions.
+func (mr *UnitOfWorkMockRecorder) Deletions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deletions", reflect.TypeOf((*UnitOfWork)(nil).Deletions))
 }
 
 // Files mocks base method.

@@ -40,6 +40,7 @@ func TestNew(t *testing.T) {
 		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
+		dl := mock.NewDeletionRepository(ctrl)
 		sr := mock.NewStateRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
@@ -61,7 +62,7 @@ func TestNew(t *testing.T) {
 		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 		sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -91,6 +92,7 @@ func TestNew(t *testing.T) {
 		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
+		dl := mock.NewDeletionRepository(ctrl)
 		sr := mock.NewStateRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
@@ -115,7 +117,7 @@ func TestNew(t *testing.T) {
 			return nil
 		})
 
-		v, err := volume.New(rootDirWithSize, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDirWithSize, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -143,6 +145,7 @@ func TestNew(t *testing.T) {
 		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
+		dl := mock.NewDeletionRepository(ctrl)
 		sr := mock.NewStateRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
@@ -169,7 +172,7 @@ func TestNew(t *testing.T) {
 		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 		sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -186,6 +189,7 @@ func TestNew(t *testing.T) {
 		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
 		rp := mock.NewReplicaRepository(ctrl)
+		dl := mock.NewDeletionRepository(ctrl)
 		sr := mock.NewStateRepository(ctrl)
 
 		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
@@ -195,7 +199,7 @@ func TestNew(t *testing.T) {
 
 		defer ctrl.Finish()
 
-		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
 		assert.Equal(t, "byte quantity must be a positive integer with a unit of measurement like M, MB, MiB, G, GiB, or GB", err.Error())
 		assert.Empty(t, v)
 	})
@@ -812,6 +816,7 @@ func TestDeleteFile(t *testing.T) {
 		})
 
 		mv.Files.EXPECT().DeleteBySignature(ctx, signature).Return(nil)
+		mv.Replicas.EXPECT().Delete(ctx, &replica.Replica{VolumeReplicaID: []byte(signature)}).Return(nil)
 
 		mv.IDXKeys.EXPECT().DeleteByKey(ctx, key).Return(nil)
 

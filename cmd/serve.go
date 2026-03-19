@@ -83,6 +83,10 @@ var (
 				if err != nil {
 					return fmt.Errorf("error creating Replica Repository: %s", err)
 				}
+				deletions, err := boltdb.NewDeletionRepository(bdb)
+				if err != nil {
+					return fmt.Errorf("error creating Deletion Repository: %s", err)
+				}
 				stater, err := boltdb.NewStateRepository(bdb)
 				if err != nil {
 					return fmt.Errorf("error creating State Repository: %s", err)
@@ -104,7 +108,7 @@ var (
 					return fmt.Errorf("error getting the state of Volume: %s", err)
 				}
 
-				v, err := volume.New(vp, files, idxkeys, idxttl, idxvolumes, replicas, stater, osfs, logger, suow)
+				v, err := volume.New(vp, files, idxkeys, idxttl, idxvolumes, replicas, deletions, stater, osfs, logger, suow)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}

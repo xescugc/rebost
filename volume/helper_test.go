@@ -23,6 +23,7 @@ type manageVolume struct {
 	IDXVolumes *mock.IDXVolumeRepository
 	Fs         *mock.Fs
 	Replicas   *mock.ReplicaRepository
+	Deletions  *mock.DeletionRepository
 	State      *mock.StateRepository
 
 	V volume.Local
@@ -41,6 +42,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 	fs := mock.NewFs(ctrl)
 	rp := mock.NewReplicaRepository(ctrl)
+	dl := mock.NewDeletionRepository(ctrl)
 	sr := mock.NewStateRepository(ctrl)
 
 	uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
@@ -51,6 +53,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 		uw.EXPECT().IDXVolumes().Return(idxvolumes).AnyTimes()
 		uw.EXPECT().Fs().Return(fs).AnyTimes()
 		uw.EXPECT().Replicas().Return(rp).AnyTimes()
+		uw.EXPECT().Deletions().Return(dl).AnyTimes()
 		uw.EXPECT().State().Return(sr).AnyTimes()
 		return uowFn(ctx, uw)
 	}
@@ -64,7 +67,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 	sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	v, err := volume.New(root, files, idxkeys, idxttls, idxvolumes, rp, sr, fs, nil, uowFn)
+	v, err := volume.New(root, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
 	require.NoError(t, err)
 
 	return manageVolume{
@@ -74,6 +77,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 		IDXVolumes: idxvolumes,
 		Fs:         fs,
 		Replicas:   rp,
+		Deletions:  dl,
 		State:      sr,
 
 		V: v,
