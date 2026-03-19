@@ -34,18 +34,12 @@ func TestNew(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 
-		files := mock.NewFileRepository(ctrl)
-		idxkeys := mock.NewIDXKeyRepository(ctrl)
-		idxttls := mock.NewIDXTTLRepository(ctrl)
-		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
-		rp := mock.NewReplicaRepository(ctrl)
-		dl := mock.NewDeletionRepository(ctrl)
 		sr := mock.NewStateRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
 
-		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
+		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn) error {
 			uw := mock.NewUnitOfWork(ctrl)
 			uw.EXPECT().State().Return(sr).AnyTimes()
 			return uowFn(ctx, uw)
@@ -62,7 +56,7 @@ func TestNew(t *testing.T) {
 		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 		sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -86,18 +80,12 @@ func TestNew(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 
-		files := mock.NewFileRepository(ctrl)
-		idxkeys := mock.NewIDXKeyRepository(ctrl)
-		idxttls := mock.NewIDXTTLRepository(ctrl)
-		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
-		rp := mock.NewReplicaRepository(ctrl)
-		dl := mock.NewDeletionRepository(ctrl)
 		sr := mock.NewStateRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
 
-		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
+		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn) error {
 			uw := mock.NewUnitOfWork(ctrl)
 			uw.EXPECT().State().Return(sr).AnyTimes()
 			return uowFn(ctx, uw)
@@ -117,7 +105,7 @@ func TestNew(t *testing.T) {
 			return nil
 		})
 
-		v, err := volume.New(rootDirWithSize, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDirWithSize, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -139,13 +127,7 @@ func TestNew(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		files := mock.NewFileRepository(ctrl)
-		idxkeys := mock.NewIDXKeyRepository(ctrl)
-		idxttls := mock.NewIDXTTLRepository(ctrl)
-		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
-		rp := mock.NewReplicaRepository(ctrl)
-		dl := mock.NewDeletionRepository(ctrl)
 		sr := mock.NewStateRepository(ctrl)
 		idPath := path.Join(rootDir, "id")
 		fh := mem.NewFileHandle(mem.CreateFile(idPath))
@@ -157,7 +139,7 @@ func TestNew(t *testing.T) {
 		_, err = fh.Seek(0, 0)
 		require.NoError(t, err)
 
-		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
+		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn) error {
 			uw := mock.NewUnitOfWork(ctrl)
 			uw.EXPECT().State().Return(sr).AnyTimes()
 			return uowFn(ctx, uw)
@@ -172,7 +154,7 @@ func TestNew(t *testing.T) {
 		sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 		sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, fs, nil, uowFn)
 		require.NoError(t, err)
 		assert.NotNil(t, v)
 		defer v.Close()
@@ -183,23 +165,16 @@ func TestNew(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 
-		files := mock.NewFileRepository(ctrl)
-		idxkeys := mock.NewIDXKeyRepository(ctrl)
-		idxttls := mock.NewIDXTTLRepository(ctrl)
-		idxvolumes := mock.NewIDXVolumeRepository(ctrl)
 		fs := mock.NewFs(ctrl)
-		rp := mock.NewReplicaRepository(ctrl)
-		dl := mock.NewDeletionRepository(ctrl)
-		sr := mock.NewStateRepository(ctrl)
 
-		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
+		uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn) error {
 			uw := mock.NewUnitOfWork(ctrl)
 			return uowFn(ctx, uw)
 		}
 
 		defer ctrl.Finish()
 
-		v, err := volume.New(rootDir, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
+		v, err := volume.New(rootDir, fs, nil, uowFn)
 		assert.Equal(t, "byte quantity must be a positive integer with a unit of measurement like M, MB, MiB, G, GiB, or GB", err.Error())
 		assert.Empty(t, v)
 	})

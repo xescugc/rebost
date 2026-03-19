@@ -47,9 +47,8 @@ type UnitOfWork interface {
 }
 
 // StartUnitOfWork it's the way to initialize a typed UoW, it has a uowFn
-// which is the callback where all the work should be done, it also has the
-// repositories, which are all the Repositories that belong to this UoW
-type StartUnitOfWork func(ctx context.Context, t Type, uowFn UnitOfWorkFn, repositories ...interface{}) error
+// which is the callback where all the work should be done.
+type StartUnitOfWork func(ctx context.Context, t Type, uowFn UnitOfWorkFn) error
 
 // UnitOfWorkFn is the signature of the function
 // that is the callback of the StartUnitOfWork

@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TTL to the files so they can have an expiration date
   [Issue#71](https://github.com/xescugc/rebost/issues/71)
 
+## Updated
+
+- Refactored the UoW to make it more generic and not require to specify the registry, now it just needs to be initialized with the database and the bucket name and it will work for any bucket
+  [Issue#103](https://github.com/xescugc/rebost/issues/103)
+
 ### Fixed
 
 - Replica deltion was not working properly and was leaving the file in a "deleting" state

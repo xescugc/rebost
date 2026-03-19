@@ -120,14 +120,7 @@ type local struct {
 	root      string
 	totalSize int
 
-	fs         afero.Fs
-	files      file.Repository
-	idxkeys    idxkey.Repository
-	idxttls    idxttl.Repository
-	replicas   replica.Repository
-	deletions  deletion.Repository
-	idxvolumes idxvolume.Repository
-	state      state.Repository
+	fs afero.Fs
 
 	startUnitOfWork uow.StartUnitOfWork
 
@@ -142,7 +135,7 @@ type local struct {
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
 // To define a total size of the volume it has to be appended to the root like `/v1:1GB`
-func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls idxttl.Repository, idxvolumes idxvolume.Repository, rp replica.Repository, dl deletion.Repository, sr state.Repository, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUnitOfWork) (Local, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -164,14 +157,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls 
 		root:      root,
 		totalSize: ts,
 
-		files:      files,
-		fs:         fileSystem,
-		idxkeys:    idxkeys,
-		idxttls:    idxttls,
-		idxvolumes: idxvolumes,
-		replicas:   rp,
-		deletions:  dl,
-		state:      sr,
+		fs: fileSystem,
 
 		originalLogger: logger,
 
@@ -227,7 +213,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls 
 			return err
 		}
 		return nil
-	}, l.state)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +234,7 @@ func New(root string, files file.Repository, idxkeys idxkey.Repository, idxttls 
 						l.logger.Error(err.Error())
 					}
 					return nil
-				}, l.state)
+				})
 			}
 		}
 	}()
@@ -455,7 +441,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		}
 
 		return nil
-	}, l.idxkeys, l.files, l.fs, l.replicas, l.state, l.idxttls)
+	})
 
 	if err != nil {
 		return err
@@ -476,7 +462,7 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 			return err
 		}
 		return nil
-	}, l.idxkeys)
+	})
 
 	if err != nil {
 		return nil, err
@@ -493,7 +479,7 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 func (l *local) DeleteFile(ctx context.Context, key string) error {
 	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		return l.deleteFile(ctx, uw, key)
-	}, l.idxkeys, l.files, l.fs, l.state, l.replicas, l.deletions)
+	})
 }
 
 func (l *local) deleteFile(ctx context.Context, uw uow.UnitOfWork, key string) error {
@@ -579,7 +565,7 @@ func (l *local) HasFile(ctx context.Context, k string) (string, bool, error) {
 			return err
 		}
 		return nil
-	}, l.idxkeys)
+	})
 
 	if err != nil {
 		if err.Error() == "not found" {
@@ -602,7 +588,7 @@ func (l *local) NextReplica(ctx context.Context) (*replica.Replica, error) {
 			return err
 		}
 		return nil
-	}, l.replicas)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -666,7 +652,7 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 		}
 
 		return nil
-	}, l.replicas, l.files, l.idxkeys, l.idxvolumes)
+	})
 
 	if err != nil {
 		return err
@@ -734,7 +720,7 @@ func (l *local) UpdateFileReplica(ctx context.Context, key string, volumeIDs []s
 			return err
 		}
 		return nil
-	}, l.files, l.idxkeys, l.idxvolumes)
+	})
 
 	if err != nil {
 		return err
@@ -788,7 +774,7 @@ func (l *local) SynchronizeReplicas(ctx context.Context, vID string) error {
 			}
 		}
 		return nil
-	}, l.files, l.idxvolumes, l.replicas)
+	})
 
 	if err != nil {
 		return err
@@ -809,7 +795,7 @@ func (l *local) GetState(ctx context.Context) (*state.State, error) {
 			return err
 		}
 		return nil
-	}, l.state)
+	})
 
 	if err != nil {
 		return nil, err
@@ -867,7 +853,7 @@ func (l *local) Reset(ctx context.Context) error {
 
 		l.calculateSize(ctx, uw, l.root, l.totalSize)
 		return nil
-	}, l.files, l.idxkeys, l.fs, l.replicas, l.idxvolumes, l.state)
+	})
 	if err != nil {
 		return err
 	}
@@ -886,7 +872,7 @@ func (l *local) NextDeletion(ctx context.Context) (*deletion.Deletion, error) {
 			return err
 		}
 		return nil
-	}, l.deletions)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -896,7 +882,7 @@ func (l *local) NextDeletion(ctx context.Context) (*deletion.Deletion, error) {
 func (l *local) DeleteDeletion(ctx context.Context, d *deletion.Deletion) error {
 	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		return uw.Deletions().Delete(ctx, d)
-	}, l.deletions)
+	})
 }
 
 func (l *local) createID(idPath string) (string, error) {

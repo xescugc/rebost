@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/spf13/afero"
 	"github.com/xescugc/rebost/deletion"
 	"github.com/xescugc/rebost/file"
 	"github.com/xescugc/rebost/idxkey"
@@ -14,6 +13,8 @@ import (
 	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/uow"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/spf13/afero"
 )
 
 type unitOfWork struct {
@@ -24,7 +25,6 @@ type unitOfWork struct {
 	idxkeyRepository    idxkey.Repository
 	idxttlRepository    idxttl.Repository
 	idxvolumeRepository idxvolume.Repository
-	fs                  afero.Fs
 	replicaRepository   replica.Repository
 	deletionRepository  deletion.Repository
 	stateRepository     state.Repository
@@ -35,20 +35,25 @@ type key int
 var uowKey key
 
 // NewUOW returns an implementation of the interface uow.StartUnitOfWork
-// that will track all the boltDB repositories
-func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
-	return func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repos ...interface{}) (err error) {
-		uw := newUnitOfWork(t)
+// that will lazily initialize all boltDB repositories on first access.
+// It creates all required buckets as part of initialization.
+func NewUOW(db *bolt.DB) (uow.StartUnitOfWork, error) {
+	buckets := [][]byte{
+		[]byte("files"), []byte("idxkeys"), []byte("idxttls"),
+		[]byte("idxvolumes"), []byte("replica"), []byte("deletion"), []byte("state"),
+	}
+	for _, bn := range buckets {
+		if err := createBucket(db, bn); err != nil {
+			return nil, fmt.Errorf("could not create bucket %q: %s", bn, err)
+		}
+	}
 
+	return func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn) (err error) {
 		if ctxUOW, ok := ctx.Value(uowKey).(*unitOfWork); ok {
-			for _, r := range repos {
-				if err = ctxUOW.add(r); err != nil {
-					return fmt.Errorf("could not add repository: %s", err)
-				}
-			}
-			ctx = context.WithValue(ctx, uowKey, ctxUOW)
 			return uowFn(ctx, ctxUOW)
 		}
+
+		uw := newUnitOfWork(t)
 		ctx = context.WithValue(ctx, uowKey, uw)
 
 		err = uw.begin(db)
@@ -64,12 +69,6 @@ func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 			return
 		}()
 
-		for _, r := range repos {
-			if err = uw.add(r); err != nil {
-				return fmt.Errorf("could not add repository: %s", err)
-			}
-		}
-
 		defer func() {
 			// Only commit if no error found
 			if err == nil {
@@ -82,38 +81,73 @@ func NewUOW(db *bolt.DB) uow.StartUnitOfWork {
 		}()
 
 		return uowFn(ctx, uw)
-	}
+	}, nil
 }
 
 func (uw *unitOfWork) Files() file.Repository {
+	if uw.fileRepository == nil {
+		bn := []byte("files")
+		b := uw.tx.Bucket(bn)
+		uw.fileRepository = &fileRepository{bucketName: bn, bucket: b}
+	}
 	return uw.fileRepository
 }
 
 func (uw *unitOfWork) IDXKeys() idxkey.Repository {
+	if uw.idxkeyRepository == nil {
+		bn := []byte("idxkeys")
+		b := uw.tx.Bucket(bn)
+		uw.idxkeyRepository = &idxkeyRepository{bucketName: bn, bucket: b}
+	}
 	return uw.idxkeyRepository
 }
 
 func (uw *unitOfWork) IDXTTLs() idxttl.Repository {
+	if uw.idxttlRepository == nil {
+		bn := []byte("idxttls")
+		b := uw.tx.Bucket(bn)
+		uw.idxttlRepository = &idxttlRepository{bucketName: bn, bucket: b}
+	}
 	return uw.idxttlRepository
 }
 
 func (uw *unitOfWork) IDXVolumes() idxvolume.Repository {
+	if uw.idxvolumeRepository == nil {
+		bn := []byte("idxvolumes")
+		b := uw.tx.Bucket(bn)
+		uw.idxvolumeRepository = &idxvolumeRepository{bucketName: bn, bucket: b}
+	}
 	return uw.idxvolumeRepository
 }
 
 func (uw *unitOfWork) Fs() afero.Fs {
-	return uw.fs
+	return nil
 }
 
 func (uw *unitOfWork) Replicas() replica.Repository {
+	if uw.replicaRepository == nil {
+		bn := []byte("replica")
+		b := uw.tx.Bucket(bn)
+		uw.replicaRepository = &replicaRepository{bucketName: bn, bucket: b}
+	}
 	return uw.replicaRepository
 }
 
 func (uw *unitOfWork) Deletions() deletion.Repository {
+	if uw.deletionRepository == nil {
+		bn := []byte("deletion")
+		b := uw.tx.Bucket(bn)
+		uw.deletionRepository = &deletionRepository{bucketName: bn, bucket: b}
+	}
 	return uw.deletionRepository
 }
 
 func (uw *unitOfWork) State() state.Repository {
+	if uw.stateRepository == nil {
+		bn := []byte("state")
+		b := uw.tx.Bucket(bn)
+		uw.stateRepository = &stateRepository{bucketName: bn, bucket: b, key: []byte("state")}
+	}
 	return uw.stateRepository
 }
 
@@ -156,93 +190,5 @@ func (uw *unitOfWork) commit() error {
 		return uw.tx.Commit()
 	} else {
 		return fmt.Errorf("unsupported uw.Type: %d", uw.t)
-	}
-}
-
-func (uw *unitOfWork) add(r interface{}) error {
-	switch rep := r.(type) {
-	case *fileRepository:
-		if uw.fileRepository == nil {
-			r := *rep
-			b := uw.tx.Bucket(r.bucketName)
-			if b == nil {
-				return fmt.Errorf("bucker for %q not found", r.bucketName)
-			}
-			r.bucket = b
-			uw.fileRepository = &r
-		}
-		return nil
-	case *idxkeyRepository:
-		if uw.idxkeyRepository == nil {
-			r := *rep
-			b := uw.tx.Bucket(r.bucketName)
-			if b == nil {
-				return fmt.Errorf("bucker for %q not found", r.bucketName)
-			}
-			r.bucket = b
-			uw.idxkeyRepository = &r
-		}
-		return nil
-	case *idxttlRepository:
-		if uw.idxttlRepository == nil {
-			r := *rep
-			b := uw.tx.Bucket(r.bucketName)
-			if b == nil {
-				return fmt.Errorf("bucker for %q not found", r.bucketName)
-			}
-			r.bucket = b
-			uw.idxttlRepository = &r
-		}
-		return nil
-	case *idxvolumeRepository:
-		if uw.idxvolumeRepository == nil {
-			r := *rep
-			b := uw.tx.Bucket(r.bucketName)
-			if b == nil {
-				return fmt.Errorf("bucker for %q not found", r.bucketName)
-			}
-			r.bucket = b
-			uw.idxvolumeRepository = &r
-		}
-		return nil
-	case *replicaRepository:
-		if uw.replicaRepository == nil {
-			r := *rep
-			b := uw.tx.Bucket(r.bucketName)
-			if b == nil {
-				return fmt.Errorf("bucker for %q not found", r.bucketName)
-			}
-			r.bucket = b
-			uw.replicaRepository = &r
-		}
-		return nil
-	case *deletionRepository:
-		if uw.deletionRepository == nil {
-			r := *rep
-			b := uw.tx.Bucket(r.bucketName)
-			if b == nil {
-				return fmt.Errorf("bucker for %q not found", r.bucketName)
-			}
-			r.bucket = b
-			uw.deletionRepository = &r
-		}
-		return nil
-	case *stateRepository:
-		if uw.stateRepository == nil {
-			r := *rep
-			b := uw.tx.Bucket(r.bucketName)
-			if b == nil {
-				return fmt.Errorf("bucker for %q not found", r.bucketName)
-			}
-			r.bucket = b
-			uw.stateRepository = &r
-		}
-		return nil
-	default:
-		if v, ok := r.(afero.Fs); ok {
-			uw.fs = v
-			return nil
-		}
-		return fmt.Errorf("invalid repository of type: %T", rep)
 	}
 }

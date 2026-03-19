@@ -45,7 +45,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	dl := mock.NewDeletionRepository(ctrl)
 	sr := mock.NewStateRepository(ctrl)
 
-	uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn, repositories ...interface{}) error {
+	uowFn := func(ctx context.Context, t uow.Type, uowFn uow.UnitOfWorkFn) error {
 		uw := mock.NewUnitOfWork(ctrl)
 		uw.EXPECT().Files().Return(files).AnyTimes()
 		uw.EXPECT().IDXKeys().Return(idxkeys).AnyTimes()
@@ -67,7 +67,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 	sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	v, err := volume.New(root, files, idxkeys, idxttls, idxvolumes, rp, dl, sr, fs, nil, uowFn)
+	v, err := volume.New(root, fs, nil, uowFn)
 	require.NoError(t, err)
 
 	return manageVolume{
