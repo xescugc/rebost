@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TTL to the files so they can have an expiration date
   [Issue#71](https://github.com/xescugc/rebost/issues/71)
 
+### Fixed
+
+- Replica deltion was not working properly and was leaving the file in a "deleting" state
+  [PR#97](https://github.com/xescugc/rebost/pull/97)
+
 ## [0.3.0] - 2023-03-31
 
 ### Added
