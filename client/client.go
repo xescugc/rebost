@@ -13,6 +13,7 @@ import (
 
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/storing/model"
+	"github.com/xescugc/rebost/volume"
 )
 
 // Client is the client structure that fulfills the storing.Service
@@ -85,7 +86,7 @@ func (cl *Client) CreateFile(ctx context.Context, key string, r io.ReadCloser, r
 	q.Set("replica", strconv.Itoa(rep))
 	q.Set("ttl", ttl.String())
 	q.Set("created_at", ca.Format(time.RFC3339))
-	u := fmt.Sprintf("%s/files/%s?%s", c.url, key, q.Encode())
+	u := fmt.Sprintf("%s/%s?%s", c.url, key, q.Encode())
 	_, err := c.request(ctx, http.MethodPut, u, r, nil)
 	return err
 }
@@ -119,28 +120,46 @@ func (cl *Client) UpdateFileReplica(ctx context.Context, key string, vids []stri
 }
 
 // GetFile returns the requested file
-func (cl *Client) GetFile(ctx context.Context, key string) (io.ReadCloser, error) {
+func (cl *Client) GetFile(ctx context.Context, key string) (io.ReadCloser, int64, error) {
 	c := cl.getClient()
-	u := fmt.Sprintf("%s/files/%s", c.url, key)
+	u := fmt.Sprintf("%s/%s", c.url, key)
 	return c.requestStream(ctx, http.MethodGet, u)
+}
+
+// StatFile returns metadata for the file by issuing a HEAD request to the remote node.
+func (cl *Client) StatFile(ctx context.Context, key string) (*volume.FileStat, error) {
+	c := cl.getClient()
+	u := fmt.Sprintf("%s/%s", c.url, key)
+	hresp, err := c.request(ctx, http.MethodHead, u, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	stat := &volume.FileStat{
+		Size: hresp.ContentLength,
+		ETag: hresp.Header.Get("ETag"),
+	}
+	if lm := hresp.Header.Get("Last-Modified"); lm != "" {
+		stat.ModTime, _ = http.ParseTime(lm)
+	}
+	return stat, nil
 }
 
 // HasFile returns if the file exists
 func (cl *Client) HasFile(ctx context.Context, key string) (string, bool, error) {
 	c := cl.getClient()
-	u := fmt.Sprintf("%s/files/%s", c.url, key)
+	u := fmt.Sprintf("%s/%s", c.url, key)
 	hresp, err := c.request(ctx, http.MethodHead, u, nil, nil)
 	if err != nil {
 		return "", false, err
 	}
 	vid := hresp.Header.Get(model.HasFileVolumeIDHeader)
-	return vid, hresp.StatusCode == http.StatusNoContent, nil
+	return vid, hresp.StatusCode == http.StatusOK, nil
 }
 
 // DeleteFile deletes the file with the given key
 func (cl *Client) DeleteFile(ctx context.Context, key string) error {
 	c := cl.getClient()
-	u := fmt.Sprintf("%s/files/%s", c.url, key)
+	u := fmt.Sprintf("%s/%s", c.url, key)
 	_, err := c.request(ctx, http.MethodDelete, u, nil, nil)
 	return err
 }

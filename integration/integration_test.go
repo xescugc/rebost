@@ -35,11 +35,11 @@ type cancelFn func()
 // we can concentrate on the more edge case/use cases
 func TestCRUD(t *testing.T) {
 	var (
-		keytxt     = "keytxt"
+		keytxt     = "testbucket/keytxt"
 		txtcontent = []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 		iorctxt    = io.NopCloser(bytes.NewBuffer(txtcontent))
 
-		keyimg = "keyimg"
+		keyimg = "testbucket/keyimg"
 		ctx    = context.Background()
 	)
 
@@ -105,7 +105,7 @@ func TestCRUD(t *testing.T) {
 	t.Run("GetFile", func(t *testing.T) {
 		for i, c := range clients {
 			t.Run(fmt.Sprintf("From node %d", i+1), func(t *testing.T) {
-				txtiorc, err := c.GetFile(ctx, keytxt)
+				txtiorc, _, err := c.GetFile(ctx, keytxt)
 				require.NoError(t, err)
 				txtb, err := io.ReadAll(txtiorc)
 				require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestCRUD(t *testing.T) {
 
 				assert.Equal(t, txtcontent, txtb)
 
-				imgiorc, err := c.GetFile(ctx, keyimg)
+				imgiorc, _, err := c.GetFile(ctx, keyimg)
 				require.NoError(t, err)
 				imgb, err := io.ReadAll(imgiorc)
 				require.NoError(t, err)
@@ -134,28 +134,28 @@ func TestCRUD(t *testing.T) {
 		err := cl2.DeleteFile(ctx, keyimg)
 		require.NoError(t, err)
 
-		_, err = cl2.GetFile(ctx, keyimg)
+		_, _, err = cl2.GetFile(ctx, keyimg)
 		assert.EqualError(t, err, "not found")
-		_, err = cl1.GetFile(ctx, keyimg)
+		_, _, err = cl1.GetFile(ctx, keyimg)
 		assert.EqualError(t, err, "not found")
-		_, err = cl2.GetFile(ctx, keyimg)
+		_, _, err = cl2.GetFile(ctx, keyimg)
 		assert.EqualError(t, err, "not found")
 
 		err = cl2.DeleteFile(ctx, keytxt)
 		require.NoError(t, err)
 
-		_, err = cl2.GetFile(ctx, keytxt)
+		_, _, err = cl2.GetFile(ctx, keytxt)
 		assert.EqualError(t, err, "not found")
-		_, err = cl1.GetFile(ctx, keytxt)
+		_, _, err = cl1.GetFile(ctx, keytxt)
 		assert.EqualError(t, err, "not found")
-		_, err = cl2.GetFile(ctx, keytxt)
+		_, _, err = cl2.GetFile(ctx, keytxt)
 		assert.EqualError(t, err, "not found")
 	})
 }
 
 func TestReplica(t *testing.T) {
 	var (
-		keytxt     = "keytxt"
+		keytxt     = "testbucket/keytxt"
 		txtcontent = []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 		iorctxt    = io.NopCloser(bytes.NewBuffer(txtcontent))
 
@@ -330,7 +330,7 @@ func TestReplica(t *testing.T) {
 
 func TestTTL(t *testing.T) {
 	var (
-		keytxt     = "keytxt"
+		keytxt     = "testbucket/keytxt"
 		txtcontent = []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 		iorctxt    = io.NopCloser(bytes.NewBuffer(txtcontent))
 

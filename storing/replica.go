@@ -69,7 +69,7 @@ func (s *service) processNextReplica(v volume.Local) bool {
 			s.logger.Info("file already present on this volume")
 			continue
 		}
-		iorc, err := v.GetFile(s.ctx, rp.Key)
+		iorc, _, err := v.GetFile(s.ctx, rp.Key)
 		if err != nil {
 			s.logger.Error(err.Error())
 			continue

@@ -2,7 +2,6 @@ package storing
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -10,37 +9,43 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/storing/model"
 )
 
-// MakeHandler returns a http.Handler that uses the storing.Service
-// to make the http calls, it links each http endpoint to a
-// storing.Service method
-func MakeHandler(s Service) http.Handler {
+// MakeHandler returns an http.Handler that exposes an S3-compatible API backed
+// by the storing.Service. Internal inter-node routes (/replicas/, /config) are
+// registered first so they are not shadowed by the S3 bucket/key patterns.
+func MakeHandler(s Service, cfg *config.Config) http.Handler {
 	r := mux.NewRouter()
 
-	r.Handle("/files/{key:.*}", createFileHandler(s)).Methods("PUT")
-	r.Handle("/files/{key:.*}", getFileHandler(s)).Methods("GET")
-	r.Handle("/files/{key:.*}", deleteFileHandler(s)).Methods("DELETE")
-	r.Handle("/files/{key:.*}", hasFileHandler(s)).Methods("HEAD")
+	r.Use(S3AuthMiddleware(cfg.S3.AccessKey, cfg.S3.SecretKey, cfg.S3.AuthMode))
 
+	// Internal inter-node routes (JSON, always pass auth)
 	r.Handle("/replicas/{key:.*}", createReplicaHandler(s)).Methods("PUT")
 	r.Handle("/replicas/{key:.*}", updateFileReplicaHandler(s)).Methods("PATCH")
-
 	r.Handle("/config", getConfigHandler(s)).Methods("GET")
 
-	r.NotFoundHandler = http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Context-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, `{"error": "Path not found"}`)
-		},
-	)
+	// S3 object routes: /{bucket}/{key}
+	r.Handle("/{bucket}/{key:.*}", putObjectHandler(s)).Methods("PUT")
+	r.Handle("/{bucket}/{key:.*}", getObjectHandler(s)).Methods("GET")
+	r.Handle("/{bucket}/{key:.*}", deleteObjectHandler(s)).Methods("DELETE")
+	r.Handle("/{bucket}/{key:.*}", headObjectHandler(s)).Methods("HEAD")
+	r.Handle("/{bucket}/{key:.*}", multipartStubHandler()).Methods("POST")
+
+	// S3 bucket routes: /{bucket}
+	r.Handle("/{bucket}", listObjectsHandler()).Methods("GET")
+	r.Handle("/{bucket}", createBucketHandler()).Methods("PUT")
+	r.Handle("/{bucket}", deleteBucketHandler()).Methods("DELETE")
+
+	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encodeS3Error(w, "NoSuchKey", "Path not found", http.StatusNotFound)
+	})
 
 	return r
 }
 
-func createFileHandler(s Service) http.HandlerFunc {
+func putObjectHandler(s Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var iorc io.ReadCloser
 
@@ -82,51 +87,118 @@ func createFileHandler(s Service) http.HandlerFunc {
 			ca = time.Time{}
 		}
 
-		err = s.CreateFile(r.Context(), mux.Vars(r)["key"], iorc, rep, ttl, ca)
+		vars := mux.Vars(r)
+		key := vars["bucket"] + "/" + vars["key"]
+
+		err = s.CreateFile(r.Context(), key, iorc, rep, ttl, ca)
 		if err != nil {
-			encodeError(w, err)
+			encodeS3Error(w, "InternalError", err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func getFileHandler(s Service) http.HandlerFunc {
+func getObjectHandler(s Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		iorc, err := s.GetFile(r.Context(), mux.Vars(r)["key"])
+		vars := mux.Vars(r)
+		key := vars["bucket"] + "/" + vars["key"]
+
+		stat, err := s.StatFile(r.Context(), key)
 		if err != nil {
-			encodeError(w, err)
+			encodeS3Error(w, "NoSuchKey", err.Error(), http.StatusNotFound)
+			return
+		}
+		iorc, _, err := s.GetFile(r.Context(), key)
+		if err != nil {
+			encodeS3Error(w, "NoSuchKey", err.Error(), http.StatusNotFound)
 			return
 		}
 		defer iorc.Close()
+		if stat.Size >= 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(stat.Size, 10))
+		}
+		if stat.ETag != "" {
+			w.Header().Set("ETag", `"`+stat.ETag+`"`)
+		}
+		if !stat.ModTime.IsZero() {
+			w.Header().Set("Last-Modified", stat.ModTime.UTC().Format(http.TimeFormat))
+		}
 		io.Copy(w, iorc)
 	}
 }
 
-func deleteFileHandler(s Service) http.HandlerFunc {
+func deleteObjectHandler(s Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := s.DeleteFile(r.Context(), mux.Vars(r)["key"])
+		vars := mux.Vars(r)
+		key := vars["bucket"] + "/" + vars["key"]
+
+		err := s.DeleteFile(r.Context(), key)
 		if err != nil {
-			encodeError(w, err)
+			encodeS3Error(w, "InternalError", err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
-func hasFileHandler(s Service) http.HandlerFunc {
+func headObjectHandler(s Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vid, ok, err := s.HasFile(r.Context(), mux.Vars(r)["key"])
+		vars := mux.Vars(r)
+		key := vars["bucket"] + "/" + vars["key"]
+
+		vid, ok, err := s.HasFile(r.Context(), key)
 		if err != nil {
-			encodeError(w, err)
+			encodeS3Error(w, "InternalError", err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			w.Header().Add(model.HasFileVolumeIDHeader, vid)
+			encodeS3Error(w, "NoSuchKey", "The specified key does not exist.", http.StatusNotFound)
+			return
+		}
+		stat, err := s.StatFile(r.Context(), key)
+		if err != nil {
+			encodeS3Error(w, "NoSuchKey", err.Error(), http.StatusNotFound)
 			return
 		}
 		w.Header().Add(model.HasFileVolumeIDHeader, vid)
-		if ok {
-			w.WriteHeader(http.StatusNoContent)
-		} else {
-			w.WriteHeader(http.StatusNotFound)
+		if stat.Size >= 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(stat.Size, 10))
 		}
+		if stat.ETag != "" {
+			w.Header().Set("ETag", `"`+stat.ETag+`"`)
+		}
+		if !stat.ModTime.IsZero() {
+			w.Header().Set("Last-Modified", stat.ModTime.UTC().Format(http.TimeFormat))
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func createBucketHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Bucket-as-prefix: no state needed, bucket creation is a no-op
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func deleteBucketHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Bucket-as-prefix: no state to remove
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func listObjectsHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		encodeS3Error(w, "NotImplemented", "List is not supported by this server.", http.StatusNotImplemented)
+	}
+}
+
+func multipartStubHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		encodeS3Error(w, "NotImplemented", "Multipart upload is not supported by this server.", http.StatusNotImplemented)
 	}
 }
 

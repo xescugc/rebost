@@ -64,6 +64,8 @@ type Config struct {
 	Memberlist Memberlist
 
 	Dashboard Dashboard
+
+	S3 S3
 }
 
 // Memberlist is the set  of configuration required for the memberlist,
@@ -81,6 +83,22 @@ type Dashboard struct {
 // Cache is the configuration required for the cache
 type Cache struct {
 	Size int `mapstructure:"size"`
+}
+
+// S3 is the configuration required for S3-compatible API support
+type S3 struct {
+	// AccessKey is the AWS access key ID for Signature V4 authentication.
+	// If empty, authentication is disabled and all requests are accepted.
+	AccessKey string `mapstructure:"access_key"`
+
+	// SecretKey is the AWS secret access key for Signature V4 authentication.
+	SecretKey string `mapstructure:"secret_key"`
+
+	// AuthMode controls which operations require authentication.
+	// Valid values: "all" (default) — auth required for all requests;
+	//               "write" — auth required only for write operations (PUT, DELETE, PATCH, POST).
+	// Has no effect when AccessKey is empty.
+	AuthMode string `mapstructure:"auth_mode"`
 }
 
 // New returns a new Config from the viper.Viper, the ENV variables

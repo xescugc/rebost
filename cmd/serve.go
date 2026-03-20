@@ -113,7 +113,7 @@ var (
 
 			mux := http.NewServeMux()
 
-			mux.Handle("/", storing.MakeHandler(s))
+			mux.Handle("/", storing.MakeHandler(s, cfg))
 
 			http.Handle("/", handlers.CustomLoggingHandler(os.Stdout, mux, func(writer io.Writer, params handlers.LogFormatterParams) {
 				username := "-"
@@ -234,6 +234,15 @@ func init() {
 
 	serveCmd.PersistentFlags().Int("cache.size", config.DefaultCacheSize, "Size of the cache used to store reference to object location on other nodes")
 	viper.BindPFlag("cache.size", serveCmd.PersistentFlags().Lookup("cache.size"))
+
+	serveCmd.PersistentFlags().String("s3.access_key", "", "S3 access key for AWS Signature V4 authentication (leave empty to disable auth)")
+	viper.BindPFlag("s3.access_key", serveCmd.PersistentFlags().Lookup("s3.access_key"))
+
+	serveCmd.PersistentFlags().String("s3.secret_key", "", "S3 secret key for AWS Signature V4 authentication")
+	viper.BindPFlag("s3.secret_key", serveCmd.PersistentFlags().Lookup("s3.secret_key"))
+
+	serveCmd.PersistentFlags().String("s3.auth_mode", "", `S3 auth mode: "all" (default) requires auth for all requests; "write" requires auth only for write operations (PUT, DELETE, PATCH, POST)`)
+	viper.BindPFlag("s3.auth_mode", serveCmd.PersistentFlags().Lookup("s3.auth_mode"))
 
 	RootCmd.AddCommand(serveCmd)
 }

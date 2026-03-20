@@ -703,7 +703,7 @@ func TestGetFile(t *testing.T) {
 			return tf, nil
 		})
 
-		ior, err := mv.V.GetFile(ctx, key)
+		ior, _, err := mv.V.GetFile(ctx, key)
 		require.NoError(t, err)
 		require.NotNil(t, ior)
 		b, err := io.ReadAll(ior)
@@ -722,7 +722,7 @@ func TestGetFile(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
-		_, err := mv.V.GetFile(ctx, key)
+		_, _, err := mv.V.GetFile(ctx, key)
 		assert.EqualError(t, err, errors.New("not found").Error())
 	})
 }
@@ -1131,7 +1131,7 @@ func TestGetState(t *testing.T) {
 
 		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(nil, errors.New("not found"))
 
-		_, err := mv.V.GetFile(ctx, key)
+		_, _, err := mv.V.GetFile(ctx, key)
 		assert.EqualError(t, err, errors.New("not found").Error())
 	})
 }

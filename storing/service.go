@@ -93,18 +93,21 @@ func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep
 	return nil
 }
 
-func (s *service) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
+func (s *service) StatFile(ctx context.Context, k string) (*volume.FileStat, error) {
 	_, v, err := s.getVolume(ctx, k)
 	if err != nil {
 		return nil, err
 	}
+	return v.StatFile(ctx, k)
+}
 
-	r, err := v.GetFile(ctx, k)
+func (s *service) GetFile(ctx context.Context, k string) (io.ReadCloser, int64, error) {
+	_, v, err := s.getVolume(ctx, k)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
-	return r, nil
+	return v.GetFile(ctx, k)
 }
 
 func (s *service) DeleteFile(ctx context.Context, k string) error {

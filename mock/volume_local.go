@@ -14,6 +14,7 @@ import (
 	deletion "github.com/xescugc/rebost/deletion"
 	replica "github.com/xescugc/rebost/replica"
 	state "github.com/xescugc/rebost/state"
+	volume "github.com/xescugc/rebost/volume"
 )
 
 // VolumeLocal is a mock of Local interface.
@@ -110,12 +111,13 @@ func (mr *VolumeLocalMockRecorder) DeleteReplica(arg0, arg1 interface{}) *gomock
 }
 
 // GetFile mocks base method.
-func (m *VolumeLocal) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, error) {
+func (m *VolumeLocal) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFile", arg0, arg1)
 	ret0, _ := ret[0].(io.ReadCloser)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetFile indicates an expected call of GetFile.
@@ -211,6 +213,21 @@ func (m *VolumeLocal) Reset(arg0 context.Context) error {
 func (mr *VolumeLocalMockRecorder) Reset(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*VolumeLocal)(nil).Reset), arg0)
+}
+
+// StatFile mocks base method.
+func (m *VolumeLocal) StatFile(arg0 context.Context, arg1 string) (*volume.FileStat, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StatFile", arg0, arg1)
+	ret0, _ := ret[0].(*volume.FileStat)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StatFile indicates an expected call of StatFile.
+func (mr *VolumeLocalMockRecorder) StatFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StatFile", reflect.TypeOf((*VolumeLocal)(nil).StatFile), arg0, arg1)
 }
 
 // SynchronizeReplicas mocks base method.
