@@ -68,5 +68,8 @@ func (s *State) Use(b int) bool {
 // IsInDowntimeRange will check if the s.UpdatedAt plus the duration
 // is older than the current date, meaning it's not on range
 func (s *State) IsInDowntimeRange(d time.Duration) bool {
+	if s.UpdatedAt.IsZero() {
+		return false
+	}
 	return s.UpdatedAt.Add(d).Before(time.Now())
 }
