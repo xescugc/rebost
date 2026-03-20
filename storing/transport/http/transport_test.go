@@ -1,4 +1,4 @@
-package storing_test
+package httptransport_test
 
 import (
 	"bytes"
@@ -17,8 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
-	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/storing/model"
+	httptransport "github.com/xescugc/rebost/storing/transport/http"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -38,7 +38,7 @@ func TestMakeHandler(t *testing.T) {
 	st := mock.NewStoring(ctrl)
 	defer ctrl.Finish()
 
-	h := storing.MakeHandler(st, &config.Config{})
+	h := httptransport.MakeHandler(st, &config.Config{})
 	server := httptest.NewServer(h)
 	client := server.Client()
 

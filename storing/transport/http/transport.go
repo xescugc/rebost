@@ -1,6 +1,7 @@
-package storing
+package httptransport
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -11,10 +12,24 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/storing/model"
+	"github.com/xescugc/rebost/volume"
 )
 
+// Service is the interface the HTTP transport requires. It is satisfied by
+// Service and any compatible implementation.
+type Service interface {
+	CreateFile(ctx context.Context, key string, reader io.ReadCloser, replica int, ttl time.Duration, ca time.Time) error
+	GetFile(ctx context.Context, key string) (io.ReadCloser, int64, error)
+	StatFile(ctx context.Context, key string) (*volume.FileStat, error)
+	HasFile(ctx context.Context, key string) (string, bool, error)
+	DeleteFile(ctx context.Context, key string) error
+	UpdateFileReplica(ctx context.Context, key string, volumeIDs []string, replica int) error
+	Config(context.Context) (*config.Config, error)
+	CreateReplica(ctx context.Context, key string, reader io.ReadCloser, ttl time.Duration, ca time.Time) (vID string, err error)
+}
+
 // MakeHandler returns an http.Handler that exposes an S3-compatible API backed
-// by the storing.Service. Internal inter-node routes (/replicas/, /config) are
+// by the Service. Internal inter-node routes (/replicas/, /config) are
 // registered first so they are not shadowed by the S3 bucket/key patterns.
 func MakeHandler(s Service, cfg *config.Config) http.Handler {
 	r := mux.NewRouter()

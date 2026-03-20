@@ -29,6 +29,7 @@ import (
 	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/storing"
+	httptransport "github.com/xescugc/rebost/storing/transport/http"
 	"github.com/xescugc/rebost/uow"
 	"github.com/xescugc/rebost/volume"
 	bolt "go.etcd.io/bbolt"
@@ -113,7 +114,7 @@ var (
 
 			mux := http.NewServeMux()
 
-			mux.Handle("/", storing.MakeHandler(s, cfg))
+			mux.Handle("/", httptransport.MakeHandler(s, cfg))
 
 			http.Handle("/", handlers.CustomLoggingHandler(os.Stdout, mux, func(writer io.Writer, params handlers.LogFormatterParams) {
 				username := "-"

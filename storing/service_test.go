@@ -17,6 +17,7 @@ import (
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
+	httptransport "github.com/xescugc/rebost/storing/transport/http"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -127,7 +128,7 @@ func TestGetFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := storing.MakeHandler(s2, &config.Config{})
+		h := httptransport.MakeHandler(s2, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -186,7 +187,7 @@ func TestDeleteFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := storing.MakeHandler(s2, &config.Config{})
+		h := httptransport.MakeHandler(s2, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
