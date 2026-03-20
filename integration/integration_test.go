@@ -185,23 +185,28 @@ func TestReplica(t *testing.T) {
 		err := cl1.CreateFile(ctx, keytxt, iorctxt, 3, noTTL, noCA)
 		require.NoError(t, err)
 
-		// As the goroutine has a delay of 1s we may have to
-		// w8 for it
-		time.Sleep(2 * time.Second)
+		// Poll until background replication has pushed the file to 3/5 nodes
+		var okCount, nokCount int
+		require.Eventually(t, func() bool {
+			okCount, nokCount = 0, 0
+			for _, c := range clients {
+				_, ok, _ := c.HasFile(ctx, keytxt)
+				if ok {
+					okCount++
+				} else {
+					nokCount++
+				}
+			}
+			return okCount == 3
+		}, 10*time.Second, 100*time.Millisecond)
 
 		// As it's a replica 3 so 3/5 have to have it
-		var (
-			okCount  int
-			nokCount int
-		)
 		for i, c := range clients {
 			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
-				okCount++
 				assert.Equal(t, vids[i], vid)
 			} else {
-				nokCount++
 				assert.Equal(t, "", vid)
 			}
 		}
@@ -228,21 +233,28 @@ func TestReplica(t *testing.T) {
 			}
 		}
 
-		time.Sleep(5 * time.Second)
+		// Poll until re-replication restores the replica count to 3/4
+		var okCount, nokCount int
+		require.Eventually(t, func() bool {
+			okCount, nokCount = 0, 0
+			for _, c := range clients {
+				_, ok, _ := c.HasFile(ctx, keytxt)
+				if ok {
+					okCount++
+				} else {
+					nokCount++
+				}
+			}
+			return okCount == 3
+		}, 10*time.Second, 100*time.Millisecond)
 
 		// As it's a replica 3 so 3/4 have to have it
-		var (
-			okCount  int
-			nokCount int
-		)
 		for i, c := range clients {
 			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
-				okCount++
 				assert.Equal(t, vids[i], vid)
 			} else {
-				nokCount++
 				assert.Equal(t, "", vid)
 			}
 		}
@@ -256,21 +268,28 @@ func TestReplica(t *testing.T) {
 		cancels = cancels[1:]
 		vids = vids[1:]
 
-		time.Sleep(5 * time.Second)
+		// Poll until re-replication ensures all 3 remaining nodes have the file
+		var okCount, nokCount int
+		require.Eventually(t, func() bool {
+			okCount, nokCount = 0, 0
+			for _, c := range clients {
+				_, ok, _ := c.HasFile(ctx, keytxt)
+				if ok {
+					okCount++
+				} else {
+					nokCount++
+				}
+			}
+			return okCount == 3
+		}, 10*time.Second, 100*time.Millisecond)
 
-		// As it's a replica 3 so 3/4 have to have it
-		var (
-			okCount  int
-			nokCount int
-		)
+		// As it's a replica 3 so 3/3 have to have it
 		for i, c := range clients {
 			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
-				okCount++
 				assert.Equal(t, vids[i], vid)
 			} else {
-				nokCount++
 				assert.Equal(t, "", vid)
 			}
 		}
@@ -279,21 +298,28 @@ func TestReplica(t *testing.T) {
 	})
 	t.Run("DeleteFile", func(t *testing.T) {
 		clients[0].DeleteFile(ctx, keytxt)
-		time.Sleep(5 * time.Second)
 
-		// As it's a replica 3 so 3/4 have to have it
-		var (
-			okCount  int
-			nokCount int
-		)
+		// Poll until deletion has propagated to all replica nodes
+		var okCount, nokCount int
+		require.Eventually(t, func() bool {
+			okCount, nokCount = 0, 0
+			for _, c := range clients {
+				_, ok, _ := c.HasFile(ctx, keytxt)
+				if ok {
+					okCount++
+				} else {
+					nokCount++
+				}
+			}
+			return okCount == 0
+		}, 10*time.Second, 100*time.Millisecond)
+
 		for i, c := range clients {
 			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
-				okCount++
 				assert.Equal(t, vids[i], vid)
 			} else {
-				nokCount++
 				assert.Equal(t, "", vid)
 			}
 		}
@@ -341,23 +367,28 @@ func TestTTL(t *testing.T) {
 		err := cl1.CreateFile(ctx, keytxt, iorctxt, 3, ttl, noCA)
 		require.NoError(t, err)
 
-		// As the goroutine has a delay of 1s we may have to
-		// w8 for it
-		time.Sleep(2 * time.Second)
+		// Poll until background replication has pushed the file to 3/5 nodes
+		var okCount, nokCount int
+		require.Eventually(t, func() bool {
+			okCount, nokCount = 0, 0
+			for _, c := range clients {
+				_, ok, _ := c.HasFile(ctx, keytxt)
+				if ok {
+					okCount++
+				} else {
+					nokCount++
+				}
+			}
+			return okCount == 3
+		}, 10*time.Second, 100*time.Millisecond)
 
 		// As it's a replica 3 so 3/5 have to have it
-		var (
-			okCount  int
-			nokCount int
-		)
 		for i, c := range clients {
 			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
-				okCount++
 				assert.Equal(t, vids[i], vid)
 			} else {
-				nokCount++
 				assert.Equal(t, "", vid)
 			}
 		}
@@ -365,23 +396,28 @@ func TestTTL(t *testing.T) {
 		assert.Equal(t, 2, nokCount)
 	})
 
-	// We sleep the TTL so we can check that then the file is deleted
-	time.Sleep(5 * time.Second)
-
 	t.Run("After TTL", func(t *testing.T) {
-		// As it's a replica 3 so 3/5 have to have it
-		var (
-			okCount  int
-			nokCount int
-		)
+		// Poll until TTL expiry has propagated the deletion to all 5 nodes
+		var okCount, nokCount int
+		require.Eventually(t, func() bool {
+			okCount, nokCount = 0, 0
+			for _, c := range clients {
+				_, ok, _ := c.HasFile(ctx, keytxt)
+				if ok {
+					okCount++
+				} else {
+					nokCount++
+				}
+			}
+			return nokCount == 5
+		}, 15*time.Second, 100*time.Millisecond)
+
 		for i, c := range clients {
 			vid, ok, err := c.HasFile(ctx, keytxt)
 			require.NoError(t, err)
 			if ok {
-				okCount++
 				assert.Equal(t, vids[i], vid)
 			} else {
-				nokCount++
 				assert.Equal(t, "", vid)
 			}
 		}
