@@ -26,7 +26,7 @@ func homeHandler(s dashboard.Service) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		t, _ := templates.Templates["views/dashboard/index.tmpl"]
+		t := templates.Templates["views/dashboard/index.tmpl"]
 		t.Execute(w, transport.HomeResponse{Nodes: ns})
 	}
 }

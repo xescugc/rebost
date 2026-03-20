@@ -44,7 +44,7 @@ func (r *idxttlRepository) Filter(ctx context.Context, ea time.Time) ([]*idxttl.
 	max := formatTime(ea)
 
 	c := r.bucket.Cursor()
-	idxttls := make([]*idxttl.IDXTTL, 0, 0)
+	idxttls := make([]*idxttl.IDXTTL, 0)
 	for k, v := c.Seek(min); k != nil && bytes.Compare(k, max) <= 0; k, v = c.Next() {
 		ittl := newIDXTTLFromDB(k, v)
 		idxttls = append(idxttls, ittl)

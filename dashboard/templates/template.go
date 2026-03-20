@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"math"
 	"path/filepath"
-	"regexp"
 
 	"code.cloudfoundry.org/bytefmt"
 	"github.com/xescugc/rebost/dashboard"
@@ -27,7 +26,6 @@ var (
 	// Templates is the cache of all the templates we have
 	Templates map[string]*template.Template
 
-	idR = regexp.MustCompile(`^[^a-z]+|[^\w]+`)
 )
 
 func init() {
@@ -36,8 +34,6 @@ func init() {
 	}
 
 	loadTemplates(viewsDir)
-
-	return
 }
 
 func loadTemplates(path string) error {

@@ -31,10 +31,7 @@ type State struct {
 // CanStore will check if the b bytes fit into the defined sizes
 // to prevent over sizing
 func (s *State) CanStore(b int) bool {
-	if s.UsedSize()+b > s.TotalSize() {
-		return false
-	}
-	return true
+	return s.UsedSize()+b <= s.TotalSize()
 }
 
 // TotalSize returns the total size depending if the VolumeTotalSize

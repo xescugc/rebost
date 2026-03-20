@@ -24,14 +24,5 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: lint
-      run: make lint
-
-    - name: vet 
-      run: make vet
-
-    - name: fmt
-      run: make fmt
-
-    - name: Test
-      run: make test
+    - name: CI
+      run: make ci

@@ -46,7 +46,7 @@ type FileStat struct {
 	ModTime time.Time
 }
 
-//go:generate mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
+//go:generate go tool mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
 
 // Volume is an interface to deal with the simples actions
 // and basic ones
@@ -81,7 +81,7 @@ type Volume interface {
 	UpdateFileReplica(ctx context.Context, key string, volumeIDs []string, replica int) error
 }
 
-//go:generate mockgen -destination=../mock/volume_local.go -mock_names=Local=VolumeLocal -package=mock github.com/xescugc/rebost/volume Local
+//go:generate go tool mockgen -destination=../mock/volume_local.go -mock_names=Local=VolumeLocal -package=mock github.com/xescugc/rebost/volume Local
 
 // Local is the definition of a Local volume which
 // is an extension of the volume.Volume
@@ -896,7 +896,7 @@ func (l *local) Reset(ctx context.Context) error {
 			return err
 		}
 
-		id, err := l.createID(idPath)
+		id, _ := l.createID(idPath)
 		l.id = id
 		l.logger = l.originalLogger.With("src", "volume", "id", id)
 

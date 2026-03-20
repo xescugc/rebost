@@ -9,12 +9,10 @@ Default replica count: 3. Files are content-addressed via SHA1 (deduplication). 
 ## Build & Test Commands
 
 ```bash
-make test       # go test ./...
-make vet        # go vet ./...
-make fmt        # goimports check
-make lint       # golint
-make generate   # go generate ./... (regenerates mocks)
-make ci         # lint + vet + fmt + test
+make test         # go test ./...
+make staticcheck  # go tool staticcheck ./...
+make generate     # go generate ./... (regenerates mocks)
+make ci           # staticcheck + test
 ```
 
 ## Package Map
@@ -22,7 +20,8 @@ make ci         # lint + vet + fmt + test
 | Package       | Purpose                                                                                                    |
 | ------------- | ---------------------------------------------------------------------------------------------------------- |
 | `cmd/`        | CLI entry (cobra/viper). `serve.go` wires everything together.                                             |
-| `storing/`    | Main service layer — Service interface + direct HTTP transport (gorilla/mux). Orchestrates all operations. |
+| `storing/`    | Main service layer — Service interface, background replication loops, membership interface.                |
+| `storing/transport/http/` | HTTP transport — S3-compatible handlers, auth middleware, XML error responses.      |
 | `volume/`     | Local volume ops — file CRUD, replica queue, TTL loop. Wraps BoltDB + filesystem.                          |
 | `membership/` | Cluster discovery via gossip. Tracks nodes, volume IDs, downtime.                                          |
 | `client/`     | HTTP client for remote nodes; implements `volume.Volume` interface.                                        |
@@ -43,15 +42,15 @@ make ci         # lint + vet + fmt + test
 
 ```
 HTTP Request
-  → storing.Transport  (direct http.HandlerFunc handlers, gorilla/mux)
-  → storing.Service    (business logic — local or remote dispatch)
-      → volume.Local   (local volumes: BoltDB + afero filesystem)
-          → UnitOfWork (boltdb tx wrapping all repositories + fs)
-      → client.Client  (remote volumes via HTTP)
-  → membership         (gossip cluster: node/volume discovery)
+  → storing/transport/http  (S3-compatible handlers, gorilla/mux)
+  → storing.Service         (business logic — local or remote dispatch)
+      → volume.Local        (local volumes: BoltDB + afero filesystem)
+          → UnitOfWork      (boltdb tx wrapping all repositories + fs)
+      → client.Client       (remote volumes via HTTP)
+  → membership              (gossip cluster: node/volume discovery)
 ```
 
-### HTTP Routes (storing/transport.go)
+### HTTP Routes (storing/transport/http/transport.go)
 
 **S3-compatible object routes** (XML responses, auth-protected when credentials configured):
 
@@ -76,7 +75,7 @@ HTTP Request
 
 ### HTTP handler pattern
 
-Each service has `service.go` (interface + implementation) and `transport.go` (HTTP handlers). Handlers are separate top-level functions returning `http.HandlerFunc`, taking the service as argument. Logging uses `log/slog`. The `client/` package makes direct `net/http` calls with a `request()` helper for JSON endpoints.
+Each service has `service.go` (interface + implementation) and `transport/http/transport.go` (HTTP handlers). Handlers are separate top-level functions returning `http.HandlerFunc`, taking the service as argument. Logging uses `log/slog`. The `client/` package makes direct `net/http` calls with a `request()` helper for JSON endpoints.
 
 ### Unit of Work (UoW) / Transaction
 
@@ -182,15 +181,16 @@ On startup, if `--remote` is provided:
 
 One DB file per volume path. Buckets: `files`, `idxkey`, `idxttl`, `idxvolume`, `replica`, `deletion`, `state`.
 
-## Current Branch: fg-89 — S3 API Compatibility
+## Current Branch: fg-111
 
 Modified files and intent:
 
-- `storing/transport.go` — replaced `/files/{key}` routes with S3-compatible `/{bucket}/{key}` routes; XML error responses; auth middleware.
-- `storing/s3xml.go` — S3 XML error response type and `encodeS3Error` helper.
-- `storing/s3auth.go` — optional AWS Signature V4 validation middleware; skips `/config` and `/replicas/` internal routes.
-- `client/client.go` — updated inter-node URL patterns from `/files/{key}` to `/{key}`; added XML error parsing in `utils.go`.
-- `config/config.go` — added `S3` sub-struct (`AccessKey`, `SecretKey`).
-- `cmd/serve.go` — wires `MakeHandler(s, cfg)`; added `--s3.access_key` and `--s3.secret_key` CLI flags.
-- `integration/integration_s3_test.go` — S3 SDK integration tests (CRUD, auth, 501 stubs).
+- `storing/transport/http/transport.go` — S3-compatible `/{bucket}/{key}` routes; XML error responses; auth middleware. Defines local `Service` interface (no import of `storing` — avoids cycle).
+- `storing/transport/http/s3xml.go` — S3 XML error response type and `encodeS3Error` helper.
+- `storing/transport/http/s3auth.go` — optional AWS Signature V4 validation middleware; skips `/config` and `/replicas/` internal routes.
+- `client/client.go` — inter-node HTTP calls using `/{key}` URL patterns; XML error parsing.
+- `config/config.go` — `S3` sub-struct (`AccessKey`, `SecretKey`, `AuthMode`).
+- `cmd/serve.go` — wires `httptransport.MakeHandler(s, cfg)`.
+- `Makefile` — replaced `lint`/`vet`/`fmt` + install helpers with `staticcheck` via `go tool`.
+- `go.mod` — added `tool` directives for `mockgen` and `staticcheck`.
 

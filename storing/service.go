@@ -20,7 +20,7 @@ const (
 	noReplica = 1
 )
 
-//go:generate mockgen -destination=../mock/storing.go -mock_names=Service=Storing -package=mock github.com/xescugc/rebost/storing Service
+//go:generate go tool mockgen -destination=../mock/storing.go -mock_names=Service=Storing -package=mock github.com/xescugc/rebost/storing Service
 
 // Service is the interface of used to for the storing,
 // it's the one that will be used when defining a client
@@ -177,7 +177,6 @@ func (s *service) UpdateFileReplica(ctx context.Context, key string, volumeIDs [
 func (s *service) getLocalVolume(ctx context.Context, k string) volume.Local {
 	vls := s.members.LocalVolumes()
 
-	rand.Seed(time.Now().UTC().UnixNano())
 	return vls[rand.Intn(len(vls))]
 }
 
@@ -264,18 +263,16 @@ func (s *service) findVolume(ctx context.Context, vls []volume.Volume, k string)
 		m   msg
 		err error
 	)
-	select {
-	case m = <-doneC:
-		if m.v == nil {
-			// If it's done without a value, means
-			// that the doneC has ben closed and that
-			// no volume was found
-			err = errors.New("not found")
-		}
-		// Cancel all the possible still running
-		// request to the volumes
-		cfn()
+	m = <-doneC
+	if m.v == nil {
+		// If it's done without a value, means
+		// that the doneC has ben closed and that
+		// no volume was found
+		err = errors.New("not found")
 	}
+	// Cancel all the possible still running
+	// request to the volumes
+	cfn()
 
 	return m.vid, m.v, err
 }
