@@ -18,6 +18,7 @@ import (
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/replica"
+	httptransport "github.com/xescugc/rebost/storing/transport/http"
 )
 
 func newTestService(t *testing.T, m *mock.Membership) *service {
@@ -123,7 +124,7 @@ func TestProcessNextReplica(t *testing.T) {
 
 		// Set up a real HTTP test server acting as the remote node.
 		remoteNode := mock.NewStoring(ctrl)
-		h := MakeHandler(remoteNode, &config.Config{})
+		h := httptransport.MakeHandler(remoteNode, &config.Config{})
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)

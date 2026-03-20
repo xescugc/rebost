@@ -1,4 +1,4 @@
-package storing
+package httptransport
 
 import (
 	"crypto/hmac"

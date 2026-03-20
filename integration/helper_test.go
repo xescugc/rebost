@@ -22,6 +22,7 @@ import (
 	"github.com/xescugc/rebost/fs"
 	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/storing"
+	httptransport "github.com/xescugc/rebost/storing/transport/http"
 	"github.com/xescugc/rebost/util"
 	"github.com/xescugc/rebost/volume"
 	bolt "go.etcd.io/bbolt"
@@ -87,7 +88,7 @@ func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config
 	s, err := storing.New(cfg, m, logger)
 	require.NoError(t, err)
 
-	server.Config.Handler = storing.MakeHandler(s, cfg)
+	server.Config.Handler = httptransport.MakeHandler(s, cfg)
 
 	u := fmt.Sprintf("http://localhost:%d", port)
 

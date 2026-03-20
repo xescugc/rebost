@@ -16,7 +16,7 @@ import (
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
-	"github.com/xescugc/rebost/storing"
+	httptransport "github.com/xescugc/rebost/storing/transport/http"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -33,7 +33,7 @@ func TestNew(t *testing.T) {
 		st.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 		st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -61,9 +61,9 @@ func TestNew(t *testing.T) {
 		st2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil).Times(2)
 		st3.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
-		h1 := storing.MakeHandler(st1, &config.Config{})
-		h2 := storing.MakeHandler(st2, &config.Config{})
-		h3 := storing.MakeHandler(st3, &config.Config{})
+		h1 := httptransport.MakeHandler(st1, &config.Config{})
+		h2 := httptransport.MakeHandler(st2, &config.Config{})
+		h3 := httptransport.MakeHandler(st3, &config.Config{})
 
 		server1 := httptest.NewServer(h1)
 		server2 := httptest.NewServer(h2)
@@ -99,7 +99,7 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, content, c)
 		}).Return(nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, content, c)
 		}).Return(errors.New("some error"))
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestGetFile(t *testing.T) {
 		st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len(content))}, nil)
 		st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), int64(-1), nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -173,7 +173,7 @@ func TestGetFile(t *testing.T) {
 
 		st.EXPECT().StatFile(gomock.Any(), key).Return(nil, errors.New("some error"))
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -197,7 +197,7 @@ func TestHasFile(t *testing.T) {
 		st.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
 		st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -217,7 +217,7 @@ func TestHasFile(t *testing.T) {
 
 		st.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -237,7 +237,7 @@ func TestHasFile(t *testing.T) {
 
 		st.EXPECT().HasFile(gomock.Any(), key).Return("", false, errors.New("some error"))
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -258,7 +258,7 @@ func TestGetConfig(t *testing.T) {
 
 		st.EXPECT().Config(gomock.Any()).Return(ecfg, nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -274,7 +274,7 @@ func TestGetConfig(t *testing.T) {
 
 		st.EXPECT().Config(gomock.Any()).Return(nil, errors.New("some error"))
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -294,7 +294,7 @@ func TestDeleteFile(t *testing.T) {
 
 		st.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -311,7 +311,7 @@ func TestDeleteFile(t *testing.T) {
 
 		st.EXPECT().DeleteFile(gomock.Any(), key).Return(errors.New("some error"))
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -341,7 +341,7 @@ func TestCreateReplica(t *testing.T) {
 			assert.Equal(t, content, c)
 		}).Return(volID, nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -368,7 +368,7 @@ func TestCreateReplica(t *testing.T) {
 			assert.Equal(t, content, c)
 		}).Return("", errors.New("some-error"))
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -392,7 +392,7 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		st.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(nil)
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -412,7 +412,7 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		st.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(errors.New("some-error"))
 
-		h := storing.MakeHandler(st, &config.Config{})
+		h := httptransport.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
