@@ -12,6 +12,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	config "github.com/xescugc/rebost/config"
+	volume "github.com/xescugc/rebost/volume"
 )
 
 // Storing is a mock of Service interface.
@@ -96,12 +97,13 @@ func (mr *StoringMockRecorder) DeleteFile(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetFile mocks base method.
-func (m *Storing) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, error) {
+func (m *Storing) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFile", arg0, arg1)
 	ret0, _ := ret[0].(io.ReadCloser)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetFile indicates an expected call of GetFile.
@@ -124,6 +126,21 @@ func (m *Storing) HasFile(arg0 context.Context, arg1 string) (string, bool, erro
 func (mr *StoringMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*Storing)(nil).HasFile), arg0, arg1)
+}
+
+// StatFile mocks base method.
+func (m *Storing) StatFile(arg0 context.Context, arg1 string) (*volume.FileStat, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StatFile", arg0, arg1)
+	ret0, _ := ret[0].(*volume.FileStat)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StatFile indicates an expected call of StatFile.
+func (mr *StoringMockRecorder) StatFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StatFile", reflect.TypeOf((*Storing)(nil).StatFile), arg0, arg1)
 }
 
 // UpdateFileReplica mocks base method.

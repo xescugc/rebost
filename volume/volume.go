@@ -39,6 +39,13 @@ const (
 	noTTL = 0
 )
 
+// FileStat holds metadata about a stored file, used for S3-compatible HEAD responses.
+type FileStat struct {
+	Size    int64
+	ETag    string
+	ModTime time.Time
+}
+
 //go:generate mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
 
 // Volume is an interface to deal with the simples actions
@@ -53,7 +60,10 @@ type Volume interface {
 	CreateFile(ctx context.Context, key string, reader io.ReadCloser, replica int, ttl time.Duration, ca time.Time) error
 
 	// GetFile search for the file with the key
-	GetFile(ctx context.Context, key string) (io.ReadCloser, error)
+	GetFile(ctx context.Context, key string) (io.ReadCloser, int64, error)
+
+	// StatFile returns metadata about the file without reading its content.
+	StatFile(ctx context.Context, key string) (*FileStat, error)
 
 	// HasFile checks if a file with the key exists and returns the volumeID
 	// of where is it.
@@ -454,7 +464,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 	return nil
 }
 
-func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
+func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, int64, error) {
 	var (
 		idk *idxkey.IDXKey
 		err error
@@ -469,15 +479,44 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
 	fh, err := l.fs.Open(file.Path(l.fileDir, idk.Value))
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
-	return fh, nil
+	info, err := fh.Stat()
+	if err != nil {
+		return fh, -1, nil
+	}
+
+	return fh, info.Size(), nil
+}
+
+func (l *local) StatFile(ctx context.Context, k string) (*FileStat, error) {
+	var stat FileStat
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		idk, err := uw.IDXKeys().FindByKey(ctx, k)
+		if err != nil {
+			return err
+		}
+		f, err := uw.Files().FindBySignature(ctx, idk.Value)
+		if err != nil {
+			return err
+		}
+		stat = FileStat{
+			Size:    int64(f.Size),
+			ETag:    f.Signature,
+			ModTime: f.CreatedAt,
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &stat, nil
 }
 
 func (l *local) DeleteFile(ctx context.Context, key string) error {

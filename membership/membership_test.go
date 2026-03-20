@@ -56,7 +56,7 @@ func TestVolumes(t *testing.T) {
 
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(storing.MakeHandler(s))
+			server := httptest.NewServer(storing.MakeHandler(s, &config.Config{}))
 			defer server.Close()
 
 			p3, err := util.FreePort()
@@ -85,7 +85,7 @@ func TestVolumes(t *testing.T) {
 			require.NoError(t, err)
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(storing.MakeHandler(s))
+			server := httptest.NewServer(storing.MakeHandler(s, &config.Config{}))
 			defer server.Close()
 
 			p3, err := util.FreePort()
@@ -120,7 +120,7 @@ func TestVolumes(t *testing.T) {
 			require.NoError(t, err)
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(storing.MakeHandler(s))
+			server := httptest.NewServer(storing.MakeHandler(s, &config.Config{}))
 			defer server.Close()
 
 			p3, err := util.FreePort()

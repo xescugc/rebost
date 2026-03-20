@@ -27,11 +27,12 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-// newClient initializes a new client.Client with a random Port and random MemberlistBindPort with the
-// given name and remote to connect to.
-// It returns the clien.Client, the URL of the server the client it's connected to, the volume ID  and a cancelFn that
-// cleans the server.
-func newClient(t *testing.T, name string, remote string) (*client.Client, string, string, cancelFn) {
+// newNode starts a test node and returns its URL, volume ID, and a cancel function.
+// The cfg argument allows callers to set extra config fields (e.g. S3 credentials)
+// before the node is wired up. Pass nil for defaults.
+func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config)) (string, string, cancelFn) {
+	t.Helper()
+
 	port, err := util.FreePort()
 	require.NoError(t, err)
 
@@ -45,6 +46,10 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	// We set it outside of the New because we want to be fast for testing
 	// and it has a validation on the New to not allow it
 	cfg.VolumeDowntime = time.Second
+
+	if cfgFn != nil {
+		cfgFn(cfg)
+	}
 
 	tmpDir, err := os.MkdirTemp("", "rebost")
 	if err != nil {
@@ -82,21 +87,51 @@ func newClient(t *testing.T, name string, remote string) (*client.Client, string
 	s, err := storing.New(cfg, m, logger)
 	require.NoError(t, err)
 
-	h := storing.MakeHandler(s)
-
-	server.Config.Handler = h
+	server.Config.Handler = storing.MakeHandler(s, cfg)
 
 	u := fmt.Sprintf("http://localhost:%d", port)
 
-	cl, err := client.New(u)
-	require.NoError(t, err)
-
-	return cl, u, v.ID(), func() {
+	return u, v.ID(), func() {
 		m.Leave()
 		bdb.Close()
 		os.RemoveAll(tmpDir)
 		server.Close()
 	}
+}
+
+// newClient initializes a new client.Client with a random Port and random MemberlistBindPort with the
+// given name and remote to connect to.
+// It returns the client.Client, the URL of the server the client is connected to, the volume ID and a cancelFn that
+// cleans the server.
+func newClient(t *testing.T, name string, remote string) (*client.Client, string, string, cancelFn) {
+	t.Helper()
+
+	u, vid, cancel := newNode(t, name, remote, nil)
+
+	cl, err := client.New(u)
+	require.NoError(t, err)
+
+	return cl, u, vid, cancel
+}
+
+// newClientWithAuth is like newClient but starts the node with S3 auth enabled.
+// It returns the server URL and a cancel function (no rebost client since S3 clients are used directly).
+func newClientWithAuth(t *testing.T, name string, remote string, accessKey string, secretKey string) (string, cancelFn) {
+	t.Helper()
+	return newClientWithAuthMode(t, name, remote, accessKey, secretKey, "")
+}
+
+// newClientWithAuthMode is like newClientWithAuth but also sets the S3 auth mode.
+func newClientWithAuthMode(t *testing.T, name string, remote string, accessKey string, secretKey string, authMode string) (string, cancelFn) {
+	t.Helper()
+
+	u, _, cancel := newNode(t, name, remote, func(cfg *config.Config) {
+		cfg.S3.AccessKey = accessKey
+		cfg.S3.SecretKey = secretKey
+		cfg.S3.AuthMode = authMode
+	})
+
+	return u, cancel
 }
 
 func createDB(p string) (*bolt.DB, error) {

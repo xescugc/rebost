@@ -27,7 +27,7 @@ var (
 func TestCreateFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
@@ -52,7 +52,7 @@ func TestCreateFile(t *testing.T) {
 	})
 	t.Run("SuccessWithConfigReplica", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
@@ -90,7 +90,7 @@ func TestCreateFile(t *testing.T) {
 func TestGetFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			vid  = "vid"
@@ -103,12 +103,12 @@ func TestGetFile(t *testing.T) {
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
-		v.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
+		v.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), int64(-1), nil)
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
-		ior, err := s.GetFile(ctx, key)
+		ior, _, err := s.GetFile(ctx, key)
 
 		require.NoError(t, err)
 
@@ -117,7 +117,7 @@ func TestGetFile(t *testing.T) {
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			vid  = "vid"
@@ -127,7 +127,7 @@ func TestGetFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := storing.MakeHandler(s2)
+		h := storing.MakeHandler(s2, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -137,12 +137,13 @@ func TestGetFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
-		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), nil)
+		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len("expectedcontent"))}, nil).Times(2)
+		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), int64(-1), nil)
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
 
-		ior, err := s.GetFile(ctx, key)
+		ior, _, err := s.GetFile(ctx, key)
 		require.NoError(t, err)
 
 		b, err := io.ReadAll(ior)
@@ -154,7 +155,7 @@ func TestDeleteFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			ctrl = gomock.NewController(t)
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctx  = context.Background()
 			vid  = "vid"
 		)
@@ -175,7 +176,7 @@ func TestDeleteFile(t *testing.T) {
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			vid  = "vid"
@@ -185,7 +186,7 @@ func TestDeleteFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := storing.MakeHandler(s2)
+		h := storing.MakeHandler(s2, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -195,6 +196,7 @@ func TestDeleteFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
+		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -209,7 +211,7 @@ func TestHasFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
 			ctrl = gomock.NewController(t)
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctx  = context.Background()
 			evid = "vid"
 		)
@@ -231,7 +233,7 @@ func TestHasFile(t *testing.T) {
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			evid = "vid"
@@ -261,7 +263,7 @@ func TestHasFile(t *testing.T) {
 	t.Run("SuccessFalse", func(t *testing.T) {
 		var (
 			ctrl = gomock.NewController(t)
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctx  = context.Background()
 		)
 		v := mock.NewVolumeLocal(ctrl)
@@ -339,7 +341,7 @@ func TestCreateReplica(t *testing.T) {
 	})
 	t.Run("ErrorNoReplica", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
@@ -362,7 +364,7 @@ func TestCreateReplica(t *testing.T) {
 func TestUpdateFileReplica(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 4
@@ -394,7 +396,7 @@ func TestUpdateFileReplica(t *testing.T) {
 	})
 	t.Run("ErrorNoReplica", func(t *testing.T) {
 		var (
-			key  = "expectedkey"
+			key  = "testbucket/expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			rep  = 4

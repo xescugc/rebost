@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -18,25 +19,50 @@ type errorResponse struct {
 	Err string `json:"error,omitempty"`
 }
 
-func (c *client) requestStream(ctx context.Context, method, url string) (io.ReadCloser, error) {
+type s3ErrorResponse struct {
+	XMLName xml.Name `xml:"Error"`
+	Code    string   `xml:"Code"`
+	Message string   `xml:"Message"`
+}
+
+// parseErrorBody reads the response body and tries to extract an error message.
+// It first tries JSON (internal routes), then XML (S3 routes).
+func parseErrorBody(body io.Reader) string {
+	b, err := io.ReadAll(body)
+	if err != nil {
+		return ""
+	}
+
+	var jerr errorResponse
+	if json.Unmarshal(b, &jerr) == nil && jerr.Err != "" {
+		return jerr.Err
+	}
+
+	var xerr s3ErrorResponse
+	if xml.Unmarshal(b, &xerr) == nil && xerr.Message != "" {
+		return xerr.Message
+	}
+
+	return ""
+}
+
+func (c *client) requestStream(ctx context.Context, method, url string) (io.ReadCloser, int64, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request %q: %w", url, err)
+		return nil, -1, fmt.Errorf("failed to create request %q: %w", url, err)
 	}
 	hresp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to do request %q: %w", url, err)
+		return nil, -1, fmt.Errorf("failed to do request %q: %w", url, err)
 	}
 	if !successCodeRe.MatchString(strconv.Itoa(hresp.StatusCode)) {
 		defer hresp.Body.Close()
-		var eresp errorResponse
-		json.NewDecoder(hresp.Body).Decode(&eresp)
-		if eresp.Err != "" {
-			return nil, errors.New(eresp.Err)
+		if msg := parseErrorBody(hresp.Body); msg != "" {
+			return nil, -1, errors.New(msg)
 		}
-		return nil, fmt.Errorf("unexpected status %d", hresp.StatusCode)
+		return nil, -1, fmt.Errorf("unexpected status %d", hresp.StatusCode)
 	}
-	return hresp.Body, nil
+	return hresp.Body, hresp.ContentLength, nil
 }
 
 func (c *client) request(ctx context.Context, method, url string, body, resp interface{}) (*http.Response, error) {
@@ -65,10 +91,8 @@ func (c *client) request(ctx context.Context, method, url string, body, resp int
 	defer hresp.Body.Close()
 
 	if !successCodeRe.MatchString(strconv.Itoa(hresp.StatusCode)) {
-		var eresp errorResponse
-		json.NewDecoder(hresp.Body).Decode(&eresp)
-		if eresp.Err != "" {
-			return hresp, errors.New(eresp.Err)
+		if msg := parseErrorBody(hresp.Body); msg != "" {
+			return hresp, errors.New(msg)
 		}
 		return hresp, nil
 	} else if resp != nil && hresp.StatusCode != http.StatusNoContent {

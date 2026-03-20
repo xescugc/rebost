@@ -99,7 +99,7 @@ func TestProcessNextReplica(t *testing.T) {
 		defer ctrl.Finish()
 
 		var (
-			key           = "somekey"
+			key           = "testbucket/somekey"
 			localVID      = "localvid"
 			newVID        = "newvid"
 			originalCount = 2
@@ -123,7 +123,7 @@ func TestProcessNextReplica(t *testing.T) {
 
 		// Set up a real HTTP test server acting as the remote node.
 		remoteNode := mock.NewStoring(ctrl)
-		h := MakeHandler(remoteNode)
+		h := MakeHandler(remoteNode, &config.Config{})
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -138,7 +138,7 @@ func TestProcessNextReplica(t *testing.T) {
 		// Remote node does not have the file.
 		remoteNode.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 
-		v.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString(content)), nil)
+		v.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString(content)), int64(-1), nil)
 
 		// Remote node accepts the replica and returns its volume ID.
 		// gomock.Any() for ca: time.Time loses its monotonic component over HTTP.

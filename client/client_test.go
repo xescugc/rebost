@@ -17,12 +17,13 @@ import (
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
+	"github.com/xescugc/rebost/volume"
 )
 
 func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			key  = "fileName"
+			key  = "testbucket/fileName"
 			ctrl = gomock.NewController(t)
 			evid = "vid"
 		)
@@ -30,8 +31,9 @@ func TestNew(t *testing.T) {
 		defer ctrl.Finish()
 
 		st.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
+		st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -43,7 +45,7 @@ func TestNew(t *testing.T) {
 	})
 	t.Run("SuccessWithMultipleHosts", func(t *testing.T) {
 		var (
-			key  = "fileName"
+			key  = "testbucket/fileName"
 			ctrl = gomock.NewController(t)
 			evid = "vid"
 		)
@@ -55,10 +57,13 @@ func TestNew(t *testing.T) {
 		st1.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil).Times(2)
 		st2.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil).Times(2)
 		st3.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
+		st1.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil).Times(2)
+		st2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil).Times(2)
+		st3.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
-		h1 := storing.MakeHandler(st1)
-		h2 := storing.MakeHandler(st2)
-		h3 := storing.MakeHandler(st3)
+		h1 := storing.MakeHandler(st1, &config.Config{})
+		h2 := storing.MakeHandler(st2, &config.Config{})
+		h3 := storing.MakeHandler(st3, &config.Config{})
 
 		server1 := httptest.NewServer(h1)
 		server2 := httptest.NewServer(h2)
@@ -81,7 +86,7 @@ func TestCreateFile(t *testing.T) {
 			st          = mock.NewStoring(ctrl)
 			content     = make([]byte, 6000)
 			iorcContent = io.NopCloser(bytes.NewBuffer(content))
-			key         = "filename"
+			key         = "testbucket/filename"
 			rep         = 10
 			ttl         = 10 * time.Minute
 			ca          = time.Now()
@@ -94,7 +99,7 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, content, c)
 		}).Return(nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -108,7 +113,7 @@ func TestCreateFile(t *testing.T) {
 			st          = mock.NewStoring(ctrl)
 			content     = make([]byte, 6000)
 			iorcContent = io.NopCloser(bytes.NewBuffer(content))
-			key         = "filename"
+			key         = "testbucket/filename"
 			rep         = 10
 			ttl         = 10 * time.Minute
 			ca          = time.Now()
@@ -121,7 +126,7 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, content, c)
 		}).Return(errors.New("some error"))
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -134,7 +139,7 @@ func TestCreateFile(t *testing.T) {
 func TestGetFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
-			key = "fileName"
+			key = "testbucket/fileName"
 			// Kind of a big content just to test
 			content = make([]byte, 6000)
 			ctrl    = gomock.NewController(t)
@@ -142,14 +147,15 @@ func TestGetFile(t *testing.T) {
 		st := mock.NewStoring(ctrl)
 		defer ctrl.Finish()
 
-		st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), nil)
+		st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len(content))}, nil)
+		st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), int64(-1), nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		ior, err := c.GetFile(context.Background(), key)
+		ior, _, err := c.GetFile(context.Background(), key)
 		require.NoError(t, err)
 
 		bu := new(bytes.Buffer)
@@ -159,20 +165,20 @@ func TestGetFile(t *testing.T) {
 	})
 	t.Run("Error", func(t *testing.T) {
 		var (
-			key  = "fileName"
+			key  = "testbucket/fileName"
 			ctrl = gomock.NewController(t)
 		)
 		st := mock.NewStoring(ctrl)
 		defer ctrl.Finish()
 
-		st.EXPECT().GetFile(gomock.Any(), key).Return(nil, errors.New("some error"))
+		st.EXPECT().StatFile(gomock.Any(), key).Return(nil, errors.New("some error"))
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		ior, err := c.GetFile(context.Background(), key)
+		ior, _, err := c.GetFile(context.Background(), key)
 		require.Nil(t, ior)
 		assert.EqualError(t, err, "some error")
 	})
@@ -181,7 +187,7 @@ func TestGetFile(t *testing.T) {
 func TestHasFile(t *testing.T) {
 	t.Run("True", func(t *testing.T) {
 		var (
-			key  = "fileName"
+			key  = "testbucket/fileName"
 			ctrl = gomock.NewController(t)
 			evid = "vid"
 		)
@@ -189,8 +195,9 @@ func TestHasFile(t *testing.T) {
 		defer ctrl.Finish()
 
 		st.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
+		st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -202,7 +209,7 @@ func TestHasFile(t *testing.T) {
 	})
 	t.Run("False", func(t *testing.T) {
 		var (
-			key  = "fileName"
+			key  = "testbucket/fileName"
 			ctrl = gomock.NewController(t)
 		)
 		st := mock.NewStoring(ctrl)
@@ -210,7 +217,7 @@ func TestHasFile(t *testing.T) {
 
 		st.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -222,7 +229,7 @@ func TestHasFile(t *testing.T) {
 	})
 	t.Run("Error", func(t *testing.T) {
 		var (
-			key  = "fileName"
+			key  = "testbucket/fileName"
 			ctrl = gomock.NewController(t)
 		)
 		st := mock.NewStoring(ctrl)
@@ -230,7 +237,7 @@ func TestHasFile(t *testing.T) {
 
 		st.EXPECT().HasFile(gomock.Any(), key).Return("", false, errors.New("some error"))
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -251,7 +258,7 @@ func TestGetConfig(t *testing.T) {
 
 		st.EXPECT().Config(gomock.Any()).Return(ecfg, nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -267,7 +274,7 @@ func TestGetConfig(t *testing.T) {
 
 		st.EXPECT().Config(gomock.Any()).Return(nil, errors.New("some error"))
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -282,12 +289,12 @@ func TestDeleteFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		st := mock.NewStoring(ctrl)
-		key := "filename"
+		key := "testbucket/filename"
 		defer ctrl.Finish()
 
 		st.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -299,12 +306,12 @@ func TestDeleteFile(t *testing.T) {
 	t.Run("Error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		st := mock.NewStoring(ctrl)
-		key := "filename"
+		key := "testbucket/filename"
 		defer ctrl.Finish()
 
 		st.EXPECT().DeleteFile(gomock.Any(), key).Return(errors.New("some error"))
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -321,7 +328,7 @@ func TestCreateReplica(t *testing.T) {
 			st          = mock.NewStoring(ctrl)
 			content     = make([]byte, 6000)
 			iorcContent = io.NopCloser(bytes.NewBuffer(content))
-			key         = "filename"
+			key         = "testbucket/filename"
 			volID       = "volID"
 			ttl         = 2 * time.Minute
 			ca          = time.Now()
@@ -334,7 +341,7 @@ func TestCreateReplica(t *testing.T) {
 			assert.Equal(t, content, c)
 		}).Return(volID, nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -349,7 +356,7 @@ func TestCreateReplica(t *testing.T) {
 			st          = mock.NewStoring(ctrl)
 			content     = make([]byte, 6000)
 			iorcContent = io.NopCloser(bytes.NewBuffer(content))
-			key         = "filename"
+			key         = "testbucket/filename"
 			ttl         = 2 * time.Minute
 			ca          = time.Now()
 		)
@@ -361,7 +368,7 @@ func TestCreateReplica(t *testing.T) {
 			assert.Equal(t, content, c)
 		}).Return("", errors.New("some-error"))
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -377,7 +384,7 @@ func TestUpdateFileReplica(t *testing.T) {
 		var (
 			ctrl = gomock.NewController(t)
 			st   = mock.NewStoring(ctrl)
-			key  = "filename"
+			key  = "testbucket/filename"
 			vids = []string{"volID", "volID2"}
 			rep  = 2
 		)
@@ -385,7 +392,7 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		st.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(nil)
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
@@ -397,7 +404,7 @@ func TestUpdateFileReplica(t *testing.T) {
 		var (
 			ctrl = gomock.NewController(t)
 			st   = mock.NewStoring(ctrl)
-			key  = "filename"
+			key  = "testbucket/filename"
 			vids = []string{"volID", "volID2"}
 			rep  = 2
 		)
@@ -405,7 +412,7 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		st.EXPECT().UpdateFileReplica(gomock.Any(), key, vids, rep).Return(errors.New("some-error"))
 
-		h := storing.MakeHandler(st)
+		h := storing.MakeHandler(st, &config.Config{})
 		server := httptest.NewServer(h)
 		c, err := client.New(server.URL)
 		require.NoError(t, err)

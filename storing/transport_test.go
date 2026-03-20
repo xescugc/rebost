@@ -19,11 +19,12 @@ import (
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/storing"
 	"github.com/xescugc/rebost/storing/model"
+	"github.com/xescugc/rebost/volume"
 )
 
 func TestMakeHandler(t *testing.T) {
 	var (
-		key                  = "fileName"
+		key                  = "testbucket/fileName"
 		content              = []byte("content")
 		ctrl                 = gomock.NewController(t)
 		cfg                  = config.Config{Name: "Pepito"}
@@ -37,7 +38,7 @@ func TestMakeHandler(t *testing.T) {
 	st := mock.NewStoring(ctrl)
 	defer ctrl.Finish()
 
-	h := storing.MakeHandler(st)
+	h := storing.MakeHandler(st, &config.Config{})
 	server := httptest.NewServer(h)
 	client := server.Client()
 
@@ -46,7 +47,8 @@ func TestMakeHandler(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
 	}).Return(nil).AnyTimes()
-	st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), nil).AnyTimes()
+	st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len(content))}, nil).AnyTimes()
+	st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), int64(-1), nil).AnyTimes()
 	st.EXPECT().DeleteFile(gomock.Any(), key).Return(nil).AnyTimes()
 	st.EXPECT().HasFile(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, k string) (string, bool, error) {
 		if k == key {
@@ -55,12 +57,12 @@ func TestMakeHandler(t *testing.T) {
 		return "", false, nil
 	}).AnyTimes()
 	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
-	st.EXPECT().CreateReplica(gomock.Any(), key, gomock.Any(), ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, r io.Reader, _ time.Duration, _ time.Time) {
+	st.EXPECT().CreateReplica(gomock.Any(), "fileName", gomock.Any(), ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, r io.Reader, _ time.Duration, _ time.Time) {
 		b, err := io.ReadAll(r)
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
 	}).Return(createReplicaVolmeID, nil).AnyTimes()
-	st.EXPECT().UpdateFileReplica(gomock.Any(), key, []string{"1", "2"}, rep).Return(nil)
+	st.EXPECT().UpdateFileReplica(gomock.Any(), "fileName", []string{"1", "2"}, rep).Return(nil)
 
 	tests := []struct {
 		Name        string
@@ -72,14 +74,14 @@ func TestMakeHandler(t *testing.T) {
 	}{
 		{
 			Name:        "CreateFile",
-			URL:         fmt.Sprintf("/files/fileName?replica=%d&ttl=%s&created_at=%s", rep, ttl, url.QueryEscape(ca.Format(time.RFC3339))),
+			URL:         fmt.Sprintf("/testbucket/fileName?replica=%d&ttl=%s&created_at=%s", rep, ttl, url.QueryEscape(ca.Format(time.RFC3339))),
 			Method:      http.MethodPut,
 			Body:        []byte("content"),
-			EStatusCode: http.StatusCreated,
+			EStatusCode: http.StatusOK,
 		},
 		{
 			Name:   "GetFile",
-			URL:    "/files/fileName",
+			URL:    "/testbucket/fileName",
 			Method: http.MethodGet,
 			EBody: func() []byte {
 				return content
@@ -88,19 +90,19 @@ func TestMakeHandler(t *testing.T) {
 		},
 		{
 			Name:        "DeleteFile",
-			URL:         "/files/fileName",
+			URL:         "/testbucket/fileName",
 			Method:      http.MethodDelete,
 			EStatusCode: http.StatusNoContent,
 		},
 		{
 			Name:        "HasFile(true)",
-			URL:         "/files/fileName",
+			URL:         "/testbucket/fileName",
 			Method:      http.MethodHead,
-			EStatusCode: http.StatusNoContent,
+			EStatusCode: http.StatusOK,
 		},
 		{
 			Name:        "HasFile(false)",
-			URL:         "/files/file",
+			URL:         "/testbucket/otherFile",
 			Method:      http.MethodHead,
 			EStatusCode: http.StatusNotFound,
 		},
