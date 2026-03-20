@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restarting an app from 0 does no longer tirgger a Reset
+  [Issue#102](https://github.com/xescugc/rebost/issues/102)
 - Stale replica jobs are now cleaned up when the source file no longer exists, preventing infinite retry loops
   [Issue#100](https://github.com/xescugc/rebost/issues/100)
 - Replica deltion was not working properly and was leaving the file in a "deleting" state
