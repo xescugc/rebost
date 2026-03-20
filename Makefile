@@ -5,33 +5,15 @@ help: ## Show this help
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/:.*##/:##/' | column -t -s '##'
 
 .PHONY: ci
-ci:	lint vet fmt test ## Run all the CI targets
+ci: staticcheck test ## Run all the CI targets
 
 .PHONY: test
 test: ## Run the tests
 	@go test ./...
 
-.PHONY: vet
-vet: ## Run the vet
-	@go vet ./...
-
-.PHONY: fmt
-fmt: install-goimports ## Run the goimports
-	@if [ "$(shell goimports -l $(GO_FILES) | wc -l)" != "0" ]; then \
-		echo "--- CHECK FAIL: Some files did not pass goimports $(shell goimports -l $(GO_FILES))"; exit 2; \
-	fi
-
-.PHONY: lint
-lint: install-lint ## Run the golint
-	@go list ./... | xargs golint -set_exit_status
-
-.PHONY: install-lint
-install-lint: ## Install the golint
-	@go install golang.org/x/lint/golint@latest
-
-.PHONY: install-goimports
-install-goimports: ## Intall the goimports
-	@go install golang.org/x/tools/cmd/goimports@latest
+.PHONY: staticcheck
+staticcheck: ## Run staticcheck
+	@go tool staticcheck ./...
 
 .PHONY: generate
 generate: ## Generates the code generators

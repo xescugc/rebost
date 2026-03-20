@@ -13,6 +13,7 @@ import (
 	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/uow"
 	bolt "go.etcd.io/bbolt"
+	bboltErrors "go.etcd.io/bbolt/errors"
 
 	"github.com/spf13/afero"
 )
@@ -63,10 +64,9 @@ func NewUOW(db *bolt.DB) (uow.StartUnitOfWork, error) {
 
 		defer func() {
 			rerr := uw.rollback()
-			if rerr != nil && rerr != bolt.ErrTxClosed {
+			if rerr != nil && rerr != bboltErrors.ErrTxClosed {
 				err = fmt.Errorf("failed to rollback TX: %s", rerr)
 			}
-			return
 		}()
 
 		defer func() {
@@ -77,7 +77,6 @@ func NewUOW(db *bolt.DB) (uow.StartUnitOfWork, error) {
 					err = fmt.Errorf("failed to commit TX: %s", cerr)
 				}
 			}
-			return
 		}()
 
 		return uowFn(ctx, uw)

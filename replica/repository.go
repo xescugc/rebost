@@ -2,7 +2,7 @@ package replica
 
 import "context"
 
-//go:generate mockgen -destination=../mock/replica_repository.go -mock_names=Repository=ReplicaRepository -package=mock github.com/xescugc/rebost/replica Repository
+//go:generate go tool mockgen -destination=../mock/replica_repository.go -mock_names=Repository=ReplicaRepository -package=mock github.com/xescugc/rebost/replica Repository
 
 // Repository is the interface that defines which actions
 // can be done to the Pendent struct

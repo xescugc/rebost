@@ -10,7 +10,7 @@ import (
 	"github.com/xescugc/rebost/uow"
 )
 
-//go:generate mockgen -destination=../mock/fs.go -mock_names=Fs=Fs -package=mock github.com/spf13/afero Fs
+//go:generate go tool mockgen -destination=../mock/fs.go -mock_names=Fs=Fs -package=mock github.com/spf13/afero Fs
 
 // fsWrappedUoW embeds a UnitOfWork and overrides Fs() to return the tracker.
 type fsWrappedUoW struct {

@@ -113,7 +113,7 @@ func TestGetFile(t *testing.T) {
 
 		require.NoError(t, err)
 
-		b, err := io.ReadAll(ior)
+		b, _ := io.ReadAll(ior)
 		assert.Equal(t, "expectedcontent", string(b))
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
@@ -147,7 +147,7 @@ func TestGetFile(t *testing.T) {
 		ior, _, err := s.GetFile(ctx, key)
 		require.NoError(t, err)
 
-		b, err := io.ReadAll(ior)
+		b, _ := io.ReadAll(ior)
 		assert.Equal(t, "expectedcontent", string(b))
 	})
 }

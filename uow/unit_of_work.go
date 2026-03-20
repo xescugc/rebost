@@ -19,7 +19,7 @@ import (
 	"github.com/xescugc/rebost/state"
 )
 
-//go:generate mockgen -destination=../mock/unit_of_work.go -mock_names=UnitOfWork=UnitOfWork -package mock github.com/xescugc/rebost/uow UnitOfWork
+//go:generate go tool mockgen -destination=../mock/unit_of_work.go -mock_names=UnitOfWork=UnitOfWork -package mock github.com/xescugc/rebost/uow UnitOfWork
 
 // Type is the type of the UniteOfWork
 type Type int

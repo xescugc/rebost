@@ -6,7 +6,7 @@ import (
 	"github.com/xescugc/rebost/volume"
 )
 
-//go:generate mockgen -destination=../mock/membership.go -mock_names=Membership=Membership -package=mock github.com/xescugc/rebost/storing Membership
+//go:generate go tool mockgen -destination=../mock/membership.go -mock_names=Membership=Membership -package=mock github.com/xescugc/rebost/storing Membership
 
 // Membership is the interface that hides the logic behind the
 // cluseter members. In this "domain" (rebost), the members

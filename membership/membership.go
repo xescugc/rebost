@@ -22,7 +22,6 @@ import (
 // persistence and also the localVolumes
 type Membership struct {
 	members *memberlist.Memberlist
-	events  *memberlist.EventDelegate
 
 	localVolumes []volume.Local
 	cfg          *config.Config
@@ -61,7 +60,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger *slog.Logg
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create memberlist: %s", err.Error())
+		return nil, fmt.Errorf("failed to create memberlist: %s", err.Error())
 	}
 
 	m.members = list
@@ -94,7 +93,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger *slog.Logg
 		hostPort := net.JoinHostPort(host, strconv.Itoa(cfg.Memberlist.Port))
 		_, err = list.Join([]string{hostPort})
 		if err != nil {
-			return nil, fmt.Errorf("Failed to join cluster: %s", err.Error())
+			return nil, fmt.Errorf("failed to join cluster: %s", err.Error())
 		}
 		m.logger.Info(fmt.Sprintf("Joined remote cluster %q", hostPort))
 	}

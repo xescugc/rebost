@@ -1,0 +1,408 @@
+# Rebost Documentation
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Installation](#installation)
+3. [Quick Start — Single Node](#quick-start--single-node)
+4. [Multi-Node Cluster](#multi-node-cluster)
+5. [Configuration Reference](#configuration-reference)
+6. [S3 API Reference](#s3-api-reference)
+7. [Authentication](#authentication)
+8. [Replication](#replication)
+9. [TTL & Expiration](#ttl--expiration)
+10. [Volume Sizing](#volume-sizing)
+11. [Dashboard](#dashboard)
+12. [Known Limitations](#known-limitations)
+
+---
+
+## Overview
+
+Rebost is a distributed, peer-to-peer object storage system. Key properties:
+
+- **No master node.** Every node is master of its own objects and knows where replicas live. There is no single point of failure and no coordination overhead.
+- **Zero-config clustering.** Adding a node to the cluster is just starting it and pointing it at any existing node with `--remote`. Nodes discover each other via a gossip protocol ([hashicorp/memberlist](https://github.com/hashicorp/memberlist)).
+- **Content-addressed deduplication.** Files are stored by SHA1 signature. Multiple keys pointing at the same bytes share one copy on disk.
+- **S3-compatible API.** Any AWS S3 library or tool works against Rebost without a dedicated client. Authentication is optional and uses AWS Signature V4.
+- **Configurable replication.** Default replica count is 3. Rebost replicates asynchronously in the background and re-replicates automatically after a node recovers from downtime.
+
+---
+
+## Installation
+
+### Docker (recommended)
+
+```bash
+docker pull xescugc/rebost
+```
+
+The image is published automatically from the `master` branch and on every version tag.
+
+### Build from source
+
+Requires Go 1.25+.
+
+```bash
+git clone https://github.com/xescugc/rebost.git
+cd rebost
+go build -o rebost .
+```
+
+---
+
+## Quick Start — Single Node
+
+Start a single node with one local volume:
+
+```bash
+docker run -d --name rebost \
+  -p 3805:3805 -p 3806:3806 \
+  -v $(pwd)/data:/data \
+  xescugc/rebost serve --volumes /data --name mynode
+```
+
+Upload a file:
+
+```bash
+curl -T ./photo.jpg http://localhost:3805/mybucket/photo.jpg
+```
+
+Download the file:
+
+```bash
+curl -o photo.jpg http://localhost:3805/mybucket/photo.jpg
+```
+
+Delete the file:
+
+```bash
+curl -X DELETE http://localhost:3805/mybucket/photo.jpg
+```
+
+Check whether a file exists (returns `200` with metadata headers, or `404`):
+
+```bash
+curl -I http://localhost:3805/mybucket/photo.jpg
+```
+
+### Using the AWS CLI
+
+Rebost is S3-compatible. Use `--endpoint-url` to point the CLI at your node and `--no-sign-request` when auth is not enabled:
+
+```bash
+# Upload
+aws s3 cp ./photo.jpg s3://mybucket/photo.jpg \
+  --endpoint-url http://localhost:3805 \
+  --no-sign-request
+
+# Download
+aws s3 cp s3://mybucket/photo.jpg ./photo.jpg \
+  --endpoint-url http://localhost:3805 \
+  --no-sign-request
+
+# Delete
+aws s3 rm s3://mybucket/photo.jpg \
+  --endpoint-url http://localhost:3805 \
+  --no-sign-request
+```
+
+---
+
+## Multi-Node Cluster
+
+Rebost nodes find each other via gossip. To form a cluster, start the first node normally and point every subsequent node at it with `--remote`. Any existing node URL works — gossip propagates the full topology automatically.
+
+### Local example with Docker
+
+Create a shared network so containers resolve each other by name:
+
+```bash
+docker network create rebost
+```
+
+Start the first node:
+
+```bash
+docker run -d --name node1 --network rebost \
+  -p 3805:3805 -p 3806:3806 \
+  -v $(pwd)/v1:/data \
+  xescugc/rebost serve --volumes /data --name node1
+```
+
+Start additional nodes, each pointing at node1:
+
+```bash
+docker run -d --name node2 --network rebost \
+  -p 2020:2020 \
+  -v $(pwd)/v2:/data \
+  xescugc/rebost serve --volumes /data --port 2020 --name node2 \
+    --remote http://node1:3805 --dashboard.enabled false
+
+docker run -d --name node3 --network rebost \
+  -p 3030:3030 \
+  -v $(pwd)/v3:/data \
+  xescugc/rebost serve --volumes /data --port 3030 --name node3 \
+    --remote http://node1:3805 --dashboard.enabled false
+```
+
+Once all nodes are up, upload once and read from any node:
+
+```bash
+curl -T ./photo.jpg http://localhost:3805/mybucket/photo.jpg
+
+# Any node can serve the file
+curl http://localhost:2020/mybucket/photo.jpg
+curl http://localhost:3030/mybucket/photo.jpg
+```
+
+### How joining works
+
+1. The new node fetches `/config` from the `--remote` URL to get the gossip port.
+2. It calls `memberlist.Join` — memberlist handles full state synchronisation.
+3. The new node learns about all existing nodes and volumes immediately.
+
+### Scaling out
+
+There is no limit on the number of nodes. Each node can hold one or more local volumes (`--volumes` accepts a comma-separated list or can be specified multiple times). New nodes receive replicas of existing objects over time as the background replication queue drains.
+
+---
+
+## Configuration Reference
+
+All options can be provided as CLI flags, environment variables (uppercased with `_` separator, prefixed with `REBOST_`), or a config file.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--port` / `-p` | int | `3805` | HTTP port the node listens on |
+| `--name` | string | random 7-char | Unique node name in the cluster. Auto-generated if not set. |
+| `--volumes` / `-v` | strings | *(required)* | Paths to local storage volumes. Repeat or comma-separate for multiple. See [Volume Sizing](#volume-sizing) for size limits. |
+| `--remote` / `-r` | string | — | URL of any existing cluster node to join. Omit to start a new single-node cluster. |
+| `--replica` | int | `3` | Default replica count per object. Set to `-1` to disable replication on this node (storage-only mode). |
+| `--volume-downtime` | duration | `2m` | How long a volume can be unreachable before Rebost starts re-replicating its objects to surviving nodes. |
+| `--memberlist.port` | int | `0` (auto) | UDP/TCP port for gossip. Auto-assigned if `0`. Fix this port if you need deterministic firewall rules. |
+| `--cache.size` | int | `200` | Size of the per-node LRU cache that maps object keys to remote volume IDs, avoiding repeated `HEAD` queries to peers. |
+| `--dashboard.port` | int | `3806` | HTTP port for the dashboard UI. |
+| `--dashboard.enabled` | bool | `true` | Enable or disable the dashboard on this node. |
+| `--s3.access_key` | string | — | AWS access key ID. Leave empty to disable authentication. |
+| `--s3.secret_key` | string | — | AWS secret access key. Required when `--s3.access_key` is set. |
+| `--s3.auth_mode` | string | `all` | Authentication scope. `all` requires auth for every request. `write` requires auth only for mutating operations (PUT, DELETE, PATCH, POST); GET and HEAD are public. |
+
+---
+
+## S3 API Reference
+
+Rebost exposes an S3-compatible HTTP API using path-style addressing: `/{bucket}/{key}`.
+
+**Buckets are key prefixes.** `PUT /photos/cat.jpg` stores the object with internal key `photos/cat.jpg`. No bucket state is stored; `PUT /{bucket}` and `DELETE /{bucket}` are accepted as no-ops for client compatibility.
+
+### Object operations
+
+| Method | Path | Description | Success |
+|---|---|---|---|
+| `PUT` | `/{bucket}/{key}` | Upload an object. Optional query params: `?replica=N`, `?ttl=<duration>`, `?created_at=<RFC3339>` | `200 OK` |
+| `GET` | `/{bucket}/{key}` | Download an object. Returns `Content-Length`, `ETag`, `Last-Modified` headers. | `200 OK` |
+| `HEAD` | `/{bucket}/{key}` | Get object metadata without the body. Returns the same headers as GET plus `X-Rebost-VolumeID`. | `200 OK` |
+| `DELETE` | `/{bucket}/{key}` | Delete an object. Propagates to all replicas asynchronously. | `204 No Content` |
+| `POST` | `/{bucket}/{key}` | Multipart upload stub — always returns `501 Not Implemented`. | — |
+
+### Bucket operations
+
+| Method | Path | Description | Response |
+|---|---|---|---|
+| `PUT` | `/{bucket}` | Create bucket (no-op). | `200 OK` |
+| `DELETE` | `/{bucket}` | Delete bucket (no-op). | `204 No Content` |
+| `GET` | `/{bucket}` | List objects — returns `501 Not Implemented`. | — |
+
+### Internal inter-node routes
+
+These routes are used for replication between nodes. They are always exempt from authentication.
+
+| Method | Path | Description |
+|---|---|---|
+| `PUT` | `/replicas/{key}` | Accept a replica of an object from a peer node. |
+| `PATCH` | `/replicas/{key}` | Update replica location metadata after a new replica is placed. |
+| `GET` | `/config` | Return this node's configuration (used during cluster join). |
+
+### Error responses
+
+All S3 routes return XML-encoded errors:
+
+```xml
+<Error>
+  <Code>NoSuchKey</Code>
+  <Message>The specified key does not exist.</Message>
+</Error>
+```
+
+Common codes: `NoSuchKey` (404), `InternalError` (500), `AccessDenied` (403), `NotImplemented` (501).
+
+### Upload query parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `replica` | int | Override the node's default replica count for this object. |
+| `ttl` | duration | Set an expiration TTL (e.g. `24h`, `30m`). The object is deleted automatically when it expires. |
+| `created_at` | RFC3339 | Override the creation timestamp (used for replica synchronisation). |
+
+---
+
+## Authentication
+
+Authentication is optional. When enabled, Rebost validates requests using **AWS Signature V4** — the same scheme used by the real AWS S3 API. Any AWS SDK or tool that supports custom endpoints will work.
+
+Internal routes (`/config`, `/replicas/*`) are always exempt from authentication, even when credentials are configured. This lets nodes replicate to each other without credentials.
+
+### Enable auth
+
+```bash
+docker run -d -p 3805:3805 -v $(pwd)/data:/data \
+  xescugc/rebost serve --volumes /data \
+    --s3.access_key myaccesskey \
+    --s3.secret_key mysecretkey
+```
+
+### Auth modes
+
+| Mode | Behaviour |
+|---|---|
+| `all` (default) | Every request requires a valid AWS Signature V4. |
+| `write` | GET and HEAD are public; PUT, DELETE, PATCH, POST require auth. |
+
+```bash
+# Write-only auth — public reads, protected writes
+docker run -d -p 3805:3805 -v $(pwd)/data:/data \
+  xescugc/rebost serve --volumes /data \
+    --s3.access_key myaccesskey \
+    --s3.secret_key mysecretkey \
+    --s3.auth_mode write
+```
+
+### AWS CLI with auth
+
+```bash
+AWS_ACCESS_KEY_ID=myaccesskey AWS_SECRET_ACCESS_KEY=mysecretkey \
+  aws s3 cp ./photo.jpg s3://mybucket/photo.jpg \
+  --endpoint-url http://localhost:3805
+
+AWS_ACCESS_KEY_ID=myaccesskey AWS_SECRET_ACCESS_KEY=mysecretkey \
+  aws s3 cp s3://mybucket/photo.jpg ./photo.jpg \
+  --endpoint-url http://localhost:3805
+```
+
+### Notes
+
+- Region is not validated — use any region string (e.g. `us-east-1`) in your SDK configuration.
+- Path-style addressing must be enabled in your SDK if it offers the choice.
+
+---
+
+## Replication
+
+Rebost replicates objects asynchronously in the background.
+
+### How it works
+
+1. When an object is uploaded, the receiving node stores it locally and enqueues a replication job.
+2. The background loop picks up jobs, selects peer nodes that do not yet have a copy, transfers the object, and updates all replica holders with the new location.
+3. Replica metadata travels with every file: each node that holds a copy knows the volume IDs of all other copies.
+
+### Replica count
+
+The default replica count is `3` (configurable with `--replica`). This means Rebost will try to keep 3 copies of every object across the cluster. You can override per-upload with the `?replica=N` query parameter:
+
+```bash
+# Store with 5 replicas
+curl -T ./video.mp4 "http://localhost:3805/mybucket/video.mp4?replica=5"
+
+# Store with 1 replica (no replication)
+curl -T ./tmp.log "http://localhost:3805/mybucket/tmp.log?replica=1"
+```
+
+Set `--replica -1` on a node to make it a storage-only node that never initiates replication.
+
+### Node downtime and recovery
+
+Rebost monitors the gossip heartbeat of each node. When a node disappears:
+
+1. All volume IDs owned by that node are stamped with the departure time.
+2. After `--volume-downtime` (default 2 minutes), Rebost assumes the node is gone and starts re-replicating the affected objects to surviving nodes.
+
+If the node comes back before the downtime threshold, replication is not triggered.
+
+---
+
+## TTL & Expiration
+
+Objects can be given a time-to-live at upload time. Rebost deletes them automatically once they expire.
+
+```bash
+# Expire in 24 hours
+curl -T ./session.json "http://localhost:3805/mybucket/session.json?ttl=24h"
+
+# Expire in 30 minutes
+curl -T ./tmp.bin "http://localhost:3805/mybucket/tmp.bin?ttl=30m"
+```
+
+The TTL is stored with the object and propagated to all replicas. The expiration loop runs every second per volume. When an object expires, its key and all replicas are deleted.
+
+Valid duration units: `s` (seconds), `m` (minutes), `h` (hours). These follow Go's `time.Duration` syntax (e.g. `1h30m`).
+
+---
+
+## Volume Sizing
+
+By default a volume can use all available disk space on the filesystem it lives on. To cap a volume:
+
+```bash
+# Limit to 20 GB
+docker run -d -p 3805:3805 \
+  -v $(pwd)/data:/data \
+  xescugc/rebost serve --volumes /data:20G
+```
+
+Size suffixes: `K`, `M`, `G`, `T` (powers of 1024). If the volume is full, Rebost rejects uploads with `InternalError`.
+
+Multiple volumes on the same node:
+
+```bash
+docker run -d -p 3805:3805 \
+  -v $(pwd)/vol1:/vol1 -v $(pwd)/vol2:/vol2 \
+  xescugc/rebost serve --volumes /vol1,/vol2
+```
+
+Each volume gets its own BoltDB metadata database (`my.db`) stored inside the volume directory.
+
+---
+
+## Dashboard
+
+Each node runs a lightweight web dashboard on port `3806` by default. It shows:
+
+- All nodes currently visible in the cluster.
+- Per-node and per-volume disk usage (used vs total, with colour-coded fill percentage).
+
+Access it at `http://localhost:3806` after starting a node.
+
+To disable the dashboard:
+
+```bash
+xescugc/rebost serve --volumes /data --dashboard.enabled false
+```
+
+To run the dashboard on a different port:
+
+```bash
+xescugc/rebost serve --volumes /data --dashboard.port 8080
+```
+
+---
+
+## Known Limitations
+
+| Feature | Status | Notes |
+|---|---|---|
+| List objects (`GET /{bucket}`) | `501 Not Implemented` | Rebost has no cluster-wide listing index. There is no way to enumerate all keys. |
+| Multipart upload (`POST /{bucket}/{key}`) | `501 Not Implemented` | Use a single-part `PUT` for all uploads, regardless of file size. |
+| Object versioning | Not supported | Uploading the same key twice overwrites the previous object. |
+| Cross-region replication | N/A | Rebost has no concept of regions. |

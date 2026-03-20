@@ -2,7 +2,7 @@ package idxvolume
 
 import "context"
 
-//go:generate mockgen -destination=../mock/idxvolume_repository.go -mock_names=Repository=IDXVolumeRepository -package=mock github.com/xescugc/rebost/idxvolume Repository
+//go:generate go tool mockgen -destination=../mock/idxvolume_repository.go -mock_names=Repository=IDXVolumeRepository -package=mock github.com/xescugc/rebost/idxvolume Repository
 
 // Repository is the interface that has to be fulfiled to interact with IDXVolume
 type Repository interface {

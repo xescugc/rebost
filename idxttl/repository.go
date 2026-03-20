@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-//go:generate mockgen -destination=../mock/idxttl_repository.go -mock_names=Repository=IDXTTLRepository -package=mock github.com/xescugc/rebost/idxttl Repository
+//go:generate go tool mockgen -destination=../mock/idxttl_repository.go -mock_names=Repository=IDXTTLRepository -package=mock github.com/xescugc/rebost/idxttl Repository
 
 // Repository is the interface that has to be fulfilled to interact with IDXTTL.
 // All the 'ea' used as keys will be  converted to RFC3339

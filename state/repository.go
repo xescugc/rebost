@@ -2,7 +2,7 @@ package state
 
 import "context"
 
-//go:generate mockgen -destination=../mock/state_repository.go -mock_names=Repository=StateRepository -package=mock github.com/xescugc/rebost/state Repository
+//go:generate go tool mockgen -destination=../mock/state_repository.go -mock_names=Repository=StateRepository -package=mock github.com/xescugc/rebost/state Repository
 
 // Repository are the actions that can be done to modify the volume State
 type Repository interface {
