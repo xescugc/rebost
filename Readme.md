@@ -1,6 +1,9 @@
 [![Go](https://github.com/xescugc/rebost/actions/workflows/go.yml/badge.svg)](https://github.com/xescugc/rebost/actions/workflows/go.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/xescugc/rebost.svg)](https://pkg.go.dev/github.com/xescugc/rebost)
 
 # Rebost (Beta)
+
+**[Full Documentation →](doc/docs.md)**
 
 Rebost is a Distributed Object Storage inspired by our experience with MogileFS, MongoDB and ElasticSearch.
 
@@ -11,34 +14,51 @@ The implementation also simplifies the management of the cluster as there is no 
 
 For this example we'll have 3 directories on the current path: `v1`, `v2` and `v3`.
 
+First create a Docker network so the nodes can reach each other by name:
+
+```bash
+docker network create rebost
+```
+
 Create the first Node:
 
 ```bash
-$> rebost serve --volumes v1
+docker run -d --name node1 --network rebost \
+  -p 3805:3805 -p 3806:3806 \
+  -v $(pwd)/v1:/data \
+  xescugc/rebost serve --volumes /data --name node1
 ```
 
-Create the second Node pointing (`--remote`) to the first one and changing the default `--port` as it's already in use (`3805`) for the first Node.
+Create the second Node pointing (`--remote`) to the first one and changing the default `--port` as it's already in use (`3805`) for the first Node:
 
 ```bash
-$> rebost serve --volumes v2 --port 2020 --remote http://localhost:3805 --dashboard.enabled false
+docker run -d --name node2 --network rebost \
+  -p 2020:2020 \
+  -v $(pwd)/v2:/data \
+  xescugc/rebost serve --volumes /data --port 2020 --name node2 \
+    --remote http://node1:3805 --dashboard.enabled false
 ```
 
-Do the same thing with the third Node.
+Do the same thing with the third Node:
 
 ```bash
-$> rebost serve --volumes v3 --port 3030 --remote http://localhost:3805 --dashboard.enabled false
+docker run -d --name node3 --network rebost \
+  -p 3030:3030 \
+  -v $(pwd)/v3:/data \
+  xescugc/rebost serve --volumes /data --port 3030 --name node3 \
+    --remote http://node1:3805 --dashboard.enabled false
 ```
 
 After this the 3 Nodes will see each other and connect, for example you could run:
 
 ```bash
-$> curl -T YOUR-FILE http://localhost:3805/mybucket/your-file-name
+curl -T YOUR-FILE http://localhost:3805/mybucket/your-file-name
 ```
 
 Then you can go to your browser and check it (if it's an image) or:
 
 ```bash
-$> curl http://localhost:3805/mybucket/your-file-name
+curl http://localhost:3805/mybucket/your-file-name
 ```
 
 As the default replica is `3` all the Nodes we've created will have a copy of it so you could do the last command (in fact any of the 2 before) to any Node.
@@ -76,7 +96,9 @@ Authentication is optional and configured per node. Nodes with `--s3.access_key`
 
 ```bash
 # Start a node with auth enabled
-$> rebost serve --volumes v1 --s3.access_key mykey --s3.secret_key mysecret
+docker run -d -p 3805:3805 -v $(pwd)/v1:/data \
+  xescugc/rebost serve --volumes /data \
+    --s3.access_key mykey --s3.secret_key mysecret
 
 # Use with AWS CLI
 AWS_ACCESS_KEY_ID=mykey AWS_SECRET_ACCESS_KEY=mysecret \
