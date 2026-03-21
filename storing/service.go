@@ -3,8 +3,10 @@ package storing
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 
@@ -85,12 +87,65 @@ func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep
 	if rep == 0 {
 		rep = s.cfg.Replica
 	}
-	err := s.getLocalVolume(ctx, k).CreateFile(ctx, k, r, rep, ttl, ca)
+
+	// Buffer the incoming stream so content can be replayed on fallback.
+	tmpFile, err := os.CreateTemp("", "rebost-buf-*")
 	if err != nil {
+		return fmt.Errorf("creating buffer file: %w", err)
+	}
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}()
+
+	tee := io.NopCloser(io.TeeReader(r, tmpFile))
+
+	// Try local volumes in preferred order. The first gets the tee (streams
+	// directly); subsequent ones seek from the tmp buffer.
+	for i, v := range s.getLocalVolumes(ctx, k) {
+		var reader io.ReadCloser
+		if i == 0 {
+			reader = tee
+		} else {
+			if _, err := tmpFile.Seek(0, io.SeekStart); err != nil {
+				return err
+			}
+			reader = io.NopCloser(tmpFile)
+		}
+		if err := v.CreateFile(ctx, k, reader, rep, ttl, ca); err == nil {
+			return nil
+		} else if !errors.Is(err, volume.ErrNoSpace) {
+			return err
+		}
+	}
+
+	// Drain tee into tmpFile in case no local volumes were tried
+	// (len==0) or the tee was not fully consumed by the mock/volume.
+	if _, err := io.Copy(io.Discard, tee); err != nil {
 		return err
 	}
 
-	return nil
+	fi, err := tmpFile.Stat()
+	if err != nil {
+		return err
+	}
+	size := fi.Size()
+
+	nodes := s.members.NodesWithCapacity(size)
+	for _, node := range nodes {
+		if _, err := tmpFile.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
+		err := node.CreateFile(ctx, k, io.NopCloser(tmpFile), rep, ttl, ca)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, volume.ErrNoSpace) {
+			return err
+		}
+	}
+
+	return volume.ErrClusterFull
 }
 
 func (s *service) StatFile(ctx context.Context, k string) (*volume.FileStat, error) {
@@ -147,7 +202,7 @@ func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadC
 	if s.cfg.Replica == -1 {
 		return "", errors.New("can not store replicas")
 	}
-	v := s.getLocalVolume(ctx, key)
+	v := s.getLocalVolumes(ctx, key)[0]
 	err := v.CreateFile(ctx, key, reader, noReplica, ttl, ca)
 	if err != nil {
 		return "", err
@@ -174,10 +229,18 @@ func (s *service) UpdateFileReplica(ctx context.Context, key string, volumeIDs [
 	return nil
 }
 
-func (s *service) getLocalVolume(ctx context.Context, k string) volume.Local {
+// getLocalVolumes returns all local volumes in preferred write order.
+// Currently shuffles randomly so no single volume is always favoured;
+// future implementations may sort by available space, least-used, or other
+// heuristics.
+func (s *service) getLocalVolumes(_ context.Context, _ string) []volume.Local {
 	vls := s.members.LocalVolumes()
-
-	return vls[rand.Intn(len(vls))]
+	shuffled := make([]volume.Local, len(vls))
+	copy(shuffled, vls)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+	return shuffled
 }
 
 // getVolume returns a volume and the volumeID that may have k in his index. It tries first with

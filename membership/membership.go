@@ -175,6 +175,22 @@ func (m *Membership) NodesWithoutVolumeIDs(vids []string) (res []*client.Client)
 	return
 }
 
+// NodesWithCapacity returns all peer nodes that have at least one volume
+// with enough gossip-reported free space to store size bytes.
+func (m *Membership) NodesWithCapacity(size int64) (res []*client.Client) {
+	m.nodesLock.RLock()
+	defer m.nodesLock.RUnlock()
+	for _, n := range m.nodes {
+		for _, vs := range n.state.Volumes {
+			if vs.CanStore(int(size)) {
+				res = append(res, n.conn)
+				break
+			}
+		}
+	}
+	return
+}
+
 // RemovedVolumeIDs returns the list of removed VolumeIDs from
 // the cluster.
 // WARNING: Each call to it empties the list so the list

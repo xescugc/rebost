@@ -106,6 +106,20 @@ func (mr *MembershipMockRecorder) Nodes() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Nodes", reflect.TypeOf((*Membership)(nil).Nodes))
 }
 
+// NodesWithCapacity mocks base method.
+func (m *Membership) NodesWithCapacity(arg0 int64) []*client.Client {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NodesWithCapacity", arg0)
+	ret0, _ := ret[0].([]*client.Client)
+	return ret0
+}
+
+// NodesWithCapacity indicates an expected call of NodesWithCapacity.
+func (mr *MembershipMockRecorder) NodesWithCapacity(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NodesWithCapacity", reflect.TypeOf((*Membership)(nil).NodesWithCapacity), arg0)
+}
+
 // NodesWithoutVolumeIDs mocks base method.
 func (m *Membership) NodesWithoutVolumeIDs(arg0 []string) []*client.Client {
 	m.ctrl.T.Helper()

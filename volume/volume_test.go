@@ -228,7 +228,7 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
 		}).Return(nil)
 
-		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(nil, errors.New("not found"))
+		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(nil, errors.New("not found")).Times(2)
 
 		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
 
@@ -305,7 +305,7 @@ func TestCreateFile(t *testing.T) {
 			Replica:   rep,
 			TTL:       ttl,
 			CreatedAt: ca,
-		}, nil)
+		}, nil).Times(2)
 
 		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
 
@@ -372,7 +372,7 @@ func TestCreateFile(t *testing.T) {
 		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(&file.File{
 			Keys:      ef.Keys,
 			Signature: ef.Signature,
-		}, nil)
+		}, nil).Times(2)
 
 		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
@@ -436,7 +436,7 @@ func TestCreateFile(t *testing.T) {
 				Signature: foundFile.Signature,
 				VolumeIDs: []string{mv.V.ID()},
 			}, nil
-		}).Times(2)
+		}).Times(3)
 
 		mv.Files.EXPECT().CreateOrReplace(ctx, gomock.Any()).Do(func(_ context.Context, fl *file.File) {
 			if fl.Signature == ef.Signature {
@@ -528,7 +528,7 @@ func TestCreateFile(t *testing.T) {
 				Keys:      foundFile.Keys,
 				Signature: foundFile.Signature,
 			}, nil
-		}).Times(2)
+		}).Times(3)
 
 		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
 
@@ -606,7 +606,7 @@ func TestCreateFile(t *testing.T) {
 			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
 		}).Return(nil)
 
-		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(nil, errors.New("not found"))
+		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(nil, errors.New("not found")).Times(2)
 
 		mv.Files.EXPECT().CreateOrReplace(ctx, &ef).Return(nil)
 
@@ -624,17 +624,15 @@ func TestCreateFile(t *testing.T) {
 	})
 	t.Run("FailsForSize", func(t *testing.T) {
 		var (
-			tempuuid string
-			rootDir  = "/"
-			mv       = newManageVolume(t, rootDir)
-			rep      = 2
-			ttl      = 2 * time.Minute
-			ca       = time.Now()
-			tmpsDir  = path.Join(rootDir, "tmps")
-			fileDir  = path.Join(rootDir, "file")
-			key      = "expectedkey"
-			buff     = io.NopCloser(bytes.NewBufferString("content of the file"))
-			ef       = file.File{
+			rootDir = "/"
+			mv      = newManageVolume(t, rootDir)
+			rep     = 2
+			ttl     = 2 * time.Minute
+			ca      = time.Now()
+			tmpsDir = path.Join(rootDir, "tmps")
+			key     = "expectedkey"
+			buff    = io.NopCloser(bytes.NewBufferString("content of the file"))
+			ef      = file.File{
 				Keys:      []string{key},
 				Signature: "e7e8c72d1167454b76a610074fed244be0935298",
 				Replica:   2,
@@ -649,16 +647,11 @@ func TestCreateFile(t *testing.T) {
 
 		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
 			assert.True(t, strings.HasPrefix(p, tmpsDir))
-			_, tempuuid = path.Split(p)
 			return mem.NewFileHandle(mem.CreateFile(p)), nil
 		})
 
-		dir, _ := path.Split(ef.Path(fileDir))
+		dir, _ := path.Split(ef.Path(path.Join(rootDir, "file")))
 		mv.Fs.EXPECT().MkdirAll(dir, os.ModePerm).Return(nil)
-
-		mv.Fs.EXPECT().Rename(gomock.Any(), ef.Path(fileDir)).Do(func(p string, _ string) {
-			assert.Equal(t, path.Join(tmpsDir, tempuuid), p)
-		}).Return(nil)
 
 		mv.Files.EXPECT().FindBySignature(ctx, ef.Signature).Return(nil, errors.New("not found"))
 
@@ -671,8 +664,10 @@ func TestCreateFile(t *testing.T) {
 
 		mv.State.EXPECT().Find(ctx).Return(&dbs, nil)
 
+		mv.Fs.EXPECT().Remove(gomock.Any()).Times(1).Return(nil)
+
 		err := mv.V.CreateFile(ctx, key, buff, rep, ttl, ca)
-		assert.Equal(t, "file is too large for the dedicated space left", err.Error())
+		assert.True(t, errors.Is(err, volume.ErrNoSpace))
 	})
 }
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Storage capacity fallback: when a volume is full, `CreateFile` automatically
+  falls back to another local volume, then a remote cluster node.
+  [Issue#36](https://github.com/xescugc/rebost/issues/36)
+
 ## Changed
 
 - All the endpoints are now S3 compatible

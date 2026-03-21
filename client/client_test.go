@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -76,6 +77,30 @@ func TestNew(t *testing.T) {
 			_, _, err = c.HasFile(context.Background(), key)
 			require.NoError(t, err)
 		}
+	})
+}
+
+func TestCreateFileHTTP507(t *testing.T) {
+	t.Run("ErrNoSpace", func(t *testing.T) {
+		var (
+			content     = make([]byte, 6000)
+			iorcContent = io.NopCloser(bytes.NewBuffer(content))
+			key         = "testbucket/filename"
+			rep         = 10
+			ttl         = 10 * time.Minute
+			ca          = time.Now()
+		)
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInsufficientStorage)
+		}))
+
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		err = c.CreateFile(context.Background(), key, iorcContent, rep, ttl, ca)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, volume.ErrNoSpace), "expected volume.ErrNoSpace, got: %v", err)
 	})
 }
 

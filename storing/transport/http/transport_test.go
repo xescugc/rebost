@@ -158,6 +158,37 @@ func TestMakeHandler(t *testing.T) {
 	}
 }
 
+func TestPutObjectErrClusterFull(t *testing.T) {
+	var (
+		ctrl = gomock.NewController(t)
+		key  = "testbucket/fileName"
+		rep  = 0
+		ttl  = time.Duration(0)
+		ca   = time.Time{}
+	)
+	st := mock.NewStoring(ctrl)
+	defer ctrl.Finish()
+
+	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrClusterFull)
+
+	h := httptransport.MakeHandler(st, &config.Config{})
+	server := httptest.NewServer(h)
+	client := server.Client()
+
+	req, err := http.NewRequest(http.MethodPut, server.URL+"/testbucket/fileName", bytes.NewBuffer([]byte("data")))
+	require.NoError(t, err)
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusInsufficientStorage, resp.StatusCode)
+
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "InsufficientStorage")
+}
+
 type timeMatcher struct {
 	t time.Time
 }
