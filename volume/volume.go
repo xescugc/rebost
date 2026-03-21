@@ -305,11 +305,54 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		return err
 	}
 
-	err = l.fs.Rename(tmp, p)
+	// -- Phase 1: capacity reservation (UoW write) --
+	// Check capacity before renaming the temp file to its final path.
+	// On failure, clean up the temp file to avoid orphans.
+	var capacityReserved bool
+	err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		dbf, err := uw.Files().FindBySignature(ctx, f.Signature)
+		if err != nil && err.Error() != "not found" {
+			return err
+		}
+		if dbf != nil {
+			// Deduplication: existing content, no capacity charge needed.
+			return nil
+		}
+		st, err := uw.State().Find(ctx)
+		if err != nil {
+			return err
+		}
+		if !st.Use(f.Size) {
+			return ErrNoSpace
+		}
+		capacityReserved = true
+		return uw.State().Update(ctx, st)
+	})
 	if err != nil {
+		// Temp file still at tmp; remove it to avoid an orphan.
+		_ = l.fs.Remove(tmp)
 		return err
 	}
 
+	// -- Rename only after capacity is confirmed --
+	if err = l.fs.Rename(tmp, p); err != nil {
+		// Roll back the capacity reservation committed in Phase 1.
+		// Best-effort: ignore rollback errors to avoid masking the original rename error.
+		if capacityReserved {
+			_ = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+				st, stErr := uw.State().Find(ctx)
+				if stErr != nil {
+					return stErr
+				}
+				st.Use(-f.Size)
+				return uw.State().Update(ctx, st)
+			})
+		}
+		return err
+	}
+
+	// -- Phase 2: DB metadata write (UoW write) --
+	// Capacity was already reserved in Phase 1; skip the Use/Update block here.
 	err = l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		dbf, err := uw.Files().FindBySignature(ctx, f.Signature)
 		if err != nil && err.Error() != "not found" {
@@ -330,21 +373,6 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 			}
 			dbf.Keys = append(dbf.Keys, key)
 			f = dbf
-		} else {
-			// Update the State with the new file
-			// created size
-			st, err := uw.State().Find(ctx)
-			if err != nil {
-				return err
-			}
-			if !st.Use(f.Size) {
-				return errors.New("file is too large for the dedicated space left")
-			}
-
-			err = uw.State().Update(ctx, st)
-			if err != nil {
-				return err
-			}
 		}
 
 		f.VolumeIDs = append(f.VolumeIDs, l.ID())

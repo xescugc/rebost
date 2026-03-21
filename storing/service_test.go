@@ -41,9 +41,10 @@ func TestCreateFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep, ttl, ca).Return(nil)
+		v.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(nil)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
+		m.EXPECT().NodesWithCapacity(gomock.Any()).Return(nil).AnyTimes()
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
@@ -66,11 +67,12 @@ func TestCreateFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		v.EXPECT().CreateFile(gomock.Any(), key, buff, rep, ttl, ca).Return(nil)
+		v.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(nil)
 
 		// It's AnyTimes as we have the config witha number of replicas
 		// which activates the goroutines that also calls this
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v}).AnyTimes()
+		m.EXPECT().NodesWithCapacity(gomock.Any()).Return(nil).AnyTimes()
 
 		// This is also because of the goroutine, it may call it or not
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
@@ -81,6 +83,98 @@ func TestCreateFile(t *testing.T) {
 		require.NoError(t, err)
 
 		err = s.CreateFile(ctx, key, buff, noRep, ttl, ca)
+		require.NoError(t, err)
+	})
+	t.Run("FirstVolumeFullFallsBackToSecond", func(t *testing.T) {
+		var (
+			key  = "testbucket/expectedkey"
+			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			rep  = 2
+			ttl  = 2 * time.Minute
+			ca   = time.Now()
+		)
+
+		v1 := mock.NewVolumeLocal(ctrl)
+		v2 := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		// Either volume may be randomly selected as primary by getLocalVolume.
+		// Both expectations use AnyTimes so the test is not sensitive to selection order;
+		// require.NoError below still verifies the fallback succeeds.
+		v1.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrNoSpace).AnyTimes()
+		v2.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(nil).AnyTimes()
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v1, v2})
+
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.CreateFile(ctx, key, buff, rep, ttl, ca)
+		require.NoError(t, err)
+	})
+	t.Run("ClusterFullReturnsErrClusterFull", func(t *testing.T) {
+		var (
+			key  = "testbucket/expectedkey"
+			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			rep  = 2
+			ttl  = 2 * time.Minute
+			ca   = time.Now()
+		)
+
+		v1 := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		v1.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrNoSpace)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v1})
+		m.EXPECT().NodesWithCapacity(gomock.Any()).Return(nil)
+
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.CreateFile(ctx, key, buff, rep, ttl, ca)
+		assert.True(t, errors.Is(err, volume.ErrClusterFull))
+	})
+	t.Run("AllLocalVolumesFallBackToRemoteNode", func(t *testing.T) {
+		var (
+			key  = "testbucket/expectedkey"
+			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			rep  = 2
+			ttl  = 2 * time.Minute
+			ca   = time.Now()
+		)
+
+		v1 := mock.NewVolumeLocal(ctrl)
+		s2 := mock.NewStoring(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		h := httptransport.MakeHandler(s2, &config.Config{})
+		server := httptest.NewServer(h)
+		defer server.Close()
+		remoteClient, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		v1.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrNoSpace)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v1})
+		m.EXPECT().NodesWithCapacity(gomock.Any()).Return([]*client.Client{remoteClient})
+
+		// ttl and ca may be truncated/rounded during HTTP serialization, so use Any()
+		s2.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, gomock.Any(), gomock.Any()).Return(nil)
+
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.CreateFile(ctx, key, buff, rep, ttl, ca)
 		require.NoError(t, err)
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {

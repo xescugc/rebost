@@ -22,6 +22,118 @@ import (
 	"github.com/xescugc/rebost/volume"
 )
 
+func TestNodesWithCapacity(t *testing.T) {
+	t.Run("ReturnsNodeWithEnoughCapacity", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		// Local node (m): just needs a volume with an ID
+		v := mock.NewVolumeLocal(ctrl)
+		v.EXPECT().ID().Return("local-id").Times(2)
+		v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil).AnyTimes()
+
+		// Remote node A (m2): 10 bytes free (100 total, 90 used)
+		stateA := &state.State{VolumeTotalSize: 100, VolumeUsedSize: 90}
+		v2 := mock.NewVolumeLocal(ctrl)
+		v2.EXPECT().ID().Return("remote-id-a").Times(2)
+		v2.EXPECT().GetState(context.Background()).Return(stateA, nil).AnyTimes()
+
+		p2, err := util.FreePort()
+		require.NoError(t, err)
+		cfg2 := &config.Config{Name: "nwc2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+		m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}))
+		defer server2.Close()
+
+		p3, err := util.FreePort()
+		require.NoError(t, err)
+		cfg := &config.Config{Name: "nwc", Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+		m, err := membership.New(cfg, []volume.Local{v}, server2.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+		require.Len(t, m.Nodes(), 1)
+
+		// Wait for gossip state to propagate
+		require.Eventually(t, func() bool {
+			ns := m.NodesWithCapacity(5)
+			return len(ns) == 1
+		}, 5*time.Second, 100*time.Millisecond, "expected node A to appear with capacity for 5 bytes")
+
+		// Node A has 10 bytes free; asking for 20 should return empty
+		assert.Empty(t, m.NodesWithCapacity(20), "no node should have 20 bytes free")
+	})
+
+	t.Run("ExcludesFullNode", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		// Local node (m): just needs a volume with an ID
+		v := mock.NewVolumeLocal(ctrl)
+		v.EXPECT().ID().Return("local-id").AnyTimes()
+		v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil).AnyTimes()
+
+		// Remote node A: 10 bytes free (100 total, 90 used)
+		stateA := &state.State{VolumeTotalSize: 100, VolumeUsedSize: 90}
+		v2 := mock.NewVolumeLocal(ctrl)
+		v2.EXPECT().ID().Return("remote-id-a").AnyTimes()
+		v2.EXPECT().GetState(context.Background()).Return(stateA, nil).AnyTimes()
+
+		p2, err := util.FreePort()
+		require.NoError(t, err)
+		cfg2 := &config.Config{Name: "efn-a", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+		m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}))
+		defer server2.Close()
+
+		// Remote node B: completely full (100 total, 100 used)
+		stateB := &state.State{VolumeTotalSize: 100, VolumeUsedSize: 100}
+		v3 := mock.NewVolumeLocal(ctrl)
+		v3.EXPECT().ID().Return("remote-id-b").AnyTimes()
+		v3.EXPECT().GetState(context.Background()).Return(stateB, nil).AnyTimes()
+
+		p3, err := util.FreePort()
+		require.NoError(t, err)
+		cfg3 := &config.Config{Name: "efn-b", Replica: -1, Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+		// Node B joins the cluster via node A
+		m3, err := membership.New(cfg3, []volume.Local{v3}, server2.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		s3, err := storing.New(cfg3, m3, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+		server3 := httptest.NewServer(httptransport.MakeHandler(s3, &config.Config{}))
+		defer server3.Close()
+
+		// Local node joins via node A; gossip will propagate node B as well
+		p4, err := util.FreePort()
+		require.NoError(t, err)
+		cfg := &config.Config{Name: "efn-local", Memberlist: config.Memberlist{Port: p4}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+		m, err := membership.New(cfg, []volume.Local{v}, server2.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		// Wait until both remote nodes are visible
+		require.Eventually(t, func() bool {
+			return len(m.Nodes()) == 2
+		}, 5*time.Second, 100*time.Millisecond, "expected both remote nodes to appear")
+
+		// Wait for gossip state to propagate so NodesWithCapacity can evaluate correctly
+		require.Eventually(t, func() bool {
+			ns := m.NodesWithCapacity(1)
+			return len(ns) == 1
+		}, 5*time.Second, 100*time.Millisecond, "expected only node A to have capacity for 1 byte")
+
+		ns := m.NodesWithCapacity(1)
+		assert.Len(t, ns, 1, "only node A should be returned")
+		assert.NotContains(t, m.NodesWithCapacity(1), m3, "node B (full) must not be included")
+	})
+}
+
 func TestVolumes(t *testing.T) {
 	t.Run("WithoutNodes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

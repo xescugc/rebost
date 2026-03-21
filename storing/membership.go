@@ -33,6 +33,11 @@ type Membership interface {
 	// that left the cluster
 	RemovedVolumeIDs() []string
 
+	// NodesWithCapacity returns all peer nodes that have at least one volume
+	// with enough gossip-reported free space to store size bytes.
+	// Results may be stale by one gossip round; callers must handle ErrNoSpace.
+	NodesWithCapacity(size int64) []*client.Client
+
 	// Leave makes it leave the cluster
 	Leave()
 }

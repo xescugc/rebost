@@ -3,6 +3,7 @@ package httptransport
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -107,6 +108,10 @@ func putObjectHandler(s Service) http.HandlerFunc {
 
 		err = s.CreateFile(r.Context(), key, iorc, rep, ttl, ca)
 		if err != nil {
+			if errors.Is(err, volume.ErrClusterFull) {
+				encodeS3Error(w, "InsufficientStorage", err.Error(), http.StatusInsufficientStorage)
+				return
+			}
 			encodeS3Error(w, "InternalError", err.Error(), http.StatusInternalServerError)
 			return
 		}

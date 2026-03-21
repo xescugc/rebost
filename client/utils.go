@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+
+	"github.com/xescugc/rebost/volume"
 )
 
 var successCodeRe = regexp.MustCompile(`2\d\d`)
@@ -56,6 +58,10 @@ func (c *client) requestStream(ctx context.Context, method, url string) (io.Read
 		return nil, -1, fmt.Errorf("failed to do request %q: %w", url, err)
 	}
 	if !successCodeRe.MatchString(strconv.Itoa(hresp.StatusCode)) {
+		if hresp.StatusCode == http.StatusInsufficientStorage {
+			hresp.Body.Close()
+			return nil, -1, volume.ErrNoSpace
+		}
 		defer hresp.Body.Close()
 		if msg := parseErrorBody(hresp.Body); msg != "" {
 			return nil, -1, errors.New(msg)
@@ -91,6 +97,9 @@ func (c *client) request(ctx context.Context, method, url string, body, resp int
 	defer hresp.Body.Close()
 
 	if !successCodeRe.MatchString(strconv.Itoa(hresp.StatusCode)) {
+		if hresp.StatusCode == http.StatusInsufficientStorage {
+			return hresp, volume.ErrNoSpace
+		}
 		if msg := parseErrorBody(hresp.Body); msg != "" {
 			return hresp, errors.New(msg)
 		}
