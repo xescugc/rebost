@@ -11,18 +11,25 @@ import (
 // processNext* helpers without spawning new top-level goroutines.
 func (s *service) loopVolumes() {
 	for {
-		var workDone bool
 		select {
 		case <-s.ctx.Done():
 			return
 		default:
-			for _, v := range s.members.LocalVolumes() {
-				if s.processNextReplica(v) {
-					workDone = true
-				}
-				if s.processNextDeletion(v) {
-					workDone = true
-				}
+		}
+
+		vls := s.members.LocalVolumes()
+		if len(vls) == 0 {
+			time.Sleep(time.Second)
+			continue
+		}
+
+		var workDone bool
+		for _, v := range vls {
+			if s.processNextReplica(v) {
+				workDone = true
+			}
+			if s.processNextDeletion(v) {
+				workDone = true
 			}
 		}
 		// If nothing was done on one full pass, sleep to avoid busy-looping.

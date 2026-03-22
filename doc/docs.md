@@ -6,14 +6,15 @@
 2. [Installation](#installation)
 3. [Quick Start — Single Node](#quick-start--single-node)
 4. [Multi-Node Cluster](#multi-node-cluster)
-5. [Configuration Reference](#configuration-reference)
-6. [S3 API Reference](#s3-api-reference)
-7. [Authentication](#authentication)
-8. [Replication](#replication)
-9. [TTL & Expiration](#ttl--expiration)
-10. [Volume Sizing](#volume-sizing)
-11. [Dashboard](#dashboard)
-12. [Known Limitations](#known-limitations)
+5. [Proxy Nodes](#proxy-nodes)
+6. [Configuration Reference](#configuration-reference)
+7. [S3 API Reference](#s3-api-reference)
+8. [Authentication](#authentication)
+9. [Replication](#replication)
+10. [TTL & Expiration](#ttl--expiration)
+11. [Volume Sizing](#volume-sizing)
+12. [Dashboard](#dashboard)
+13. [Known Limitations](#known-limitations)
 
 ---
 
@@ -168,6 +169,52 @@ There is no limit on the number of nodes. Each node can hold one or more local v
 
 ---
 
+## Proxy Nodes
+
+A proxy node is a node that joins the cluster without any local storage volumes. It forwards all operations to peer storage nodes and is useful for building topologies where some nodes sit at the internet boundary while storage nodes remain on a private network.
+
+```
+Internet
+    │
+    ▼
+proxy-node  (no local volumes, internet-facing)
+    │  gossip + HTTP
+    ▼
+storage-node1  storage-node2  storage-node3  (private network)
+```
+
+### Starting a proxy node
+
+Omit `--volumes` entirely:
+
+```bash
+docker run -d --name proxy --network rebost \
+  -p 3805:3805 \
+  xescugc/rebost serve --name proxy --remote http://storage-node1:3805
+```
+
+The node logs `"starting in proxy mode (no local volumes)"` at startup and joins the cluster gossip. All client requests routed to the proxy are forwarded to a storage peer that has capacity or holds the requested object.
+
+### Behaviour
+
+| Operation | What the proxy does |
+|---|---|
+| `PUT /{bucket}/{key}` | Selects a peer with available capacity and delegates the write |
+| `GET /{bucket}/{key}` | Queries peers to locate the object, then streams it back |
+| `HEAD /{bucket}/{key}` | Same as GET but returns only headers |
+| `DELETE /{bucket}/{key}` | Locates the object on a peer and forwards the delete |
+| `PUT /replicas/{key}` | Returns an error — proxies do not accept replicas |
+| `PATCH /replicas/{key}` | Returns an error — proxies hold no replica metadata |
+
+### Notes
+
+- A proxy node participates fully in gossip and is visible in the dashboard, but reports zero volume usage.
+- Proxy nodes do not hold data and are therefore not targeted by the background replication loop.
+- You can run multiple proxy nodes; each independently forwards requests to the cluster.
+- If no storage peer has capacity, the proxy returns the same `InternalError` (cluster full) as any storage node would.
+
+---
+
 ## Configuration Reference
 
 All options can be provided as CLI flags, environment variables (uppercased with `_` separator, prefixed with `REBOST_`), or a config file.
@@ -176,7 +223,7 @@ All options can be provided as CLI flags, environment variables (uppercased with
 |---|---|---|---|
 | `--port` / `-p` | int | `3805` | HTTP port the node listens on |
 | `--name` | string | random 7-char | Unique node name in the cluster. Auto-generated if not set. |
-| `--volumes` / `-v` | strings | *(required)* | Paths to local storage volumes. Repeat or comma-separate for multiple. See [Volume Sizing](#volume-sizing) for size limits. |
+| `--volumes` / `-v` | strings | *(none)* | Paths to local storage volumes. Repeat or comma-separate for multiple. Omit entirely to run as a [proxy node](#proxy-nodes). See [Volume Sizing](#volume-sizing) for size limits. |
 | `--remote` / `-r` | string | — | URL of any existing cluster node to join. Omit to start a new single-node cluster. |
 | `--replica` | int | `3` | Default replica count per object. Set to `-1` to disable replication on this node (storage-only mode). |
 | `--volume-downtime` | duration | `2m` | How long a volume can be unreachable before Rebost starts re-replicating its objects to surviving nodes. |

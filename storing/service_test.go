@@ -180,6 +180,38 @@ func TestCreateFile(t *testing.T) {
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		t.Skip("Not yet thought")
 	})
+	t.Run("ProxyNodeDelegatesToRemote", func(t *testing.T) {
+		var (
+			key  = "testbucket/expectedkey"
+			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			rep  = 2
+			ttl  = 2 * time.Minute
+			ca   = time.Now()
+		)
+
+		s2 := mock.NewStoring(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		h := httptransport.MakeHandler(s2, &config.Config{})
+		server := httptest.NewServer(h)
+		defer server.Close()
+		remoteClient, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{})
+		m.EXPECT().NodesWithCapacity(gomock.Any()).Return([]*client.Client{remoteClient})
+
+		s2.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, gomock.Any(), gomock.Any()).Return(nil)
+
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.CreateFile(ctx, key, buff, rep, ttl, ca)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetFile(t *testing.T) {
@@ -244,6 +276,39 @@ func TestGetFile(t *testing.T) {
 		b, _ := io.ReadAll(ior)
 		assert.Equal(t, "expectedcontent", string(b))
 	})
+	t.Run("ProxyNodeFindsOnRemote", func(t *testing.T) {
+		var (
+			key  = "testbucket/expectedkey"
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			vid  = "vid"
+		)
+		s2 := mock.NewStoring(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		h := httptransport.MakeHandler(s2, &config.Config{})
+		server := httptest.NewServer(h)
+		defer server.Close()
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{})
+		m.EXPECT().Nodes().Return([]*client.Client{c})
+
+		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
+		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len("expectedcontent"))}, nil).Times(2)
+		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), int64(-1), nil)
+
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		ior, _, err := s.GetFile(ctx, key)
+		require.NoError(t, err)
+
+		b, _ := io.ReadAll(ior)
+		assert.Equal(t, "expectedcontent", string(b))
+	})
 }
 
 func TestDeleteFile(t *testing.T) {
@@ -290,6 +355,36 @@ func TestDeleteFile(t *testing.T) {
 		m.EXPECT().Nodes().Return([]*client.Client{c})
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
+		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
+		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
+		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
+
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.DeleteFile(ctx, key)
+		require.NoError(t, err)
+	})
+	t.Run("ProxyNodeDeletesOnRemote", func(t *testing.T) {
+		var (
+			key  = "testbucket/expectedkey"
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			vid  = "vid"
+		)
+		s2 := mock.NewStoring(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		h := httptransport.MakeHandler(s2, &config.Config{})
+		server := httptest.NewServer(h)
+		defer server.Close()
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{})
+		m.EXPECT().Nodes().Return([]*client.Client{c})
+
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
@@ -454,6 +549,29 @@ func TestCreateReplica(t *testing.T) {
 		assert.EqualError(t, err, "can not store replicas")
 		assert.Equal(t, "", volID)
 	})
+	t.Run("ErrorNoLocalVolumes", func(t *testing.T) {
+		var (
+			key  = "testbucket/expectedkey"
+			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			ttl  = 2 * time.Minute
+			ca   = time.Now()
+		)
+
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{}).AnyTimes()
+		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
+
+		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		volID, err := s.CreateReplica(ctx, key, buff, ttl, ca)
+		assert.EqualError(t, err, "no local volumes to store replica")
+		assert.Equal(t, "", volID)
+	})
 }
 
 func TestUpdateFileReplica(t *testing.T) {
@@ -506,5 +624,26 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		err = s.UpdateFileReplica(ctx, key, vids, rep)
 		assert.EqualError(t, err, "can not store replicas")
+	})
+	t.Run("ErrorNoLocalVolumes", func(t *testing.T) {
+		var (
+			key  = "testbucket/expectedkey"
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+			rep  = 4
+			vids = []string{"1", "2"}
+		)
+
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{}).AnyTimes()
+		m.EXPECT().RemovedVolumeIDs().Return(nil).AnyTimes()
+
+		s, err := storing.New(&config.Config{Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.UpdateFileReplica(ctx, key, vids, rep)
+		assert.EqualError(t, err, "no local volumes to update replica")
 	})
 }
