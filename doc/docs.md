@@ -198,14 +198,14 @@ The node logs `"starting in proxy mode (no local volumes)"` at startup and joins
 
 ### Behaviour
 
-| Operation | What the proxy does |
-|---|---|
-| `PUT /{bucket}/{key}` | Selects a peer with available capacity and delegates the write |
-| `GET /{bucket}/{key}` | Queries peers to locate the object, then streams it back |
-| `HEAD /{bucket}/{key}` | Same as GET but returns only headers |
-| `DELETE /{bucket}/{key}` | Locates the object on a peer and forwards the delete |
-| `PUT /replicas/{key}` | Returns an error — proxies do not accept replicas |
-| `PATCH /replicas/{key}` | Returns an error — proxies hold no replica metadata |
+| Operation                | What the proxy does                                            |
+| ------------------------ | -------------------------------------------------------------- |
+| `PUT /{bucket}/{key}`    | Selects a peer with available capacity and delegates the write |
+| `GET /{bucket}/{key}`    | Queries peers to locate the object, then streams it back       |
+| `HEAD /{bucket}/{key}`   | Same as GET but returns only headers                           |
+| `DELETE /{bucket}/{key}` | Locates the object on a peer and forwards the delete           |
+| `PUT /replicas/{key}`    | Returns an error — proxies do not accept replicas              |
+| `PATCH /replicas/{key}`  | Returns an error — proxies hold no replica metadata            |
 
 ### Notes
 
@@ -245,7 +245,6 @@ kill $(pgrep rebost)
 - If the drain fails mid-way (e.g. not enough peers to satisfy the replica count), the node remains in the cluster and retains its local files. The drain can be safely retried by sending `SIGQUIT` again.
 - Proxy nodes (started without `--volumes`) drain instantly because they hold no data.
 - While draining, the node rejects all `CreateFile` and `CreateReplica` requests with an error. Other cluster members also skip routing writes to a draining node.
-- Only files for which this node is the **owner** (`VolumeIDs[0]`) are proactively re-replicated during drain. Files where this node holds a non-owning replica are re-replicated automatically by the surviving nodes after the node leaves (standard recovery path).
 
 ---
 
@@ -253,21 +252,21 @@ kill $(pgrep rebost)
 
 All options can be provided as CLI flags, environment variables (uppercased with `_` separator, prefixed with `REBOST_`), or a config file.
 
-| Flag | Type | Default | Description |
-|---|---|---|---|
-| `--port` / `-p` | int | `3805` | HTTP port the node listens on |
-| `--name` | string | random 7-char | Unique node name in the cluster. Auto-generated if not set. |
-| `--volumes` / `-v` | strings | *(none)* | Paths to local storage volumes. Repeat or comma-separate for multiple. Omit entirely to run as a [proxy node](#proxy-nodes). See [Volume Sizing](#volume-sizing) for size limits. |
-| `--remote` / `-r` | string | — | URL of any existing cluster node to join. Omit to start a new single-node cluster. |
-| `--replica` | int | `3` | Default replica count per object. Set to `-1` to disable replication on this node (storage-only mode). |
-| `--volume-downtime` | duration | `2m` | How long a volume can be unreachable before Rebost starts re-replicating its objects to surviving nodes. |
-| `--memberlist.port` | int | `0` (auto) | UDP/TCP port for gossip. Auto-assigned if `0`. Fix this port if you need deterministic firewall rules. |
-| `--cache.size` | int | `200` | Size of the per-node LRU cache that maps object keys to remote volume IDs, avoiding repeated `HEAD` queries to peers. |
-| `--dashboard.port` | int | `3806` | HTTP port for the dashboard UI. |
-| `--dashboard.enabled` | bool | `true` | Enable or disable the dashboard on this node. |
-| `--s3.access_key` | string | — | AWS access key ID. Leave empty to disable authentication. |
-| `--s3.secret_key` | string | — | AWS secret access key. Required when `--s3.access_key` is set. |
-| `--s3.auth_mode` | string | `all` | Authentication scope. `all` requires auth for every request. `write` requires auth only for mutating operations (PUT, DELETE, PATCH, POST); GET and HEAD are public. |
+| Flag                  | Type     | Default       | Description                                                                                                                                                                       |
+| --------------------- | -------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--port` / `-p`       | int      | `3805`        | HTTP port the node listens on                                                                                                                                                     |
+| `--name`              | string   | random 7-char | Unique node name in the cluster. Auto-generated if not set.                                                                                                                       |
+| `--volumes` / `-v`    | strings  | _(none)_      | Paths to local storage volumes. Repeat or comma-separate for multiple. Omit entirely to run as a [proxy node](#proxy-nodes). See [Volume Sizing](#volume-sizing) for size limits. |
+| `--remote` / `-r`     | string   | —             | URL of any existing cluster node to join. Omit to start a new single-node cluster.                                                                                                |
+| `--replica`           | int      | `3`           | Default replica count per object. Set to `-1` to disable replication on this node (storage-only mode).                                                                            |
+| `--volume-downtime`   | duration | `2m`          | How long a volume can be unreachable before Rebost starts re-replicating its objects to surviving nodes.                                                                          |
+| `--memberlist.port`   | int      | `0` (auto)    | UDP/TCP port for gossip. Auto-assigned if `0`. Fix this port if you need deterministic firewall rules.                                                                            |
+| `--cache.size`        | int      | `200`         | Size of the per-node LRU cache that maps object keys to remote volume IDs, avoiding repeated `HEAD` queries to peers.                                                             |
+| `--dashboard.port`    | int      | `3806`        | HTTP port for the dashboard UI.                                                                                                                                                   |
+| `--dashboard.enabled` | bool     | `true`        | Enable or disable the dashboard on this node.                                                                                                                                     |
+| `--s3.access_key`     | string   | —             | AWS access key ID. Leave empty to disable authentication.                                                                                                                         |
+| `--s3.secret_key`     | string   | —             | AWS secret access key. Required when `--s3.access_key` is set.                                                                                                                    |
+| `--s3.auth_mode`      | string   | `all`         | Authentication scope. `all` requires auth for every request. `write` requires auth only for mutating operations (PUT, DELETE, PATCH, POST); GET and HEAD are public.              |
 
 ---
 
@@ -279,31 +278,31 @@ Rebost exposes an S3-compatible HTTP API using path-style addressing: `/{bucket}
 
 ### Object operations
 
-| Method | Path | Description | Success |
-|---|---|---|---|
-| `PUT` | `/{bucket}/{key}` | Upload an object. Optional query params: `?replica=N`, `?ttl=<duration>`, `?created_at=<RFC3339>` | `200 OK` |
-| `GET` | `/{bucket}/{key}` | Download an object. Returns `Content-Length`, `ETag`, `Last-Modified` headers. | `200 OK` |
-| `HEAD` | `/{bucket}/{key}` | Get object metadata without the body. Returns the same headers as GET plus `X-Rebost-VolumeID`. | `200 OK` |
-| `DELETE` | `/{bucket}/{key}` | Delete an object. Propagates to all replicas asynchronously. | `204 No Content` |
-| `POST` | `/{bucket}/{key}` | Multipart upload stub — always returns `501 Not Implemented`. | — |
+| Method   | Path              | Description                                                                                       | Success          |
+| -------- | ----------------- | ------------------------------------------------------------------------------------------------- | ---------------- |
+| `PUT`    | `/{bucket}/{key}` | Upload an object. Optional query params: `?replica=N`, `?ttl=<duration>`, `?created_at=<RFC3339>` | `200 OK`         |
+| `GET`    | `/{bucket}/{key}` | Download an object. Returns `Content-Length`, `ETag`, `Last-Modified` headers.                    | `200 OK`         |
+| `HEAD`   | `/{bucket}/{key}` | Get object metadata without the body. Returns the same headers as GET plus `X-Rebost-VolumeID`.   | `200 OK`         |
+| `DELETE` | `/{bucket}/{key}` | Delete an object. Propagates to all replicas asynchronously.                                      | `204 No Content` |
+| `POST`   | `/{bucket}/{key}` | Multipart upload stub — always returns `501 Not Implemented`.                                     | —                |
 
 ### Bucket operations
 
-| Method | Path | Description | Response |
-|---|---|---|---|
-| `PUT` | `/{bucket}` | Create bucket (no-op). | `200 OK` |
-| `DELETE` | `/{bucket}` | Delete bucket (no-op). | `204 No Content` |
-| `GET` | `/{bucket}` | List objects — returns `501 Not Implemented`. | — |
+| Method   | Path        | Description                                   | Response         |
+| -------- | ----------- | --------------------------------------------- | ---------------- |
+| `PUT`    | `/{bucket}` | Create bucket (no-op).                        | `200 OK`         |
+| `DELETE` | `/{bucket}` | Delete bucket (no-op).                        | `204 No Content` |
+| `GET`    | `/{bucket}` | List objects — returns `501 Not Implemented`. | —                |
 
 ### Internal inter-node routes
 
 These routes are used for replication between nodes. They are always exempt from authentication.
 
-| Method | Path | Description |
-|---|---|---|
-| `PUT` | `/replicas/{key}` | Accept a replica of an object from a peer node. |
+| Method  | Path              | Description                                                     |
+| ------- | ----------------- | --------------------------------------------------------------- |
+| `PUT`   | `/replicas/{key}` | Accept a replica of an object from a peer node.                 |
 | `PATCH` | `/replicas/{key}` | Update replica location metadata after a new replica is placed. |
-| `GET` | `/config` | Return this node's configuration (used during cluster join). |
+| `GET`   | `/config`         | Return this node's configuration (used during cluster join).    |
 
 ### Error responses
 
@@ -320,11 +319,11 @@ Common codes: `NoSuchKey` (404), `InternalError` (500), `AccessDenied` (403), `N
 
 ### Upload query parameters
 
-| Parameter | Type | Description |
-|---|---|---|
-| `replica` | int | Override the node's default replica count for this object. |
-| `ttl` | duration | Set an expiration TTL (e.g. `24h`, `30m`). The object is deleted automatically when it expires. |
-| `created_at` | RFC3339 | Override the creation timestamp (used for replica synchronisation). |
+| Parameter    | Type     | Description                                                                                     |
+| ------------ | -------- | ----------------------------------------------------------------------------------------------- |
+| `replica`    | int      | Override the node's default replica count for this object.                                      |
+| `ttl`        | duration | Set an expiration TTL (e.g. `24h`, `30m`). The object is deleted automatically when it expires. |
+| `created_at` | RFC3339  | Override the creation timestamp (used for replica synchronisation).                             |
 
 ---
 
@@ -345,10 +344,10 @@ docker run -d -p 3805:3805 -v $(pwd)/data:/data \
 
 ### Auth modes
 
-| Mode | Behaviour |
-|---|---|
-| `all` (default) | Every request requires a valid AWS Signature V4. |
-| `write` | GET and HEAD are public; PUT, DELETE, PATCH, POST require auth. |
+| Mode            | Behaviour                                                       |
+| --------------- | --------------------------------------------------------------- |
+| `all` (default) | Every request requires a valid AWS Signature V4.                |
+| `write`         | GET and HEAD are public; PUT, DELETE, PATCH, POST require auth. |
 
 ```bash
 # Write-only auth — public reads, protected writes
@@ -481,9 +480,9 @@ xescugc/rebost serve --volumes /data --dashboard.port 8080
 
 ## Known Limitations
 
-| Feature | Status | Notes |
-|---|---|---|
-| List objects (`GET /{bucket}`) | `501 Not Implemented` | Rebost has no cluster-wide listing index. There is no way to enumerate all keys. |
-| Multipart upload (`POST /{bucket}/{key}`) | `501 Not Implemented` | Use a single-part `PUT` for all uploads, regardless of file size. |
-| Object versioning | Not supported | Uploading the same key twice overwrites the previous object. |
-| Cross-region replication | N/A | Rebost has no concept of regions. |
+| Feature                                   | Status                | Notes                                                                            |
+| ----------------------------------------- | --------------------- | -------------------------------------------------------------------------------- |
+| List objects (`GET /{bucket}`)            | `501 Not Implemented` | Rebost has no cluster-wide listing index. There is no way to enumerate all keys. |
+| Multipart upload (`POST /{bucket}/{key}`) | `501 Not Implemented` | Use a single-part `PUT` for all uploads, regardless of file size.                |
+| Object versioning                         | Not supported         | Uploading the same key twice overwrites the previous object.                     |
+| Cross-region replication                  | N/A                   | Rebost has no concept of regions.                                                |
