@@ -202,7 +202,11 @@ func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadC
 	if s.cfg.Replica == -1 {
 		return "", errors.New("can not store replicas")
 	}
-	v := s.getLocalVolumes(ctx, key)[0]
+	vls := s.getLocalVolumes(ctx, key)
+	if len(vls) == 0 {
+		return "", errors.New("no local volumes to store replica")
+	}
+	v := vls[0]
 	err := v.CreateFile(ctx, key, reader, noReplica, ttl, ca)
 	if err != nil {
 		return "", err
@@ -214,6 +218,10 @@ func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadC
 func (s *service) UpdateFileReplica(ctx context.Context, key string, volumeIDs []string, replica int) error {
 	if s.cfg.Replica == -1 {
 		return errors.New("can not store replicas")
+	}
+
+	if len(s.members.LocalVolumes()) == 0 {
+		return errors.New("no local volumes to update replica")
 	}
 
 	_, v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), key)

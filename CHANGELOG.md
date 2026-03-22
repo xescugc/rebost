@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Proxy node support: start a node without `--volumes` to forward all operations to peers.
+  [Issue#118](https://github.com/xescugc/rebost/issues/118)
 - Storage capacity fallback: when a volume is full, `CreateFile` automatically
   falls back to another local volume, then a remote cluster node.
   [Issue#36](https://github.com/xescugc/rebost/issues/36)

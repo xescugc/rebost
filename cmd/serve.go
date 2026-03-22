@@ -48,9 +48,6 @@ var (
 			}
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
 
-			if len(cfg.Volumes) == 0 {
-				return errors.New("at last one volume is required")
-			}
 			if cfg.Name == "" {
 				return errors.New("the 'name' is required")
 			}
@@ -100,6 +97,10 @@ var (
 
 				logger.Info(fmt.Sprintf("Attached to volume: %q", vp))
 				vs = append(vs, v)
+			}
+
+			if len(vs) == 0 {
+				logger.Info("starting in proxy mode (no local volumes)")
 			}
 
 			m, err := membership.New(cfg, vs, cfg.Remote, logger)
