@@ -124,6 +124,17 @@ type Local interface {
 
 	// Reset will clean all the data of the volume and even change the ID
 	Reset(ctx context.Context) error
+
+	// PrepareForDrain creates Replica jobs for all local files that don't have
+	// enough external replicas to cover the configured replica count.
+	PrepareForDrain(ctx context.Context) error
+
+	// HasPendingReplicas reports whether there are any pending replica jobs queued.
+	HasPendingReplicas(ctx context.Context) (bool, error)
+
+	// PurgeAllFiles removes all local files and their keys from this volume
+	// without creating deletion jobs for remote nodes (remote copies are preserved).
+	PurgeAllFiles(ctx context.Context) error
 }
 
 type local struct {
@@ -570,32 +581,7 @@ func (l *local) deleteFile(ctx context.Context, uw uow.UnitOfWork, key string) e
 		newKeys = append(newKeys, k)
 	}
 	if len(newKeys) == 0 {
-		err = uw.Files().DeleteBySignature(ctx, ik.Value)
-		if err != nil {
-			return err
-		}
-
-		err = uw.Replicas().Delete(ctx, &replica.Replica{VolumeReplicaID: []byte(ik.Value)})
-		if err != nil {
-			return err
-		}
-
-		err = uw.Fs().Remove(file.Path(l.fileDir, ik.Value))
-		if err != nil {
-			return err
-		}
-
-		// Update the State with the new file
-		// created size
-		st, err := uw.State().Find(ctx)
-		if err != nil {
-			return err
-		}
-		if !st.Use(-dbf.Size) {
-			return errors.New("file is too large for the dedicated space left")
-		}
-
-		err = uw.State().Update(ctx, st)
+		err = l.purgeFile(ctx, dbf, uw)
 		if err != nil {
 			return err
 		}
@@ -627,6 +613,39 @@ func (l *local) deleteFile(ctx context.Context, uw uow.UnitOfWork, key string) e
 	}
 
 	return uw.IDXKeys().DeleteByKey(ctx, key)
+}
+
+// purgeFile removes a file's content and DB record from this volume without
+// creating a Deletion job for remote nodes. All keys in f.Keys are assumed to
+// already be removed from idxkey before calling this (or are about to be removed
+// by the caller). The file DB record, any pending replica job, the filesystem
+// content, and the state size are all cleaned up.
+func (l *local) purgeFile(ctx context.Context, f *file.File, uw uow.UnitOfWork) error {
+	err := uw.Files().DeleteBySignature(ctx, f.Signature)
+	if err != nil {
+		return err
+	}
+
+	err = uw.Replicas().Delete(ctx, &replica.Replica{VolumeReplicaID: []byte(f.Signature)})
+	if err != nil {
+		return err
+	}
+
+	err = uw.Fs().Remove(file.Path(l.fileDir, f.Signature))
+	if err != nil {
+		return err
+	}
+
+	// Update the State to reflect the freed space.
+	st, err := uw.State().Find(ctx)
+	if err != nil {
+		return err
+	}
+	if !st.Use(-f.Size) {
+		return errors.New("volume accounting underflow: used size would go negative")
+	}
+
+	return uw.State().Update(ctx, st)
 }
 
 func (l *local) HasFile(ctx context.Context, k string) (string, bool, error) {
@@ -960,6 +979,129 @@ func (l *local) DeleteDeletion(ctx context.Context, d *deletion.Deletion) error 
 	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		return uw.Deletions().Delete(ctx, d)
 	})
+}
+
+func (l *local) PrepareForDrain(ctx context.Context) error {
+	// Duplicate replica jobs for files that already have some pending
+	// replication are intentional: the replication processor performs a
+	// HasFile check before transferring content, making each job idempotent.
+	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		files, err := uw.Files().All(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, f := range files {
+			externalCount := 0
+			vidsWithoutSelf := make([]string, 0, len(f.VolumeIDs))
+			for _, vid := range f.VolumeIDs {
+				if vid != l.id {
+					externalCount++
+					vidsWithoutSelf = append(vidsWithoutSelf, vid)
+				}
+			}
+
+			if externalCount < f.Replica {
+				rp := &replica.Replica{
+					ID:            uuid.NewV4().String(),
+					Key:           f.Keys[0],
+					Count:         f.Replica - externalCount,
+					OriginalCount: f.Replica,
+					Signature:     f.Signature,
+					VolumeID:      l.id,
+					VolumeIDs:     vidsWithoutSelf,
+					TTL:           f.TTL,
+					CreatedAt:     f.CreatedAt,
+				}
+
+				err = uw.Replicas().Create(ctx, rp)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
+func (l *local) HasPendingReplicas(ctx context.Context) (bool, error) {
+	var (
+		has bool
+		err error
+	)
+	err = l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		has, err = uw.Replicas().HasAny(ctx)
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+	return has, nil
+}
+
+func (l *local) PurgeAllFiles(ctx context.Context) error {
+	// Two-phase approach: read the full file list in a single read transaction
+	// (snapshot), then write-delete each file in its own transaction. This
+	// avoids holding one large BoltDB write-transaction lock for the entire
+	// operation, which would block every concurrent reader for its duration.
+	var files []*file.File
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		var err error
+		files, err = uw.Files().All(ctx)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+			// Remove all idxkey entries for this file.
+			for _, k := range f.Keys {
+				if err := uw.IDXKeys().DeleteByKey(ctx, k); err != nil {
+					return err
+				}
+			}
+
+			// Remove this file's signature from the idxttl entry if it has a TTL set.
+			// Without this cleanup the loopTTL goroutine will log "not found"
+			// errors every second for each stale entry.
+			// Use Find-remove-update so we don't clobber other files that share
+			// the same ExpiresAt timestamp.
+			if f.TTL != noTTL {
+				dbidxttl, err := uw.IDXTTLs().Find(ctx, f.ExpiresAt())
+				if err != nil && err.Error() != "not found" {
+					return err
+				}
+				if err == nil {
+					newSigs := make([]string, 0, len(dbidxttl.Signatures))
+					for _, s := range dbidxttl.Signatures {
+						if s != f.Signature {
+							newSigs = append(newSigs, s)
+						}
+					}
+					if len(newSigs) == 0 {
+						if err := uw.IDXTTLs().Delete(ctx, f.ExpiresAt()); err != nil {
+							return err
+						}
+					} else {
+						dbidxttl.Signatures = newSigs
+						if err := uw.IDXTTLs().CreateOrReplace(ctx, dbidxttl); err != nil {
+							return err
+						}
+					}
+				}
+			}
+
+			return l.purgeFile(ctx, f, uw)
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (l *local) createID(idPath string) (string, error) {

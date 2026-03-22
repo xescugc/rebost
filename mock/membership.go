@@ -147,3 +147,15 @@ func (mr *MembershipMockRecorder) RemovedVolumeIDs() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemovedVolumeIDs", reflect.TypeOf((*Membership)(nil).RemovedVolumeIDs))
 }
+
+// SetDraining mocks base method.
+func (m *Membership) SetDraining(arg0 bool) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetDraining", arg0)
+}
+
+// SetDraining indicates an expected call of SetDraining.
+func (mr *MembershipMockRecorder) SetDraining(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDraining", reflect.TypeOf((*Membership)(nil).SetDraining), arg0)
+}

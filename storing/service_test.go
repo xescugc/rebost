@@ -647,3 +647,183 @@ func TestUpdateFileReplica(t *testing.T) {
 		assert.EqualError(t, err, "no local volumes to update replica")
 	})
 }
+
+func TestService_Drain(t *testing.T) {
+	t.Run("ProxyMode", func(t *testing.T) {
+		var (
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+		)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		m.EXPECT().SetDraining(true)
+		m.EXPECT().LocalVolumes().Return([]volume.Local{})
+		m.EXPECT().Leave()
+
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.Drain(ctx)
+		require.NoError(t, err)
+	})
+	t.Run("Success", func(t *testing.T) {
+		var (
+			ctrl = gomock.NewController(t)
+			ctx  = context.Background()
+		)
+		v := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		// First call returns true (pending), second returns false (done)
+		gomock.InOrder(
+			m.EXPECT().SetDraining(true),
+			v.EXPECT().PrepareForDrain(gomock.Any()).Return(nil),
+			v.EXPECT().HasPendingReplicas(gomock.Any()).Return(true, nil),
+			v.EXPECT().HasPendingReplicas(gomock.Any()).Return(false, nil),
+			v.EXPECT().PurgeAllFiles(gomock.Any()).Return(nil),
+		)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
+		m.EXPECT().Leave()
+
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.Drain(ctx)
+		require.NoError(t, err)
+	})
+	t.Run("PrepareForDrainError", func(t *testing.T) {
+		var (
+			ctrl   = gomock.NewController(t)
+			ctx    = context.Background()
+			expErr = errors.New("prepare error")
+		)
+		v := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		m.EXPECT().SetDraining(true)
+		v.EXPECT().PrepareForDrain(gomock.Any()).Return(expErr)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
+
+		// Replica: -1 disables background loops so mock expectations stay deterministic.
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.Drain(ctx)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, expErr))
+	})
+	t.Run("HasPendingReplicasError", func(t *testing.T) {
+		var (
+			ctrl   = gomock.NewController(t)
+			ctx    = context.Background()
+			expErr = errors.New("pending replicas error")
+		)
+		v := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		gomock.InOrder(
+			m.EXPECT().SetDraining(true),
+			v.EXPECT().PrepareForDrain(gomock.Any()).Return(nil),
+			v.EXPECT().HasPendingReplicas(gomock.Any()).Return(false, expErr),
+		)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
+
+		// Replica: -1 disables background loops so mock expectations stay deterministic.
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.Drain(ctx)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, expErr))
+	})
+	t.Run("PurgeAllFilesError", func(t *testing.T) {
+		var (
+			ctrl   = gomock.NewController(t)
+			ctx    = context.Background()
+			expErr = errors.New("purge error")
+		)
+		v := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		defer ctrl.Finish()
+
+		gomock.InOrder(
+			m.EXPECT().SetDraining(true),
+			v.EXPECT().PrepareForDrain(gomock.Any()).Return(nil),
+			v.EXPECT().HasPendingReplicas(gomock.Any()).Return(false, nil),
+			v.EXPECT().PurgeAllFiles(gomock.Any()).Return(expErr),
+		)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
+
+		// Replica: -1 disables background loops so mock expectations stay deterministic.
+		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, err)
+
+		err = s.Drain(ctx)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, expErr))
+	})
+}
+
+func TestService_CreateFileWhileDraining(t *testing.T) {
+	var (
+		ctrl = gomock.NewController(t)
+		ctx  = context.Background()
+		key  = "testbucket/key"
+		buff = io.NopCloser(bytes.NewBufferString("content"))
+		ttl  = time.Minute
+		ca   = time.Now()
+	)
+	m := mock.NewMembership(ctrl)
+	defer ctrl.Finish()
+
+	// Put service into draining state via proxy-mode Drain
+	m.EXPECT().SetDraining(true)
+	m.EXPECT().LocalVolumes().Return([]volume.Local{})
+	m.EXPECT().Leave()
+
+	s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	err = s.Drain(ctx)
+	require.NoError(t, err)
+
+	// Now try to create a file — should be rejected
+	err = s.CreateFile(ctx, key, buff, 2, ttl, ca)
+	assert.EqualError(t, err, "node is draining")
+}
+
+func TestService_CreateReplicaWhileDraining(t *testing.T) {
+	var (
+		ctrl   = gomock.NewController(t)
+		ctx    = context.Background()
+		key    = "testbucket/key"
+		reader = io.NopCloser(bytes.NewBufferString("content"))
+		ttl    = time.Minute
+		ca     = time.Now()
+	)
+	m := mock.NewMembership(ctrl)
+	defer ctrl.Finish()
+
+	// Put service into draining state via proxy-mode Drain
+	m.EXPECT().SetDraining(true)
+	m.EXPECT().LocalVolumes().Return([]volume.Local{})
+	m.EXPECT().Leave()
+
+	s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	err = s.Drain(ctx)
+	require.NoError(t, err)
+
+	// Now try to create a replica — should be rejected
+	_, err = s.CreateReplica(ctx, key, reader, ttl, ca)
+	assert.EqualError(t, err, "node is draining")
+}

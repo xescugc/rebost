@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"testing"
 	"time"
@@ -25,9 +24,6 @@ var (
 	noCA time.Time
 )
 
-func init() {
-	log.SetFlags(log.Llongfile)
-}
 
 type cancelFn func()
 
@@ -326,6 +322,96 @@ func TestReplica(t *testing.T) {
 		assert.Equal(t, 0, okCount)
 		assert.Equal(t, 3, nokCount)
 	})
+}
+
+func TestDrain(t *testing.T) {
+	var (
+		keytxt     = "testbucket/keytxt"
+		txtcontent = []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+		iorctxt    = io.NopCloser(bytes.NewBuffer(txtcontent))
+
+		ctx = context.Background()
+	)
+
+	// Start node1 using newNode so we also have the service for Drain.
+	u1, _, svc1, _, ca1 := newNode(t, "n1", firstNode, nil)
+	defer ca1()
+	cl1, err := client.New(u1)
+	require.NoError(t, err)
+
+	// Start node2 with membership exposed so we can verify node1 left the cluster.
+	u2, _, _, m2, ca2 := newNode(t, "n2", u1, nil)
+	defer ca2()
+	cl2, err := client.New(u2)
+	require.NoError(t, err)
+
+	cl3, _, _, ca3 := newClient(t, "n3", u1)
+	defer ca3()
+	cl4, _, _, ca4 := newClient(t, "n4", u1)
+	defer ca4()
+
+	// Sleep one second to let the nodes communicate between each other
+	// and have the cluster stable
+	time.Sleep(time.Second)
+
+	// Upload the file with replica=3 to node1
+	err = cl1.CreateFile(ctx, keytxt, iorctxt, 3, noTTL, noCA)
+	require.NoError(t, err)
+
+	// Wait for replication to reach exactly 2 of the 3 peer nodes (cl2/cl3/cl4).
+	// cl1 is the uploader and always holds the file, so we exclude it to avoid
+	// misidentifying cl1 as the "missing" node.
+	// We record which peer does NOT have the file so we can assert that
+	// drain causes replication specifically to that previously-empty node.
+	allClients := []*client.Client{cl2, cl3, cl4}
+	var missingNode *client.Client
+	require.Eventually(t, func() bool {
+		okCount := 0
+		missingNode = nil
+		for _, c := range allClients {
+			_, ok, _ := c.HasFile(ctx, keytxt)
+			if ok {
+				okCount++
+			} else {
+				missingNode = c
+			}
+		}
+		return okCount == 2
+	}, 10*time.Second, 100*time.Millisecond, "file should be replicated to exactly 2 peer nodes before drain")
+	require.NotNil(t, missingNode, "exactly one node should be missing the file before drain")
+
+	// Record the current node count before draining node1.
+	initialNodeCount := len(m2.Nodes())
+
+	// Drain node1 — this should replicate any locally-held files to nodes that
+	// don't yet have them, purge node1's local copies, and leave the cluster.
+	err = svc1.Drain(ctx)
+	require.NoError(t, err)
+
+	// After drain, the previously-missing node must now hold the file.
+	require.Eventually(t, func() bool {
+		_, ok, _ := missingNode.HasFile(ctx, keytxt)
+		return ok
+	}, 10*time.Second, 100*time.Millisecond, "drain should have replicated to the previously-empty node")
+
+	// After drain, all of node2/node3/node4 must hold the file
+	require.Eventually(t, func() bool {
+		_, ok2, _ := cl2.HasFile(ctx, keytxt)
+		_, ok3, _ := cl3.HasFile(ctx, keytxt)
+		_, ok4, _ := cl4.HasFile(ctx, keytxt)
+		return ok2 && ok3 && ok4
+	}, 10*time.Second, 100*time.Millisecond, "after drain all remaining nodes should have the file")
+
+	// node1 must no longer hold the file locally
+	_, ok1, err := cl1.HasFile(ctx, keytxt)
+	require.NoError(t, err)
+	assert.False(t, ok1, "node1 should not hold the file after drain")
+
+	// node1 must have left the cluster — verified by a count-based check that
+	// is robust against localhost vs 127.0.0.1 URL format differences.
+	require.Eventually(t, func() bool {
+		return len(m2.Nodes()) == initialNodeCount-1
+	}, 10*time.Second, 100*time.Millisecond, "node1 should have left the cluster")
 }
 
 func TestTTL(t *testing.T) {

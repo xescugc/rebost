@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http/httptest"
 	"os"
@@ -28,10 +27,10 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-// newNode starts a test node and returns its URL, volume ID, and a cancel function.
-// The cfg argument allows callers to set extra config fields (e.g. S3 credentials)
-// before the node is wired up. Pass nil for defaults.
-func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config)) (string, string, cancelFn) {
+// newNode starts a test node and returns its URL, volume ID, service, membership,
+// and a cancel function. The cfg argument allows callers to set extra config fields
+// (e.g. S3 credentials) before the node is wired up. Pass nil for defaults.
+func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config)) (string, string, storing.Service, storing.Membership, cancelFn) {
 	t.Helper()
 
 	port, err := util.FreePort()
@@ -53,14 +52,10 @@ func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config
 	}
 
 	tmpDir, err := os.MkdirTemp("", "rebost")
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%s", strconv.Itoa(port)))
-	if err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
 
@@ -92,7 +87,7 @@ func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config
 
 	u := fmt.Sprintf("http://localhost:%d", port)
 
-	return u, v.ID(), func() {
+	return u, v.ID(), s, m, func() {
 		m.Leave()
 		bdb.Close()
 		os.RemoveAll(tmpDir)
@@ -107,7 +102,7 @@ func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config
 func newClient(t *testing.T, name string, remote string) (*client.Client, string, string, cancelFn) {
 	t.Helper()
 
-	u, vid, cancel := newNode(t, name, remote, nil)
+	u, vid, _, _, cancel := newNode(t, name, remote, nil)
 
 	cl, err := client.New(u)
 	require.NoError(t, err)
@@ -126,7 +121,7 @@ func newClientWithAuth(t *testing.T, name string, remote string, accessKey strin
 func newClientWithAuthMode(t *testing.T, name string, remote string, accessKey string, secretKey string, authMode string) (string, cancelFn) {
 	t.Helper()
 
-	u, _, cancel := newNode(t, name, remote, func(cfg *config.Config) {
+	u, _, _, _, cancel := newNode(t, name, remote, func(cfg *config.Config) {
 		cfg.S3.AccessKey = accessKey
 		cfg.S3.SecretKey = secretKey
 		cfg.S3.AuthMode = authMode

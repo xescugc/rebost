@@ -35,6 +35,21 @@ func (m *FileRepository) EXPECT() *FileRepositoryMockRecorder {
 	return m.recorder
 }
 
+// All mocks base method.
+func (m *FileRepository) All(arg0 context.Context) ([]*file.File, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "All", arg0)
+	ret0, _ := ret[0].([]*file.File)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// All indicates an expected call of All.
+func (mr *FileRepositoryMockRecorder) All(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "All", reflect.TypeOf((*FileRepository)(nil).All), arg0)
+}
+
 // CreateOrReplace mocks base method.
 func (m *FileRepository) CreateOrReplace(arg0 context.Context, arg1 *file.File) error {
 	m.ctrl.T.Helper()

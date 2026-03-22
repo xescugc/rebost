@@ -13,8 +13,9 @@ type delegate struct {
 
 func (d *delegate) NodeMeta(limit int) []byte {
 	m := Metadata{
-		Port:    d.members.cfg.Port,
-		Volumes: make(map[string]struct{}),
+		Port:     d.members.cfg.Port,
+		Volumes:  make(map[string]struct{}),
+		Draining: d.members.draining.Load(),
 	}
 	for _, v := range d.members.localVolumes {
 		m.Volumes[v.ID()] = struct{}{}

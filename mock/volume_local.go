@@ -157,6 +157,21 @@ func (mr *VolumeLocalMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*VolumeLocal)(nil).HasFile), arg0, arg1)
 }
 
+// HasPendingReplicas mocks base method.
+func (m *VolumeLocal) HasPendingReplicas(arg0 context.Context) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasPendingReplicas", arg0)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HasPendingReplicas indicates an expected call of HasPendingReplicas.
+func (mr *VolumeLocalMockRecorder) HasPendingReplicas(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasPendingReplicas", reflect.TypeOf((*VolumeLocal)(nil).HasPendingReplicas), arg0)
+}
+
 // ID mocks base method.
 func (m *VolumeLocal) ID() string {
 	m.ctrl.T.Helper()
@@ -199,6 +214,34 @@ func (m *VolumeLocal) NextReplica(arg0 context.Context) (*replica.Replica, error
 func (mr *VolumeLocalMockRecorder) NextReplica(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextReplica", reflect.TypeOf((*VolumeLocal)(nil).NextReplica), arg0)
+}
+
+// PrepareForDrain mocks base method.
+func (m *VolumeLocal) PrepareForDrain(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PrepareForDrain", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PrepareForDrain indicates an expected call of PrepareForDrain.
+func (mr *VolumeLocalMockRecorder) PrepareForDrain(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrepareForDrain", reflect.TypeOf((*VolumeLocal)(nil).PrepareForDrain), arg0)
+}
+
+// PurgeAllFiles mocks base method.
+func (m *VolumeLocal) PurgeAllFiles(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PurgeAllFiles", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PurgeAllFiles indicates an expected call of PurgeAllFiles.
+func (mr *VolumeLocalMockRecorder) PurgeAllFiles(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeAllFiles", reflect.TypeOf((*VolumeLocal)(nil).PurgeAllFiles), arg0)
 }
 
 // Reset mocks base method.

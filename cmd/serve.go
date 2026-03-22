@@ -166,6 +166,18 @@ var (
 			}()
 
 			go func() {
+				c := make(chan os.Signal, 1)
+				signal.Notify(c, syscall.SIGQUIT)
+				<-c
+				logger.Info("received SIGQUIT, starting graceful drain")
+				if err := s.Drain(ctx); err != nil {
+					errs <- fmt.Errorf("drain failed: %s", err)
+					return
+				}
+				errs <- fmt.Errorf("drain complete, shutting down")
+			}()
+
+			go func() {
 				logger.Info("started storing server", "port", cfg.Port)
 				errs <- svr.ListenAndServe()
 			}()

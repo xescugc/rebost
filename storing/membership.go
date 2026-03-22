@@ -38,6 +38,10 @@ type Membership interface {
 	// Results may be stale by one gossip round; callers must handle ErrNoSpace.
 	NodesWithCapacity(size int64) []*client.Client
 
+	// SetDraining marks this node as draining in the cluster state,
+	// causing peers to skip routing writes to it.
+	SetDraining(draining bool)
+
 	// Leave makes it leave the cluster
 	Leave()
 }

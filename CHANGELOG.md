@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Graceful node drain via SIGQUIT: replicates locally-held files to peers, purges local copies, and leaves the cluster before shutdown.
+  [Issue#17](https://github.com/xescugc/rebost/issues/17)
 - Proxy node support: start a node without `--volumes` to forward all operations to peers.
   [Issue#118](https://github.com/xescugc/rebost/issues/118)
 - Storage capacity fallback: when a volume is full, `CreateFile` automatically

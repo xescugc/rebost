@@ -91,6 +91,8 @@ Files are stored at `{fileDir}/XX/YY/XXYY{rest}` where the path is derived from 
 
 **`file.File.VolumeIDs`** tracks **all** volume IDs that hold a copy of this file's content, including the local volume's own ID. The local ID is appended in `volume/volume.go` `createFile` via `f.VolumeIDs = append(f.VolumeIDs, l.ID())`. When building a list of _remote_ targets, always filter out `l.ID()` first.
 
+**`file.File.VolumeIDs` ordering is significant:** `VolumeIDs[0]` is the file's owner/master — the volume responsible for ensuring replication. When creating a file locally, the local volume ID is appended first (see `volume/volume.go` `createFile`). When choosing which node should create new Replica jobs, always check `VolumeIDs[0]`. See `SynchronizeReplicas` (volume/volume.go) and the background queue pattern.
+
 ### Distributed philosophy — no broadcasts
 
 Never enumerate `Nodes()` to find who might have a file. Use `file.File.VolumeIDs` to know **exactly** which volumes have a copy. `GetNodeWithVolumeByID(vid)` resolves a volumeID to the owning node. This is the only correct way to target remote operations.
@@ -181,16 +183,29 @@ On startup, if `--remote` is provided:
 
 One DB file per volume path. Buckets: `files`, `idxkey`, `idxttl`, `idxvolume`, `replica`, `deletion`, `state`.
 
-## Current Branch: fg-111
+## Development Conventions
+
+### CHANGELOG format
+
+Always add a `CHANGELOG.md` entry under `## [Unreleased]` for every feature or fix.
+Format: `### Added` / `### Changed` / `### Fixed` entries, each line:
+`- Description [Issue#NNN](https://github.com/xescugc/rebost/issues/NNN)` or `[PR#NNN](url)`
+
+### Documentation
+
+When adding or changing user-facing behavior (CLI flags, HTTP routes, operational
+procedures), also update `doc/docs.md`.
+
+## Current Branch: fg-17
 
 Modified files and intent:
 
-- `storing/transport/http/transport.go` — S3-compatible `/{bucket}/{key}` routes; XML error responses; auth middleware. Defines local `Service` interface (no import of `storing` — avoids cycle).
-- `storing/transport/http/s3xml.go` — S3 XML error response type and `encodeS3Error` helper.
-- `storing/transport/http/s3auth.go` — optional AWS Signature V4 validation middleware; skips `/config` and `/replicas/` internal routes.
-- `client/client.go` — inter-node HTTP calls using `/{key}` URL patterns; XML error parsing.
-- `config/config.go` — `S3` sub-struct (`AccessKey`, `SecretKey`, `AuthMode`).
-- `cmd/serve.go` — wires `httptransport.MakeHandler(s, cfg)`.
-- `Makefile` — replaced `lint`/`vet`/`fmt` + install helpers with `staticcheck` via `go tool`.
-- `go.mod` — added `tool` directives for `mockgen` and `staticcheck`.
+- `membership/metadata.go` — Added `Draining bool` for fast gossip propagation of draining state.
+- `membership/membership.go` — Added `draining atomic.Bool`, `SetDraining()`, draining filters in `Nodes()`, `NodesWithoutVolumeIDs()`, `NodesWithCapacity()`.
+- `membership/delegate.go` — `NodeMeta()` includes `Draining` state.
+- `storing/membership.go` — Added `SetDraining(draining bool)` to interface.
+- `storing/service.go` — Added `draining atomic.Bool`; `CreateFile`/`CreateReplica` reject when draining; `Drain()` sets draining at start.
+- `volume/volume.go` — `PrepareForDrain` only creates Replica jobs when `VolumeIDs[0] == l.id` (owner check).
+- `mock/membership.go` — Regenerated to include `SetDraining`.
+- `CLAUDE.md` — Documented `VolumeIDs[0]` ownership rule.
 
