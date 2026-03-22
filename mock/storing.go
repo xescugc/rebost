@@ -96,6 +96,20 @@ func (mr *StoringMockRecorder) DeleteFile(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFile", reflect.TypeOf((*Storing)(nil).DeleteFile), arg0, arg1)
 }
 
+// Drain mocks base method.
+func (m *Storing) Drain(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Drain", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Drain indicates an expected call of Drain.
+func (mr *StoringMockRecorder) Drain(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Drain", reflect.TypeOf((*Storing)(nil).Drain), arg0)
+}
+
 // GetFile mocks base method.
 func (m *Storing) GetFile(arg0 context.Context, arg1 string) (io.ReadCloser, int64, error) {
 	m.ctrl.T.Helper()

@@ -17,4 +17,7 @@ type Repository interface {
 	Delete(ctx context.Context, r *Replica) error
 
 	DeleteAll(ctx context.Context) error
+
+	// HasAny returns true if there is at least one replica in the queue
+	HasAny(ctx context.Context) (bool, error)
 }

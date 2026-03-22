@@ -1173,3 +1173,277 @@ func TestReset(t *testing.T) {
 		require.NoError(t, err, "Validates that it's a UUID")
 	})
 }
+
+func TestLocal_PrepareForDrain(t *testing.T) {
+	t.Run("CreatesReplicaJobWhenNotEnoughExternalReplicas", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+			// File with only the local volume ID (no external replicas) and replica=3
+			f = &file.File{
+				Keys:      []string{"mykey"},
+				Signature: "abc123",
+				Replica:   3,
+				VolumeIDs: []string{mv.V.ID()},
+			}
+		)
+		defer mv.Finish()
+
+		mv.Files.EXPECT().All(ctx).Return([]*file.File{f}, nil)
+
+		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Replica) error {
+				assert.Equal(t, f.Keys[0], rp.Key)
+				assert.Equal(t, f.Signature, rp.Signature)
+				assert.Equal(t, mv.V.ID(), rp.VolumeID)
+				// VolumeIDs must exclude self so downstream UpdateFileReplica
+				// never propagates the draining node's ID to other holders.
+				assert.Empty(t, rp.VolumeIDs)
+				// externalCount=0, Replica=3 → Count=3
+				assert.Equal(t, 3, rp.Count)
+				assert.Equal(t, 3, rp.OriginalCount)
+				assert.Equal(t, f.TTL, rp.TTL)
+				assert.Equal(t, f.CreatedAt, rp.CreatedAt)
+				return nil
+			},
+		).Return(nil)
+
+		err := mv.V.PrepareForDrain(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("NoReplicaJobWhenEnoughExternalReplicas", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+			// File with local + 3 external replicas, replica=3 → 3 external copies already cover the goal
+			f = &file.File{
+				Keys:      []string{"mykey"},
+				Signature: "abc123",
+				Replica:   3,
+				VolumeIDs: []string{mv.V.ID(), "remote1", "remote2", "remote3"},
+			}
+		)
+		defer mv.Finish()
+
+		mv.Files.EXPECT().All(ctx).Return([]*file.File{f}, nil)
+		// No Replicas.Create call expected: externalCount(3) >= Replica(3)
+
+		err := mv.V.PrepareForDrain(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("CreatesReplicaJobForNonOwnedFileWhenNeeded", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+			// File where VolumeIDs[0] is a different volume (this node is just a replica).
+			// Drain must still create a Replica job because externalCount(1) < Replica(3).
+			f = &file.File{
+				Keys:      []string{"mykey"},
+				Signature: "abc123",
+				Replica:   3,
+				VolumeIDs: []string{"other-owner-id", mv.V.ID()},
+			}
+		)
+		defer mv.Finish()
+
+		mv.Files.EXPECT().All(ctx).Return([]*file.File{f}, nil)
+
+		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, rp *replica.Replica) error {
+				assert.Equal(t, f.Keys[0], rp.Key)
+				assert.Equal(t, f.Signature, rp.Signature)
+				assert.Equal(t, mv.V.ID(), rp.VolumeID)
+				// VolumeIDs excludes self; "other-owner-id" is the only external holder.
+				assert.Equal(t, []string{"other-owner-id"}, rp.VolumeIDs)
+				// externalCount=1, Replica=3 → Count=2
+				assert.Equal(t, 2, rp.Count)
+				assert.Equal(t, 3, rp.OriginalCount)
+				return nil
+			},
+		).Return(nil)
+
+		err := mv.V.PrepareForDrain(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("NoReplicaJobWhenNonOwnedFileHasEnoughExternalReplicas", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+			// Non-owned file that already has enough external copies — no job needed.
+			f = &file.File{
+				Keys:      []string{"mykey"},
+				Signature: "abc123",
+				Replica:   3,
+				VolumeIDs: []string{"other-owner-id", mv.V.ID(), "r2", "r3"},
+			}
+		)
+		defer mv.Finish()
+
+		mv.Files.EXPECT().All(ctx).Return([]*file.File{f}, nil)
+		// externalCount=3 >= Replica=3: no Replicas.Create call expected.
+
+		err := mv.V.PrepareForDrain(ctx)
+		require.NoError(t, err)
+	})
+}
+
+func TestLocal_HasPendingReplicas(t *testing.T) {
+	t.Run("ReturnsFalseWhenQueueIsEmpty", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+		)
+		defer mv.Finish()
+
+		mv.Replicas.EXPECT().HasAny(ctx).Return(false, nil)
+
+		has, err := mv.V.HasPendingReplicas(ctx)
+		require.NoError(t, err)
+		assert.False(t, has)
+	})
+
+	t.Run("ReturnsTrueWhenQueueHasReplica", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			ctx     = context.Background()
+			mv      = newManageVolume(t, rootDir)
+		)
+		defer mv.Finish()
+
+		mv.Replicas.EXPECT().HasAny(ctx).Return(true, nil)
+
+		has, err := mv.V.HasPendingReplicas(ctx)
+		require.NoError(t, err)
+		assert.True(t, has)
+	})
+}
+
+func TestLocal_PurgeAllFiles(t *testing.T) {
+	t.Run("RemovesFilesAndKeysWithoutDeletionJobs", func(t *testing.T) {
+		var (
+			rootDir   = "/"
+			ctx       = context.Background()
+			mv        = newManageVolume(t, rootDir)
+			fileDir   = path.Join(rootDir, "file")
+			signature = "abc123def456"
+			key       = "mykey"
+			f         = &file.File{
+				Keys:      []string{key},
+				Signature: signature,
+				Replica:   3,
+				VolumeIDs: []string{mv.V.ID(), "remote1", "remote2"},
+				Size:      42,
+			}
+		)
+		defer mv.Finish()
+
+		// First UoW: read all files
+		mv.Files.EXPECT().All(ctx).Return([]*file.File{f}, nil)
+
+		// Second UoW (per file): remove idxkey, purge file record/fs/state
+		mv.IDXKeys.EXPECT().DeleteByKey(ctx, key).Return(nil)
+		mv.Files.EXPECT().DeleteBySignature(ctx, signature).Return(nil)
+		mv.Replicas.EXPECT().Delete(ctx, &replica.Replica{VolumeReplicaID: []byte(signature)}).Return(nil)
+		mv.Fs.EXPECT().Remove(file.Path(fileDir, signature)).Return(nil)
+		expectUpdateState(t, mv, ctx, -f.Size)
+
+		// Deletions.Create must NOT be called
+
+		err := mv.V.PurgeAllFiles(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("RemovesIDXTTLEntryWhenOnlySignature", func(t *testing.T) {
+		var (
+			rootDir   = "/"
+			ctx       = context.Background()
+			mv        = newManageVolume(t, rootDir)
+			fileDir   = path.Join(rootDir, "file")
+			signature = "abc123def456"
+			key       = "mykey"
+			ttl       = 2 * time.Minute
+			ca        = time.Now()
+			f         = &file.File{
+				Keys:      []string{key},
+				Signature: signature,
+				Replica:   3,
+				VolumeIDs: []string{mv.V.ID(), "remote1", "remote2"},
+				Size:      42,
+				TTL:       ttl,
+				CreatedAt: ca,
+			}
+		)
+		defer mv.Finish()
+
+		// First UoW: read all files
+		mv.Files.EXPECT().All(ctx).Return([]*file.File{f}, nil)
+
+		// Second UoW: remove idxkey, update idxttl (only sig → delete), purge file
+		mv.IDXKeys.EXPECT().DeleteByKey(ctx, key).Return(nil)
+
+		// idxttl entry has only this file's signature — expect Delete
+		mv.IDXTTLs.EXPECT().Find(ctx, f.ExpiresAt()).Return(idxttl.New(f.ExpiresAt(), signature), nil)
+		mv.IDXTTLs.EXPECT().Delete(ctx, f.ExpiresAt()).Return(nil)
+
+		mv.Files.EXPECT().DeleteBySignature(ctx, signature).Return(nil)
+		mv.Replicas.EXPECT().Delete(ctx, &replica.Replica{VolumeReplicaID: []byte(signature)}).Return(nil)
+		mv.Fs.EXPECT().Remove(file.Path(fileDir, signature)).Return(nil)
+		expectUpdateState(t, mv, ctx, -f.Size)
+
+		err := mv.V.PurgeAllFiles(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("UpdatesIDXTTLEntryWhenOtherSignaturesExist", func(t *testing.T) {
+		var (
+			rootDir       = "/"
+			ctx           = context.Background()
+			mv            = newManageVolume(t, rootDir)
+			fileDir       = path.Join(rootDir, "file")
+			signature     = "abc123def456"
+			otherSig      = "other999sig000"
+			key           = "mykey"
+			ttl           = 2 * time.Minute
+			ca            = time.Now()
+			f             = &file.File{
+				Keys:      []string{key},
+				Signature: signature,
+				Replica:   3,
+				VolumeIDs: []string{mv.V.ID(), "remote1", "remote2"},
+				Size:      42,
+				TTL:       ttl,
+				CreatedAt: ca,
+			}
+			// idxttl entry shared with another file
+			sharedIDXTTL    = idxttl.New(f.ExpiresAt(), signature, otherSig)
+			remainingIDXTTL = idxttl.New(f.ExpiresAt(), otherSig)
+		)
+		defer mv.Finish()
+
+		// First UoW: read all files
+		mv.Files.EXPECT().All(ctx).Return([]*file.File{f}, nil)
+
+		// Second UoW: remove idxkey, update idxttl (other sig remains → CreateOrReplace), purge file
+		mv.IDXKeys.EXPECT().DeleteByKey(ctx, key).Return(nil)
+
+		// idxttl entry has two signatures — expect CreateOrReplace with only otherSig remaining
+		mv.IDXTTLs.EXPECT().Find(ctx, f.ExpiresAt()).Return(sharedIDXTTL, nil)
+		mv.IDXTTLs.EXPECT().CreateOrReplace(ctx, remainingIDXTTL).Return(nil)
+
+		mv.Files.EXPECT().DeleteBySignature(ctx, signature).Return(nil)
+		mv.Replicas.EXPECT().Delete(ctx, &replica.Replica{VolumeReplicaID: []byte(signature)}).Return(nil)
+		mv.Fs.EXPECT().Remove(file.Path(fileDir, signature)).Return(nil)
+		expectUpdateState(t, mv, ctx, -f.Size)
+
+		err := mv.V.PurgeAllFiles(ctx)
+		require.NoError(t, err)
+	})
+}

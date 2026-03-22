@@ -60,3 +60,19 @@ func (r *fileRepository) DeleteAll(ctx context.Context) error {
 	r.bucket = bk
 	return nil
 }
+
+func (r *fileRepository) All(ctx context.Context) ([]*file.File, error) {
+	var files []*file.File
+	err := r.bucket.ForEach(func(k, v []byte) error {
+		var f file.File
+		if err := json.Unmarshal(v, &f); err != nil {
+			return err
+		}
+		files = append(files, &f)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}

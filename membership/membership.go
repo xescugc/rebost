@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"log/slog"
@@ -25,6 +26,9 @@ type Membership struct {
 
 	localVolumes []volume.Local
 	cfg          *config.Config
+
+	// draining indicates whether this node is in draining state
+	draining atomic.Bool
 
 	// Somehow improve this to make it easy
 	// to search for Nodes by Volume
@@ -149,6 +153,9 @@ func (m *Membership) updateNodeState(s State) error {
 func (m *Membership) Nodes() (res []*client.Client) {
 	m.nodesLock.RLock()
 	for _, r := range m.nodes {
+		if r.meta.Draining {
+			continue
+		}
 		res = append(res, r.conn)
 	}
 	m.nodesLock.RUnlock()
@@ -160,6 +167,9 @@ func (m *Membership) Nodes() (res []*client.Client) {
 func (m *Membership) NodesWithoutVolumeIDs(vids []string) (res []*client.Client) {
 	m.nodesLock.RLock()
 	for _, r := range m.nodes {
+		if r.meta.Draining {
+			continue
+		}
 		var found bool
 		for _, vid := range vids {
 			if _, ok := r.meta.Volumes[vid]; ok {
@@ -181,6 +191,9 @@ func (m *Membership) NodesWithCapacity(size int64) (res []*client.Client) {
 	m.nodesLock.RLock()
 	defer m.nodesLock.RUnlock()
 	for _, n := range m.nodes {
+		if n.meta.Draining {
+			continue
+		}
 		for _, vs := range n.state.Volumes {
 			if vs.CanStore(int(size)) {
 				res = append(res, n.conn)
@@ -208,6 +221,13 @@ func (m *Membership) RemovedVolumeIDs() []string {
 
 	m.removedVolumeIDsLock.Unlock()
 	return rvids
+}
+
+// SetDraining marks this node as draining in the cluster state,
+// causing peers to skip routing writes to it.
+func (m *Membership) SetDraining(draining bool) {
+	m.draining.Store(draining)
+	m.members.UpdateNode(0)
 }
 
 // Leave makes the node leave the cluster

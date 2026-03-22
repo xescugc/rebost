@@ -111,6 +111,10 @@ AWS_ACCESS_KEY_ID=mykey AWS_SECRET_ACCESS_KEY=mysecret \
 - **List objects** (`GET /{bucket}`) — returns `501 NotImplemented`. Rebost has no cluster-wide listing index.
 - **Multipart upload** — returns `501 NotImplemented`. Use single-part `PUT` for all uploads.
 
+## Graceful Drain
+
+To safely remove a node from the cluster, send `SIGQUIT` (`kill -QUIT $(pgrep rebost)`). The node will replicate any locally-held files to peers, purge its local copies, leave the cluster, and shut down cleanly. See [Draining a Node](doc/docs.md#draining-a-node) in the full documentation for details.
+
 ## Beta?
 
 Yes, there are a lot of things missing (most of them optimizations) that need to be implemented, for now it's an MVP to see if the idea made sense (which does hehe). Those changes will mostly be code-wise but some of them may also affect how the Nodes communicate and all those can be breaking changes until we reach v1.

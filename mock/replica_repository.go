@@ -91,3 +91,18 @@ func (mr *ReplicaRepositoryMockRecorder) First(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "First", reflect.TypeOf((*ReplicaRepository)(nil).First), arg0)
 }
+
+// HasAny mocks base method.
+func (m *ReplicaRepository) HasAny(arg0 context.Context) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasAny", arg0)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HasAny indicates an expected call of HasAny.
+func (mr *ReplicaRepositoryMockRecorder) HasAny(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasAny", reflect.TypeOf((*ReplicaRepository)(nil).HasAny), arg0)
+}

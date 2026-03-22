@@ -7,14 +7,15 @@
 3. [Quick Start — Single Node](#quick-start--single-node)
 4. [Multi-Node Cluster](#multi-node-cluster)
 5. [Proxy Nodes](#proxy-nodes)
-6. [Configuration Reference](#configuration-reference)
-7. [S3 API Reference](#s3-api-reference)
-8. [Authentication](#authentication)
-9. [Replication](#replication)
-10. [TTL & Expiration](#ttl--expiration)
-11. [Volume Sizing](#volume-sizing)
-12. [Dashboard](#dashboard)
-13. [Known Limitations](#known-limitations)
+6. [Draining a Node](#draining-a-node)
+7. [Configuration Reference](#configuration-reference)
+8. [S3 API Reference](#s3-api-reference)
+9. [Authentication](#authentication)
+10. [Replication](#replication)
+11. [TTL & Expiration](#ttl--expiration)
+12. [Volume Sizing](#volume-sizing)
+13. [Dashboard](#dashboard)
+14. [Known Limitations](#known-limitations)
 
 ---
 
@@ -212,6 +213,39 @@ The node logs `"starting in proxy mode (no local volumes)"` at startup and joins
 - Proxy nodes do not hold data and are therefore not targeted by the background replication loop.
 - You can run multiple proxy nodes; each independently forwards requests to the cluster.
 - If no storage peer has capacity, the proxy returns the same `InternalError` (cluster full) as any storage node would.
+
+---
+
+## Draining a Node
+
+Draining is the safe way to decommission a node before removing it from the cluster. Unlike abrupt termination (`SIGTERM`/`SIGINT`, which stops the process immediately), a drain ensures that every locally-held file is safely replicated to other nodes before the node leaves.
+
+### How to trigger
+
+Send `SIGQUIT` to the running process:
+
+```bash
+# Graceful drain and shutdown
+kill -QUIT $(pgrep rebost)
+# or: Ctrl+\
+
+# Fast shutdown (no drain)
+kill $(pgrep rebost)
+```
+
+### What happens
+
+1. For each locally-held file that does not already have enough external replicas, a replication job is created.
+2. The node waits for all replication jobs to complete — every file is now safely held by other nodes.
+3. Local copies are purged without propagating deletions to remote nodes (remote replicas are preserved).
+4. The node leaves the cluster gossip and shuts down.
+
+### Notes
+
+- If the drain fails mid-way (e.g. not enough peers to satisfy the replica count), the node remains in the cluster and retains its local files. The drain can be safely retried by sending `SIGQUIT` again.
+- Proxy nodes (started without `--volumes`) drain instantly because they hold no data.
+- While draining, the node rejects all `CreateFile` and `CreateReplica` requests with an error. Other cluster members also skip routing writes to a draining node.
+- Only files for which this node is the **owner** (`VolumeIDs[0]`) are proactively re-replicated during drain. Files where this node holds a non-owning replica are re-replicated automatically by the surviving nodes after the node leaves (standard recovery path).
 
 ---
 

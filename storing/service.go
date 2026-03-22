@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"log/slog"
@@ -35,11 +36,17 @@ type Service interface {
 
 	// CreateReplica creates a new File replica
 	CreateReplica(ctx context.Context, key string, reader io.ReadCloser, ttl time.Duration, ca time.Time) (vID string, err error)
+
+	// Drain gracefully decommissions this node by ensuring all locally-held files
+	// have enough replicas on other nodes, then purging local copies and leaving
+	// the cluster.
+	Drain(ctx context.Context) error
 }
 
 type service struct {
-	members Membership
-	cfg     *config.Config
+	members  Membership
+	cfg      *config.Config
+	draining atomic.Bool
 
 	cache *lru.ARCCache[string, string]
 
@@ -84,6 +91,10 @@ func (s *service) Config(_ context.Context) (*config.Config, error) {
 }
 
 func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep int, ttl time.Duration, ca time.Time) error {
+	if s.draining.Load() {
+		return errors.New("node is draining")
+	}
+
 	if rep == 0 {
 		rep = s.cfg.Replica
 	}
@@ -199,6 +210,10 @@ func (s *service) HasFile(ctx context.Context, k string) (string, bool, error) {
 }
 
 func (s *service) CreateReplica(ctx context.Context, key string, reader io.ReadCloser, ttl time.Duration, ca time.Time) (string, error) {
+	if s.draining.Load() {
+		return "", errors.New("node is draining")
+	}
+
 	if s.cfg.Replica == -1 {
 		return "", errors.New("can not store replicas")
 	}
@@ -234,6 +249,70 @@ func (s *service) UpdateFileReplica(ctx context.Context, key string, volumeIDs [
 		return err
 	}
 
+	return nil
+}
+
+func (s *service) Drain(ctx context.Context) error {
+	s.draining.Store(true)
+	s.members.SetDraining(true)
+
+	lvs := s.members.LocalVolumes()
+	if len(lvs) == 0 {
+		// proxy mode — nothing to drain
+		s.logger.Info("drain: node is in proxy mode, nothing to drain")
+		s.members.Leave()
+		return nil
+	}
+
+	// Step 1: Create replica jobs for all under-replicated files
+	s.logger.Info("drain: preparing replica jobs for all local files")
+	for _, v := range lvs {
+		if err := v.PrepareForDrain(ctx); err != nil {
+			// Leave() is deliberately NOT called on failure — the caller (SIGQUIT handler)
+			// decides what to do next; the node remains a cluster member so it can retry
+			// or be manually shut down.
+			return fmt.Errorf("drain: prepare failed: %w", err)
+		}
+	}
+
+	// Step 2: Wait for all replica queues to drain
+	s.logger.Info("drain: waiting for replication to complete")
+	for {
+		allDone := true
+		for _, v := range lvs {
+			pending, err := v.HasPendingReplicas(ctx)
+			if err != nil {
+				return fmt.Errorf("drain: checking replica queue: %w", err)
+			}
+			if pending {
+				allDone = false
+				break
+			}
+		}
+		if allDone {
+			break
+		}
+		select {
+		case <-time.After(time.Second):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	// Step 3: Purge local copies
+	s.logger.Info("drain: purging local copies")
+	for _, v := range lvs {
+		if err := v.PurgeAllFiles(ctx); err != nil {
+			// Leave() is deliberately NOT called on failure — the caller (SIGQUIT handler)
+			// decides what to do next; the node remains a cluster member so it can retry
+			// or be manually shut down.
+			return fmt.Errorf("drain: purge failed: %w", err)
+		}
+	}
+
+	// Step 4: Leave cluster
+	s.logger.Info("drain: leaving cluster")
+	s.members.Leave()
 	return nil
 }
 

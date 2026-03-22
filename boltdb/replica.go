@@ -61,3 +61,8 @@ func (r *replicaRepository) DeleteAll(ctx context.Context) error {
 	r.bucket = bk
 	return nil
 }
+
+func (r *replicaRepository) HasAny(ctx context.Context) (bool, error) {
+	k, _ := r.bucket.Cursor().First()
+	return k != nil, nil
+}

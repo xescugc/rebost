@@ -10,4 +10,5 @@ type Repository interface {
 	FindBySignature(ctx context.Context, sig string) (*File, error)
 	DeleteBySignature(ctx context.Context, sig string) error
 	DeleteAll(ctx context.Context) error
+	All(ctx context.Context) ([]*File, error)
 }

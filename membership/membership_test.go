@@ -134,6 +134,58 @@ func TestNodesWithCapacity(t *testing.T) {
 	})
 }
 
+func TestDrainingFiltering(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Local node (m): observer
+	v := mock.NewVolumeLocal(ctrl)
+	v.EXPECT().ID().Return("local-drain-id").AnyTimes()
+	v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil).AnyTimes()
+
+	// Remote node (m2): the one that drains
+	v2 := mock.NewVolumeLocal(ctrl)
+	v2.EXPECT().ID().Return("remote-drain-id").AnyTimes()
+	v2.EXPECT().GetState(context.Background()).Return(&state.State{}, nil).AnyTimes()
+
+	p2, err := util.FreePort()
+	require.NoError(t, err)
+	cfg2 := &config.Config{Name: "drain-m2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+	m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	defer m2.Leave()
+
+	s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}))
+	defer server2.Close()
+
+	p3, err := util.FreePort()
+	require.NoError(t, err)
+	cfg := &config.Config{Name: "drain-m", Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+	m, err := membership.New(cfg, []volume.Local{v}, server2.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	defer m.Leave()
+
+	// Wait for m2 to appear in m's Nodes()
+	require.Eventually(t, func() bool {
+		return len(m.Nodes()) == 1
+	}, 5*time.Second, 100*time.Millisecond, "expected m2 to appear in Nodes()")
+
+	// Set m2 to draining; it should disappear from m's Nodes() and NodesWithoutVolumeIDs()
+	m2.SetDraining(true)
+	require.Eventually(t, func() bool {
+		return len(m.Nodes()) == 0
+	}, 5*time.Second, 100*time.Millisecond, "expected m2 to be hidden from Nodes() while draining")
+	assert.Empty(t, m.NodesWithoutVolumeIDs([]string{}), "draining node must not appear in NodesWithoutVolumeIDs()")
+
+	// Unset draining; m2 should reappear
+	m2.SetDraining(false)
+	require.Eventually(t, func() bool {
+		return len(m.Nodes()) == 1
+	}, 5*time.Second, 100*time.Millisecond, "expected m2 to reappear in Nodes() after draining cleared")
+}
+
 func TestVolumes(t *testing.T) {
 	t.Run("WithoutNodes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
