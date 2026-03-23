@@ -262,7 +262,7 @@ func TestVolumes(t *testing.T) {
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
 
 			m2.Leave()
-			assert.Len(t, m.Nodes(), 0)
+			require.Eventually(t, func() bool { return len(m.Nodes()) == 0 }, time.Second, 10*time.Millisecond)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
 			assert.Equal(t, []string{"id2"}, m.RemovedVolumeIDs())
 			assert.Equal(t, []string{}, m.RemovedVolumeIDs())
@@ -297,7 +297,7 @@ func TestVolumes(t *testing.T) {
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
 
 			m2.Leave()
-			assert.Len(t, m.Nodes(), 0)
+			require.Eventually(t, func() bool { return len(m.Nodes()) == 0 }, time.Second, 10*time.Millisecond)
 			assert.Equal(t, []volume.Local{v}, m.LocalVolumes())
 			assert.Equal(t, []string{}, m.RemovedVolumeIDs())
 			assert.Equal(t, []string{}, m.RemovedVolumeIDs())

@@ -288,7 +288,10 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 
 	sh1 := sha1.New()
 	w := io.MultiWriter(fh, sh1)
-	io.Copy(w, r)
+	if _, err := io.Copy(w, r); err != nil {
+		r.Close()
+		return err
+	}
 	r.Close()
 
 	fi, err := fh.Stat()
@@ -528,7 +531,8 @@ func (l *local) GetFile(ctx context.Context, k string) (io.ReadCloser, int64, er
 
 	info, err := fh.Stat()
 	if err != nil {
-		return fh, -1, nil
+		fh.Close()
+		return nil, -1, err
 	}
 
 	return fh, info.Size(), nil
@@ -845,7 +849,7 @@ func (l *local) SynchronizeReplicas(ctx context.Context, vID string) error {
 			// file this Node is the first one means
 			// it's the master of the file so it has to start
 			// replicating
-			if f.VolumeIDs[0] == l.ID() {
+			if len(f.VolumeIDs) > 0 && f.VolumeIDs[0] == l.ID() {
 				numOfReplicasMissing := f.Replica - len(f.VolumeIDs)
 
 				// TODO: We do not know which key was assigned

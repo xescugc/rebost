@@ -103,7 +103,7 @@ func (c *client) request(ctx context.Context, method, url string, body, resp int
 		if msg := parseErrorBody(hresp.Body); msg != "" {
 			return hresp, errors.New(msg)
 		}
-		return hresp, nil
+		return hresp, fmt.Errorf("unexpected status code %d", hresp.StatusCode)
 	} else if resp != nil && hresp.StatusCode != http.StatusNoContent {
 		if err = json.NewDecoder(hresp.Body).Decode(resp); err != nil {
 			return hresp, fmt.Errorf("failed to decode body on %q: %w", url, err)

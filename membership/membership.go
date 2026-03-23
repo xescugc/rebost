@@ -138,8 +138,8 @@ func (m *Membership) GetNodeState(nn string) (*State, error) {
 }
 
 func (m *Membership) updateNodeState(s State) error {
-	m.nodesLock.RLock()
-	defer m.nodesLock.RUnlock()
+	m.nodesLock.Lock()
+	defer m.nodesLock.Unlock()
 	if n, ok := m.nodes[s.Node]; ok {
 		n.state = s
 		m.nodes[s.Node] = n
@@ -174,6 +174,7 @@ func (m *Membership) NodesWithoutVolumeIDs(vids []string) (res []*client.Client)
 		for _, vid := range vids {
 			if _, ok := r.meta.Volumes[vid]; ok {
 				found = true
+				break
 			}
 		}
 		if !found {
