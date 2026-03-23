@@ -79,6 +79,6 @@ func formatTime(t time.Time) []byte {
 }
 
 func parseTime(b []byte) time.Time {
-	t, _ := time.Parse(string(b), time.RFC3339)
+	t, _ := time.Parse(time.RFC3339, string(b))
 	return t
 }

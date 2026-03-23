@@ -17,26 +17,26 @@ make ci           # staticcheck + test
 
 ## Package Map
 
-| Package       | Purpose                                                                                                    |
-| ------------- | ---------------------------------------------------------------------------------------------------------- |
-| `cmd/`        | CLI entry (cobra/viper). `serve.go` wires everything together.                                             |
-| `storing/`    | Main service layer — Service interface, background replication loops, membership interface.                |
-| `storing/transport/http/` | HTTP transport — S3-compatible handlers, auth middleware, XML error responses.      |
-| `volume/`     | Local volume ops — file CRUD, replica queue, TTL loop. Wraps BoltDB + filesystem.                          |
-| `membership/` | Cluster discovery via gossip. Tracks nodes, volume IDs, downtime.                                          |
-| `client/`     | HTTP client for remote nodes; implements `volume.Volume` interface.                                        |
-| `boltdb/`     | BoltDB implementations of all repositories + Unit of Work transaction manager.                             |
-| `uow/`        | Unit of Work interface + `StartUnitOfWork` function type.                                                  |
-| `fs/`         | Filesystem-level UoW tracker (afero). Tracks Create/Remove/Rename for rollback.                            |
-| `file/`       | `File` data model (keys, signature, replicas, TTL, size).                                                  |
-| `replica/`    | `Replica` data model (pending replication job).                                                            |
-| `state/`      | `State` data model (volume disk usage, downtime tracking).                                                 |
-| `idxkey/`     | Index: user key → file signature.                                                                          |
-| `idxttl/`     | Index: expiration time → file signatures.                                                                  |
-| `idxvolume/`  | Index: volume ID → file signatures (tracks remote copies).                                                 |
-| `config/`     | Config struct, viper-backed.                                                                               |
-| `dashboard/`  | Web UI — lists nodes and volume states.                                                                    |
-| `mock/`       | Auto-generated mocks (golang/mock). Never edit by hand.                                                    |
+| Package                   | Purpose                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------------- |
+| `cmd/`                    | CLI entry (cobra/viper). `serve.go` wires everything together.                              |
+| `storing/`                | Main service layer — Service interface, background replication loops, membership interface. |
+| `storing/transport/http/` | HTTP transport — S3-compatible handlers, auth middleware, XML error responses.              |
+| `volume/`                 | Local volume ops — file CRUD, replica queue, TTL loop. Wraps BoltDB + filesystem.           |
+| `membership/`             | Cluster discovery via gossip. Tracks nodes, volume IDs, downtime.                           |
+| `client/`                 | HTTP client for remote nodes; implements `volume.Volume` interface.                         |
+| `boltdb/`                 | BoltDB implementations of all repositories + Unit of Work transaction manager.              |
+| `uow/`                    | Unit of Work interface + `StartUnitOfWork` function type.                                   |
+| `fs/`                     | Filesystem-level UoW tracker (afero). Tracks Create/Remove/Rename for rollback.             |
+| `file/`                   | `File` data model (keys, signature, replicas, TTL, size).                                   |
+| `replica/`                | `Replica` data model (pending replication job).                                             |
+| `state/`                  | `State` data model (volume disk usage, downtime tracking).                                  |
+| `idxkey/`                 | Index: user key → file signature.                                                           |
+| `idxttl/`                 | Index: expiration time → file signatures.                                                   |
+| `idxvolume/`              | Index: volume ID → file signatures (tracks remote copies).                                  |
+| `config/`                 | Config struct, viper-backed.                                                                |
+| `dashboard/`              | Web UI — lists nodes and volume states.                                                     |
+| `mock/`                   | Auto-generated mocks (golang/mock). Never edit by hand.                                     |
 
 ## Architecture
 
@@ -195,17 +195,3 @@ Format: `### Added` / `### Changed` / `### Fixed` entries, each line:
 
 When adding or changing user-facing behavior (CLI flags, HTTP routes, operational
 procedures), also update `doc/docs.md`.
-
-## Current Branch: fg-17
-
-Modified files and intent:
-
-- `membership/metadata.go` — Added `Draining bool` for fast gossip propagation of draining state.
-- `membership/membership.go` — Added `draining atomic.Bool`, `SetDraining()`, draining filters in `Nodes()`, `NodesWithoutVolumeIDs()`, `NodesWithCapacity()`.
-- `membership/delegate.go` — `NodeMeta()` includes `Draining` state.
-- `storing/membership.go` — Added `SetDraining(draining bool)` to interface.
-- `storing/service.go` — Added `draining atomic.Bool`; `CreateFile`/`CreateReplica` reject when draining; `Drain()` sets draining at start.
-- `volume/volume.go` — `PrepareForDrain` only creates Replica jobs when `VolumeIDs[0] == l.id` (owner check).
-- `mock/membership.go` — Regenerated to include `SetDraining`.
-- `CLAUDE.md` — Documented `VolumeIDs[0]` ownership rule.
-

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -76,7 +75,7 @@ func putObjectHandler(s Service) http.HandlerFunc {
 						return
 					}
 					if err != nil {
-						log.Println(err)
+						ppw.CloseWithError(err)
 						return
 					}
 					io.Copy(ppw, p)
@@ -237,7 +236,7 @@ func createReplicaHandler(s Service) http.HandlerFunc {
 						return
 					}
 					if err != nil {
-						log.Println(err)
+						ppw.CloseWithError(err)
 						return
 					}
 					io.Copy(ppw, p)

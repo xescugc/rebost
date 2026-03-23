@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -132,6 +133,9 @@ func (cl *Client) StatFile(ctx context.Context, key string) (*volume.FileStat, e
 	u := fmt.Sprintf("%s/%s", c.url, key)
 	hresp, err := c.request(ctx, http.MethodHead, u, nil, nil)
 	if err != nil {
+		if hresp != nil && hresp.StatusCode == http.StatusNotFound {
+			return nil, errors.New("not found")
+		}
 		return nil, err
 	}
 	stat := &volume.FileStat{
@@ -150,6 +154,11 @@ func (cl *Client) HasFile(ctx context.Context, key string) (string, bool, error)
 	u := fmt.Sprintf("%s/%s", c.url, key)
 	hresp, err := c.request(ctx, http.MethodHead, u, nil, nil)
 	if err != nil {
+		if hresp != nil {
+			// HTTP-level error (non-2xx): file not found or unavailable, not a network failure
+			vid := hresp.Header.Get(model.HasFileVolumeIDHeader)
+			return vid, false, nil
+		}
 		return "", false, err
 	}
 	vid := hresp.Header.Get(model.HasFileVolumeIDHeader)

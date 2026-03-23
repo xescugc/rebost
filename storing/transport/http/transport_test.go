@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -187,6 +188,84 @@ func TestPutObjectErrClusterFull(t *testing.T) {
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(b), "InsufficientStorage")
+}
+
+// TestPutObjectMultipartPipeClosedOnBodyError verifies that when a multipart
+// request body errors mid-stream, the pipe writer is closed with the error so
+// the CreateFile reader is unblocked rather than hanging indefinitely.
+func TestPutObjectMultipartPipeClosedOnBodyError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	st := mock.NewStoring(ctrl)
+	defer ctrl.Finish()
+
+	createFileDone := make(chan struct{})
+	st.EXPECT().CreateFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, _ string, r io.Reader, _ int, _ time.Duration, _ time.Time) error {
+			io.ReadAll(r) // blocks forever if ppw is not closed with error
+			close(createFileDone)
+			return nil
+		})
+
+	h := httptransport.MakeHandler(st, &config.Config{})
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	pr, pw := io.Pipe()
+	req, err := http.NewRequest(http.MethodPut, server.URL+"/testbucket/key", pr)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=testboundary")
+
+	go server.Client().Do(req) //nolint:errcheck
+
+	// Write start boundary then error — NextPart() fails reading part headers
+	_, werr := pw.Write([]byte("--testboundary\r\n"))
+	require.NoError(t, werr)
+	pw.CloseWithError(errors.New("connection reset"))
+
+	select {
+	case <-createFileDone:
+		// ppw.CloseWithError unblocked the pipe reader
+	case <-time.After(3 * time.Second):
+		t.Fatal("handler blocked: pipe writer not closed with error on NextPart failure")
+	}
+}
+
+// TestCreateReplicaMultipartPipeClosedOnBodyError verifies the same guarantee
+// for the createReplicaHandler.
+func TestCreateReplicaMultipartPipeClosedOnBodyError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	st := mock.NewStoring(ctrl)
+	defer ctrl.Finish()
+
+	createReplicaDone := make(chan struct{})
+	st.EXPECT().CreateReplica(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, _ string, r io.Reader, _ time.Duration, _ time.Time) (string, error) {
+			io.ReadAll(r) // blocks forever if ppw is not closed with error
+			close(createReplicaDone)
+			return "", nil
+		})
+
+	h := httptransport.MakeHandler(st, &config.Config{})
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	pr, pw := io.Pipe()
+	req, err := http.NewRequest(http.MethodPut, server.URL+"/replicas/testbucket/key", pr)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=testboundary")
+
+	go server.Client().Do(req) //nolint:errcheck
+
+	_, werr := pw.Write([]byte("--testboundary\r\n"))
+	require.NoError(t, werr)
+	pw.CloseWithError(errors.New("connection reset"))
+
+	select {
+	case <-createReplicaDone:
+		// ppw.CloseWithError unblocked the pipe reader
+	case <-time.After(3 * time.Second):
+		t.Fatal("handler blocked: pipe writer not closed with error on NextPart failure")
+	}
 }
 
 type timeMatcher struct {

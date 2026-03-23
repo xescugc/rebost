@@ -41,6 +41,9 @@ func (l *local) loopTTL() {
 							}
 						}
 					}
+					if err := uw.IDXTTLs().Delete(ctx, ttl.ExpiresAt); err != nil {
+						l.logger.Error(err.Error())
+					}
 				}
 				return nil
 			})

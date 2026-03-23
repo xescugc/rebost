@@ -209,6 +209,22 @@ func TestGetFile(t *testing.T) {
 	})
 }
 
+func TestStatFile(t *testing.T) {
+	t.Run("NotFound", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		stat, err := c.StatFile(context.Background(), "testbucket/missing")
+		assert.Nil(t, stat)
+		assert.EqualError(t, err, "not found")
+	})
+}
+
 func TestHasFile(t *testing.T) {
 	t.Run("True", func(t *testing.T) {
 		var (
@@ -444,6 +460,22 @@ func TestUpdateFileReplica(t *testing.T) {
 
 		err = c.UpdateFileReplica(context.Background(), key, vids, rep)
 		assert.EqualError(t, err, "some-error")
+	})
+}
+
+func TestRequestNon2xxEmptyBody(t *testing.T) {
+	t.Run("ErrorReturnedOnNon2xxWithEmptyBody", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		c, err := client.New(server.URL)
+		require.NoError(t, err)
+
+		// DeleteFile uses request() internally; a 404 with empty body must not be silent
+		err = c.DeleteFile(context.Background(), "testbucket/somefile")
+		require.Error(t, err)
 	})
 }
 

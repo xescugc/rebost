@@ -671,6 +671,40 @@ func TestCreateFile(t *testing.T) {
 	})
 }
 
+func TestCreateFile_CopyError(t *testing.T) {
+	t.Run("ErrorPropagated", func(t *testing.T) {
+		var (
+			rootDir = "/"
+			mv      = newManageVolume(t, rootDir)
+			ctx     = context.Background()
+			tmpsDir = path.Join(rootDir, "tmps")
+			copyErr = errors.New("copy failed")
+		)
+
+		defer mv.Finish()
+
+		// errReader returns an error mid-stream
+		errRC := io.NopCloser(&errReader{err: copyErr})
+
+		mv.Fs.EXPECT().Create(gomock.Any()).DoAndReturn(func(p string) (afero.File, error) {
+			assert.True(t, strings.HasPrefix(p, tmpsDir))
+			return mem.NewFileHandle(mem.CreateFile(p)), nil
+		})
+
+		err := mv.V.CreateFile(ctx, "key", errRC, 1, 0, time.Time{})
+		require.Error(t, err)
+	})
+}
+
+// errReader is an io.Reader that always returns an error.
+type errReader struct {
+	err error
+}
+
+func (e *errReader) Read(_ []byte) (int, error) {
+	return 0, e.err
+}
+
 func TestGetFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		var (
@@ -720,6 +754,42 @@ func TestGetFile(t *testing.T) {
 		_, _, err := mv.V.GetFile(ctx, key)
 		assert.EqualError(t, err, errors.New("not found").Error())
 	})
+	t.Run("StatError", func(t *testing.T) {
+		var (
+			rootDir   = "/"
+			key       = "expectedkey"
+			signature = "123123123"
+			fileDir   = path.Join(rootDir, "file")
+			statErr   = errors.New("stat failed")
+
+			mv  = newManageVolume(t, rootDir)
+			ctx = context.Background()
+		)
+
+		defer mv.Finish()
+
+		mv.IDXKeys.EXPECT().FindByKey(ctx, key).Return(idxkey.New(key, signature), nil)
+
+		mv.Fs.EXPECT().Open(file.Path(fileDir, signature)).DoAndReturn(func(p string) (afero.File, error) {
+			// Return a file handle backed by a statErrorFile so Stat() fails
+			return &statErrorFile{File: mem.NewFileHandle(mem.CreateFile(p)), statErr: statErr}, nil
+		})
+
+		fh, size, err := mv.V.GetFile(ctx, key)
+		require.Error(t, err)
+		assert.Nil(t, fh)
+		assert.Equal(t, int64(-1), size)
+	})
+}
+
+// statErrorFile wraps afero.File and returns an error from Stat.
+type statErrorFile struct {
+	afero.File
+	statErr error
+}
+
+func (s *statErrorFile) Stat() (os.FileInfo, error) {
+	return nil, s.statErr
 }
 
 func TestHasFile(t *testing.T) {
@@ -1088,6 +1158,29 @@ func TestSynchronizeReplicas(t *testing.T) {
 			FindByVolumeID(ctx, vid).Return(&idxvolume.IDXVolume{VolumeID: vid, Signatures: []string{findFile.Signature}}, nil)
 		mv.Files.EXPECT().FindBySignature(ctx, findFile.Signature).Return(findFile, nil)
 
+		err := mv.V.SynchronizeReplicas(ctx, vid)
+		require.NoError(t, err)
+	})
+	t.Run("NoPanicWhenVolumeIDsBecomesEmpty", func(t *testing.T) {
+		var (
+			rootDir  = "/"
+			ctx      = context.Background()
+			mv       = newManageVolume(t, rootDir)
+			vid      = "only-vid"
+			findFile = &file.File{
+				Keys:      []string{"file-key"},
+				Signature: "sig",
+				VolumeIDs: []string{vid},
+				Replica:   3,
+			}
+		)
+		defer mv.Finish()
+
+		mv.IDXVolumes.EXPECT().
+			FindByVolumeID(ctx, vid).Return(&idxvolume.IDXVolume{VolumeID: vid, Signatures: []string{findFile.Signature}}, nil)
+		mv.Files.EXPECT().FindBySignature(ctx, findFile.Signature).Return(findFile, nil)
+
+		// Should not panic even though VolumeIDs becomes empty after DeleteVolumeID
 		err := mv.V.SynchronizeReplicas(ctx, vid)
 		require.NoError(t, err)
 	})
