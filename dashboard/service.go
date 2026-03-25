@@ -52,6 +52,7 @@ func (s *service) ListNodes(ctx context.Context) ([]*Node, error) {
 			Config: *s.cfg,
 			State: membership.State{
 				Volumes: make(map[string]state.State),
+				Status:  membership.StatusRunning,
 			},
 		},
 	}

@@ -10,4 +10,7 @@ type State struct {
 	// Volumes is the list of volumes of the Node with the State
 	// each one have
 	Volumes map[string]state.State `json:"volume_ids"`
+
+	// Status is the lifecycle state of the node
+	Status Status `json:"status"`
 }

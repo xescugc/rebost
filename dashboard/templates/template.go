@@ -9,6 +9,7 @@ import (
 
 	"code.cloudfoundry.org/bytefmt"
 	"github.com/xescugc/rebost/dashboard"
+	"github.com/xescugc/rebost/membership"
 	"github.com/xescugc/rebost/state"
 )
 
@@ -107,6 +108,16 @@ func loadTemplates(path string) error {
 			},
 			"humanizeTotalSize": func(s state.State) string {
 				return bytefmt.ByteSize(uint64(s.TotalSize()))
+			},
+			"statusColor": func(s membership.Status) string {
+				switch s {
+				case membership.StatusRunning:
+					return "success"
+				case membership.StatusDraining:
+					return "warning"
+				default:
+					return "secondary"
+				}
 			},
 		})
 

@@ -27,8 +27,8 @@ type Membership struct {
 	localVolumes []volume.Local
 	cfg          *config.Config
 
-	// draining indicates whether this node is in draining state
-	draining atomic.Bool
+	// status holds the lifecycle state of this node (StatusStarting, StatusRunning, StatusDraining)
+	status atomic.Value
 
 	// Somehow improve this to make it easy
 	// to search for Nodes by Volume
@@ -61,6 +61,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger *slog.Logg
 		removedVolumeIDs: make(map[string]time.Time),
 		logger:           logger.With("src", "membership", "name", cfg.Name),
 	}
+	m.status.Store(StatusStarting)
 
 	list, err := memberlist.Create(m.buildConfig(cfg))
 	if err != nil {
@@ -153,7 +154,7 @@ func (m *Membership) updateNodeState(s State) error {
 func (m *Membership) Nodes() (res []*client.Client) {
 	m.nodesLock.RLock()
 	for _, r := range m.nodes {
-		if r.meta.Draining {
+		if r.meta.Status != StatusRunning {
 			continue
 		}
 		res = append(res, r.conn)
@@ -167,7 +168,7 @@ func (m *Membership) Nodes() (res []*client.Client) {
 func (m *Membership) NodesWithoutVolumeIDs(vids []string) (res []*client.Client) {
 	m.nodesLock.RLock()
 	for _, r := range m.nodes {
-		if r.meta.Draining {
+		if r.meta.Status != StatusRunning {
 			continue
 		}
 		var found bool
@@ -192,7 +193,7 @@ func (m *Membership) NodesWithCapacity(size int64) (res []*client.Client) {
 	m.nodesLock.RLock()
 	defer m.nodesLock.RUnlock()
 	for _, n := range m.nodes {
-		if n.meta.Draining {
+		if n.meta.Status != StatusRunning {
 			continue
 		}
 		for _, vs := range n.state.Volumes {
@@ -224,11 +225,26 @@ func (m *Membership) RemovedVolumeIDs() []string {
 	return rvids
 }
 
-// SetDraining marks this node as draining in the cluster state,
-// causing peers to skip routing writes to it.
-func (m *Membership) SetDraining(draining bool) {
-	m.draining.Store(draining)
+// SetStatus sets the lifecycle status of this node and propagates it to peers.
+func (m *Membership) SetStatus(s Status) {
+	m.status.Store(s)
 	m.members.UpdateNode(0)
+}
+
+// IsRunning returns true when the node is fully operational.
+// Used as a ready-check function passed to the HTTP transport.
+func (m *Membership) IsRunning() bool {
+	s, ok := m.status.Load().(Status)
+	return ok && s == StatusRunning
+}
+
+// SetDraining satisfies the storing.Membership interface.
+func (m *Membership) SetDraining(draining bool) {
+	if draining {
+		m.SetStatus(StatusDraining)
+	} else {
+		m.SetStatus(StatusRunning)
+	}
 }
 
 // Leave makes the node leave the cluster

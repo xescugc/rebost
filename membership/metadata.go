@@ -9,7 +9,6 @@ type Metadata struct {
 	// Volumes list of all VolumeIDs of the Node
 	Volumes map[string]struct{} `json:"volumes"`
 
-	// Draining indicates that the node is draining and should not
-	// receive new writes from peers
-	Draining bool `json:"draining"`
+	// Status is the lifecycle state of the node
+	Status Status `json:"status"`
 }
