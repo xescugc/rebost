@@ -14,7 +14,10 @@
         <div class="col-sm-6 mb-3 mb-sm-0">
           <div class="card">
             <div class="card-body">
-              <h5 class="card-title">{{ .Config.Name }}</h5>
+              <h5 class="card-title">
+                {{ .Config.Name }}
+                <span class="badge bg-{{ statusColor .State.Status }}">{{ .State.Status }}</span>
+              </h5>
               {{ range $id, $state := .State.Volumes }}
                 <p class="card-text">Used {{ humanizeUsedSize $state }} out of {{ humanizeTotalSize $state }}</p>
                 {{ $percentage := percentageStateUsedSize $state }}

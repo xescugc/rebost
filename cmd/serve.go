@@ -117,9 +117,11 @@ var (
 				return err
 			}
 
+			m.SetStatus(membership.StatusRunning)
+
 			mux := http.NewServeMux()
 
-			mux.Handle("/", httptransport.MakeHandler(s, cfg))
+			mux.Handle("/", httptransport.MakeHandler(s, cfg, m.IsRunning))
 
 			http.Handle("/", handlers.CustomLoggingHandler(os.Stdout, mux, func(writer io.Writer, params handlers.LogFormatterParams) {
 				username := "-"

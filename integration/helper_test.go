@@ -83,7 +83,9 @@ func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config
 	s, err := storing.New(cfg, m, logger)
 	require.NoError(t, err)
 
-	server.Config.Handler = httptransport.MakeHandler(s, cfg)
+	m.SetStatus(membership.StatusRunning)
+
+	server.Config.Handler = httptransport.MakeHandler(s, cfg, m.IsRunning)
 
 	u := fmt.Sprintf("http://localhost:%d", port)
 

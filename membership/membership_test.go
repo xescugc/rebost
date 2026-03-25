@@ -29,13 +29,13 @@ func TestNodesWithCapacity(t *testing.T) {
 
 		// Local node (m): just needs a volume with an ID
 		v := mock.NewVolumeLocal(ctrl)
-		v.EXPECT().ID().Return("local-id").Times(2)
+		v.EXPECT().ID().Return("local-id").AnyTimes()
 		v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil).AnyTimes()
 
 		// Remote node A (m2): 10 bytes free (100 total, 90 used)
 		stateA := &state.State{VolumeTotalSize: 100, VolumeUsedSize: 90}
 		v2 := mock.NewVolumeLocal(ctrl)
-		v2.EXPECT().ID().Return("remote-id-a").Times(2)
+		v2.EXPECT().ID().Return("remote-id-a").AnyTimes()
 		v2.EXPECT().GetState(context.Background()).Return(stateA, nil).AnyTimes()
 
 		p2, err := util.FreePort()
@@ -43,10 +43,11 @@ func TestNodesWithCapacity(t *testing.T) {
 		cfg2 := &config.Config{Name: "nwc2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 		m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
+		m2.SetStatus(membership.StatusRunning)
 
 		s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
-		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}))
+		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }))
 		defer server2.Close()
 
 		p3, err := util.FreePort()
@@ -86,10 +87,11 @@ func TestNodesWithCapacity(t *testing.T) {
 		cfg2 := &config.Config{Name: "efn-a", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 		m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
+		m2.SetStatus(membership.StatusRunning)
 
 		s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
-		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}))
+		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }))
 		defer server2.Close()
 
 		// Remote node B: completely full (100 total, 100 used)
@@ -104,10 +106,11 @@ func TestNodesWithCapacity(t *testing.T) {
 		// Node B joins the cluster via node A
 		m3, err := membership.New(cfg3, []volume.Local{v3}, server2.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
+		m3.SetStatus(membership.StatusRunning)
 
 		s3, err := storing.New(cfg3, m3, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
-		server3 := httptest.NewServer(httptransport.MakeHandler(s3, &config.Config{}))
+		server3 := httptest.NewServer(httptransport.MakeHandler(s3, &config.Config{}, func() bool { return true }))
 		defer server3.Close()
 
 		// Local node joins via node A; gossip will propagate node B as well
@@ -153,11 +156,12 @@ func TestDrainingFiltering(t *testing.T) {
 	cfg2 := &config.Config{Name: "drain-m2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 	m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	require.NoError(t, err)
+	m2.SetStatus(membership.StatusRunning)
 	defer m2.Leave()
 
 	s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	require.NoError(t, err)
-	server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}))
+	server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }))
 	defer server2.Close()
 
 	p3, err := util.FreePort()
@@ -207,21 +211,22 @@ func TestVolumes(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			v := mock.NewVolumeLocal(ctrl)
-			v.EXPECT().ID().Return("id").Times(2)
+			v.EXPECT().ID().Return("id").AnyTimes()
 			v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 
 			v2 := mock.NewVolumeLocal(ctrl)
-			v2.EXPECT().ID().Return("id").Times(2)
+			v2.EXPECT().ID().Return("id").AnyTimes()
 			v2.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{Name: "am2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
+			m2.SetStatus(membership.StatusRunning)
 
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}))
+			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }))
 			defer server.Close()
 
 			p3, err := util.FreePort()
@@ -237,20 +242,21 @@ func TestVolumes(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			v := mock.NewVolumeLocal(ctrl)
-			v.EXPECT().ID().Return("id").Times(2)
+			v.EXPECT().ID().Return("id").AnyTimes()
 			v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 
 			v2 := mock.NewVolumeLocal(ctrl)
-			v2.EXPECT().ID().Return("id2").Times(2)
+			v2.EXPECT().ID().Return("id2").AnyTimes()
 			v2.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 			p2, err := util.FreePort()
 			require.NoError(t, err)
 			cfg2 := &config.Config{Name: "rm2", Replica: -1, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
+			m2.SetStatus(membership.StatusRunning)
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}))
+			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }))
 			defer server.Close()
 
 			p3, err := util.FreePort()
@@ -271,11 +277,11 @@ func TestVolumes(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			v := mock.NewVolumeLocal(ctrl)
-			v.EXPECT().ID().Return("id").Times(2)
+			v.EXPECT().ID().Return("id").AnyTimes()
 			v.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 
 			v2 := mock.NewVolumeLocal(ctrl)
-			v2.EXPECT().ID().Return("id2").Times(2)
+			v2.EXPECT().ID().Return("id2").AnyTimes()
 			v2.EXPECT().GetState(context.Background()).Return(&state.State{}, nil)
 
 			p2, err := util.FreePort()
@@ -283,9 +289,10 @@ func TestVolumes(t *testing.T) {
 			cfg2 := &config.Config{Name: "rm2", Replica: -1, Timing: config.Timing{VolumeDowntime: 2 * time.Second}, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
+			m2.SetStatus(membership.StatusRunning)
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}))
+			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }))
 			defer server.Close()
 
 			p3, err := util.FreePort()

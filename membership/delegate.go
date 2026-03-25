@@ -13,9 +13,9 @@ type delegate struct {
 
 func (d *delegate) NodeMeta(limit int) []byte {
 	m := Metadata{
-		Port:     d.members.cfg.Port,
-		Volumes:  make(map[string]struct{}),
-		Draining: d.members.draining.Load(),
+		Port:    d.members.cfg.Port,
+		Volumes: make(map[string]struct{}),
+		Status:  d.members.status.Load().(Status),
 	}
 	for _, v := range d.members.localVolumes {
 		m.Volumes[v.ID()] = struct{}{}
@@ -38,6 +38,7 @@ func (d *delegate) LocalState(join bool) []byte {
 	s := State{
 		Node:    d.members.cfg.Name,
 		Volumes: make(map[string]state.State),
+		Status:  d.members.status.Load().(Status),
 	}
 	for _, v := range d.members.localVolumes {
 		vs, err := v.GetState(context.Background())

@@ -49,7 +49,7 @@ func TestProcessNextScrub(t *testing.T) {
 
 		// Spin up a real HTTP test server acting as the remote node.
 		remoteStore := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteStore, &config.Config{})
+		h := httptransport.MakeHandler(remoteStore, &config.Config{}, func() bool { return true })
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -141,7 +141,7 @@ func TestProcessNextScrub(t *testing.T) {
 		s := newTestService(t, m)
 
 		remoteStore := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteStore, &config.Config{})
+		h := httptransport.MakeHandler(remoteStore, &config.Config{}, func() bool { return true })
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)

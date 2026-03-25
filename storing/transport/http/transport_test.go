@@ -39,7 +39,7 @@ func TestMakeHandler(t *testing.T) {
 	st := mock.NewStoring(ctrl)
 	defer ctrl.Finish()
 
-	h := httptransport.MakeHandler(st, &config.Config{})
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
 	server := httptest.NewServer(h)
 	client := server.Client()
 
@@ -172,7 +172,7 @@ func TestPutObjectErrClusterFull(t *testing.T) {
 
 	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrClusterFull)
 
-	h := httptransport.MakeHandler(st, &config.Config{})
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
 	server := httptest.NewServer(h)
 	client := server.Client()
 
@@ -206,7 +206,7 @@ func TestPutObjectMultipartPipeClosedOnBodyError(t *testing.T) {
 			return nil
 		})
 
-	h := httptransport.MakeHandler(st, &config.Config{})
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -245,7 +245,7 @@ func TestCreateReplicaMultipartPipeClosedOnBodyError(t *testing.T) {
 			return "", nil
 		})
 
-	h := httptransport.MakeHandler(st, &config.Config{})
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
 	server := httptest.NewServer(h)
 	defer server.Close()
 

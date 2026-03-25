@@ -32,7 +32,9 @@ type Service interface {
 // MakeHandler returns an http.Handler that exposes an S3-compatible API backed
 // by the Service. Internal inter-node routes (/replicas/, /config) are
 // registered first so they are not shadowed by the S3 bucket/key patterns.
-func MakeHandler(s Service, cfg *config.Config) http.Handler {
+// The ready function is called on every request; if it returns false the
+// handler responds with 503 Service Unavailable.
+func MakeHandler(s Service, cfg *config.Config, ready func() bool) http.Handler {
 	r := mux.NewRouter()
 
 	r.Use(S3AuthMiddleware(cfg.S3.AccessKey, cfg.S3.SecretKey, cfg.S3.AuthMode))
@@ -59,7 +61,17 @@ func MakeHandler(s Service, cfg *config.Config) http.Handler {
 		encodeS3Error(w, "NoSuchKey", "Path not found", http.StatusNotFound)
 	})
 
-	return r
+	return readyMiddleware(ready, r)
+}
+
+func readyMiddleware(ready func() bool, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !ready() {
+			http.Error(w, "node not ready", http.StatusServiceUnavailable)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func putObjectHandler(s Service) http.HandlerFunc {
