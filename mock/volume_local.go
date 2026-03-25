@@ -13,6 +13,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	deletion "github.com/xescugc/rebost/deletion"
 	replica "github.com/xescugc/rebost/replica"
+	scrub "github.com/xescugc/rebost/scrub"
 	state "github.com/xescugc/rebost/state"
 	volume "github.com/xescugc/rebost/volume"
 )
@@ -108,6 +109,20 @@ func (m *VolumeLocal) DeleteReplica(arg0 context.Context, arg1 *replica.Replica)
 func (mr *VolumeLocalMockRecorder) DeleteReplica(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteReplica", reflect.TypeOf((*VolumeLocal)(nil).DeleteReplica), arg0, arg1)
+}
+
+// DeleteScrub mocks base method.
+func (m *VolumeLocal) DeleteScrub(arg0 context.Context, arg1 *scrub.Scrub) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteScrub", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteScrub indicates an expected call of DeleteScrub.
+func (mr *VolumeLocalMockRecorder) DeleteScrub(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteScrub", reflect.TypeOf((*VolumeLocal)(nil).DeleteScrub), arg0, arg1)
 }
 
 // GetFile mocks base method.
@@ -214,6 +229,35 @@ func (m *VolumeLocal) NextReplica(arg0 context.Context) (*replica.Replica, error
 func (mr *VolumeLocalMockRecorder) NextReplica(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextReplica", reflect.TypeOf((*VolumeLocal)(nil).NextReplica), arg0)
+}
+
+// NextScrub mocks base method.
+func (m *VolumeLocal) NextScrub(arg0 context.Context) (*scrub.Scrub, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NextScrub", arg0)
+	ret0, _ := ret[0].(*scrub.Scrub)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NextScrub indicates an expected call of NextScrub.
+func (mr *VolumeLocalMockRecorder) NextScrub(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextScrub", reflect.TypeOf((*VolumeLocal)(nil).NextScrub), arg0)
+}
+
+// OverwriteFileContent mocks base method.
+func (m *VolumeLocal) OverwriteFileContent(arg0 context.Context, arg1 string, arg2 io.Reader) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OverwriteFileContent", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// OverwriteFileContent indicates an expected call of OverwriteFileContent.
+func (mr *VolumeLocalMockRecorder) OverwriteFileContent(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OverwriteFileContent", reflect.TypeOf((*VolumeLocal)(nil).OverwriteFileContent), arg0, arg1, arg2)
 }
 
 // PrepareForDrain mocks base method.

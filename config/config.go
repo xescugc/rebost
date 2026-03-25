@@ -26,6 +26,9 @@ const (
 	// a Volume can be down before start replicating
 	DefaultVolumeDowntime = 2 * time.Minute
 
+	// DefaultScrubInterval is the default interval between scrub passes.
+	DefaultScrubInterval = 24 * time.Hour
+
 	// defaultNameLen is the default length of the
 	// auto generated Node name if none defined
 	defaultNameLen = 7
@@ -55,6 +58,10 @@ type Config struct {
 	// the lost of data, is the time we'll wait for it
 	// to go back up again
 	VolumeDowntime time.Duration `mapstructure:"volume-downtime"`
+
+	// ScrubInterval is how often each volume checksums all its files and
+	// enqueues repair jobs for any that fail. Defaults to 24h.
+	ScrubInterval time.Duration `mapstructure:"scrub-interval"`
 
 	// Name is the name the Node will have inside of the Memberlist
 	Name string `mapstructure:"name"`
@@ -116,6 +123,7 @@ func New(v *viper.Viper) (*Config, error) {
 	v.SetDefault("port", DefaultPort)
 	v.SetDefault("replica", DefaultReplica)
 	v.SetDefault("volume-downtime", DefaultVolumeDowntime)
+	v.SetDefault("scrub-interval", DefaultScrubInterval)
 	v.SetDefault("cache.size", DefaultCacheSize)
 
 	name := randomstring.HumanFriendlyEnglishString(defaultNameLen)

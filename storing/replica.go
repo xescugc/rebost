@@ -31,6 +31,9 @@ func (s *service) loopVolumes() {
 			if s.processNextDeletion(v) {
 				workDone = true
 			}
+			if s.processNextScrub(v) {
+				workDone = true
+			}
 		}
 		// If nothing was done on one full pass, sleep to avoid busy-looping.
 		if !workDone {

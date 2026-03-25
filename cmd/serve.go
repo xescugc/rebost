@@ -82,7 +82,7 @@ var (
 					return fmt.Errorf("error getting the state of Volume: %s", err)
 				}
 
-				v, err := volume.New(vp, osfs, logger, suow)
+				v, err := volume.New(vp, osfs, logger, suow, cfg.ScrubInterval)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
@@ -236,6 +236,9 @@ func init() {
 
 	serveCmd.PersistentFlags().Duration("volume-downtime", config.DefaultVolumeDowntime, fmt.Sprintf("The time a volume can be down before start replicating and also the time the node can be restarted before it's old and all the data would be cleaned. The value cannot be lower or equal to %s", volume.TickerDuration))
 	viper.BindPFlag("volume-downtime", serveCmd.PersistentFlags().Lookup("volume-downtime"))
+
+	serveCmd.PersistentFlags().Duration("scrub-interval", config.DefaultScrubInterval, "How often each volume re-verifies file checksums and auto-repairs corrupt copies from replicas")
+	viper.BindPFlag("scrub-interval", serveCmd.PersistentFlags().Lookup("scrub-interval"))
 
 	serveCmd.PersistentFlags().Int("memberlist.port", 0, "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist.port", serveCmd.PersistentFlags().Lookup("memberlist.port"))
