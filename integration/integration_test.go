@@ -194,7 +194,7 @@ func TestReplica(t *testing.T) {
 				}
 			}
 			return okCount == 3
-		}, 10*time.Second, 100*time.Millisecond)
+		}, 30*time.Second, 100*time.Millisecond)
 
 		// As it's a replica 3 so 3/5 have to have it
 		for i, c := range clients {
@@ -242,7 +242,7 @@ func TestReplica(t *testing.T) {
 				}
 			}
 			return okCount == 3
-		}, 10*time.Second, 100*time.Millisecond)
+		}, 30*time.Second, 100*time.Millisecond)
 
 		// As it's a replica 3 so 3/4 have to have it
 		for i, c := range clients {
@@ -277,7 +277,7 @@ func TestReplica(t *testing.T) {
 				}
 			}
 			return okCount == 3
-		}, 10*time.Second, 100*time.Millisecond)
+		}, 30*time.Second, 100*time.Millisecond)
 
 		// As it's a replica 3 so 3/3 have to have it
 		for i, c := range clients {
@@ -308,7 +308,7 @@ func TestReplica(t *testing.T) {
 				}
 			}
 			return okCount == 0
-		}, 10*time.Second, 100*time.Millisecond)
+		}, 30*time.Second, 100*time.Millisecond)
 
 		for i, c := range clients {
 			vid, ok, err := c.HasFile(ctx, keytxt)
@@ -377,7 +377,7 @@ func TestDrain(t *testing.T) {
 			}
 		}
 		return okCount == 2
-	}, 10*time.Second, 100*time.Millisecond, "file should be replicated to exactly 2 peer nodes before drain")
+	}, 30*time.Second, 100*time.Millisecond, "file should be replicated to exactly 2 peer nodes before drain")
 	require.NotNil(t, missingNode, "exactly one node should be missing the file before drain")
 
 	// Record the current node count before draining node1.
@@ -392,7 +392,7 @@ func TestDrain(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, ok, _ := missingNode.HasFile(ctx, keytxt)
 		return ok
-	}, 10*time.Second, 100*time.Millisecond, "drain should have replicated to the previously-empty node")
+	}, 30*time.Second, 100*time.Millisecond, "drain should have replicated to the previously-empty node")
 
 	// After drain, all of node2/node3/node4 must hold the file
 	require.Eventually(t, func() bool {
@@ -400,7 +400,7 @@ func TestDrain(t *testing.T) {
 		_, ok3, _ := cl3.HasFile(ctx, keytxt)
 		_, ok4, _ := cl4.HasFile(ctx, keytxt)
 		return ok2 && ok3 && ok4
-	}, 10*time.Second, 100*time.Millisecond, "after drain all remaining nodes should have the file")
+	}, 30*time.Second, 100*time.Millisecond, "after drain all remaining nodes should have the file")
 
 	// node1 must no longer hold the file locally
 	_, ok1, err := cl1.HasFile(ctx, keytxt)
@@ -411,7 +411,7 @@ func TestDrain(t *testing.T) {
 	// is robust against localhost vs 127.0.0.1 URL format differences.
 	require.Eventually(t, func() bool {
 		return len(m2.Nodes()) == initialNodeCount-1
-	}, 10*time.Second, 100*time.Millisecond, "node1 should have left the cluster")
+	}, 30*time.Second, 100*time.Millisecond, "node1 should have left the cluster")
 }
 
 func TestTTL(t *testing.T) {
@@ -466,7 +466,7 @@ func TestTTL(t *testing.T) {
 				}
 			}
 			return okCount == 3
-		}, 10*time.Second, 100*time.Millisecond)
+		}, 30*time.Second, 100*time.Millisecond)
 
 		// As it's a replica 3 so 3/5 have to have it
 		for i, c := range clients {

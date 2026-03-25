@@ -16,6 +16,7 @@ import (
 	"github.com/xescugc/rebost/idxttl"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
+	"github.com/xescugc/rebost/scrub"
 	"github.com/xescugc/rebost/state"
 )
 
@@ -43,6 +44,7 @@ type UnitOfWork interface {
 	Fs() afero.Fs
 	Replicas() replica.Repository
 	Deletions() deletion.Repository
+	Scrubs() scrub.Repository
 	State() state.Repository
 }
 

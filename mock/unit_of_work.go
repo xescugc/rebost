@@ -15,6 +15,7 @@ import (
 	idxttl "github.com/xescugc/rebost/idxttl"
 	idxvolume "github.com/xescugc/rebost/idxvolume"
 	replica "github.com/xescugc/rebost/replica"
+	scrub "github.com/xescugc/rebost/scrub"
 	state "github.com/xescugc/rebost/state"
 )
 
@@ -137,6 +138,20 @@ func (m *UnitOfWork) Replicas() replica.Repository {
 func (mr *UnitOfWorkMockRecorder) Replicas() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replicas", reflect.TypeOf((*UnitOfWork)(nil).Replicas))
+}
+
+// Scrubs mocks base method.
+func (m *UnitOfWork) Scrubs() scrub.Repository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Scrubs")
+	ret0, _ := ret[0].(scrub.Repository)
+	return ret0
+}
+
+// Scrubs indicates an expected call of Scrubs.
+func (mr *UnitOfWorkMockRecorder) Scrubs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Scrubs", reflect.TypeOf((*UnitOfWork)(nil).Scrubs))
 }
 
 // State mocks base method.

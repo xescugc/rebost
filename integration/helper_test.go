@@ -74,7 +74,7 @@ func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config
 
 	suow = fs.UOWWithFs(osfs, suow)
 
-	v, err := volume.New(tmpDir, osfs, logger, suow)
+	v, err := volume.New(tmpDir, osfs, logger, suow, 0)
 	require.NoError(t, err)
 
 	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote, logger)

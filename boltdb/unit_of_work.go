@@ -10,6 +10,7 @@ import (
 	"github.com/xescugc/rebost/idxttl"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
+	"github.com/xescugc/rebost/scrub"
 	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/uow"
 	bolt "go.etcd.io/bbolt"
@@ -28,6 +29,7 @@ type unitOfWork struct {
 	idxvolumeRepository idxvolume.Repository
 	replicaRepository   replica.Repository
 	deletionRepository  deletion.Repository
+	scrubRepository     scrub.Repository
 	stateRepository     state.Repository
 }
 
@@ -41,7 +43,7 @@ var uowKey key
 func NewUOW(db *bolt.DB) (uow.StartUnitOfWork, error) {
 	buckets := [][]byte{
 		[]byte("files"), []byte("idxkeys"), []byte("idxttls"),
-		[]byte("idxvolumes"), []byte("replica"), []byte("deletion"), []byte("state"),
+		[]byte("idxvolumes"), []byte("replica"), []byte("deletion"), []byte("scrub"), []byte("state"),
 	}
 	for _, bn := range buckets {
 		if err := createBucket(db, bn); err != nil {
@@ -139,6 +141,15 @@ func (uw *unitOfWork) Deletions() deletion.Repository {
 		uw.deletionRepository = &deletionRepository{bucketName: bn, bucket: b}
 	}
 	return uw.deletionRepository
+}
+
+func (uw *unitOfWork) Scrubs() scrub.Repository {
+	if uw.scrubRepository == nil {
+		bn := []byte("scrub")
+		b := uw.tx.Bucket(bn)
+		uw.scrubRepository = &scrubRepository{bucketName: bn, bucket: b}
+	}
+	return uw.scrubRepository
 }
 
 func (uw *unitOfWork) State() state.Repository {

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Periodic scrubbing: background loop re-verifies file checksums on each volume and auto-repairs corrupt files by fetching a good copy from a remote replica. Configurable via `--scrub-interval` (default `24h`).
+  [Issue#130](https://github.com/xescugc/rebost/issues/130)
 - Graceful node drain via SIGQUIT: replicates locally-held files to peers, purges local copies, and leaves the cluster before shutdown.
   [Issue#17](https://github.com/xescugc/rebost/issues/17)
 - Proxy node support: start a node without `--volumes` to forward all operations to peers.

@@ -25,6 +25,7 @@ import (
 	"github.com/xescugc/rebost/idxttl"
 	"github.com/xescugc/rebost/idxvolume"
 	"github.com/xescugc/rebost/replica"
+	"github.com/xescugc/rebost/scrub"
 	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/uow"
 )
@@ -114,6 +115,17 @@ type Local interface {
 	// DeleteDeletion removes a processed deletion job from the queue.
 	DeleteDeletion(ctx context.Context, d *deletion.Deletion) error
 
+	// NextScrub returns the next pending scrub-repair job.
+	// A "not found" error means the queue is empty.
+	NextScrub(ctx context.Context) (*scrub.Scrub, error)
+
+	// DeleteScrub removes a processed scrub-repair job from the queue.
+	DeleteScrub(ctx context.Context, s *scrub.Scrub) error
+
+	// OverwriteFileContent replaces the on-disk content for sig by streaming
+	// from r, verifying the SHA1 matches sig after writing.
+	OverwriteFileContent(ctx context.Context, sig string, r io.Reader) error
+
 	// SynchronizeReplicas checks the replicas related with vID and
 	// if this volume is the responsible (next after the removed ID on the files)
 	// will start replication of those files which have to
@@ -149,6 +161,8 @@ type local struct {
 
 	startUnitOfWork uow.StartUnitOfWork
 
+	scrubInterval time.Duration
+
 	logger         *slog.Logger
 	originalLogger *slog.Logger
 
@@ -160,7 +174,7 @@ type local struct {
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
 // To define a total size of the volume it has to be appended to the root like `/v1:1GB`
-func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUnitOfWork) (Local, error) {
+func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUnitOfWork, scrubInterval time.Duration) (Local, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -187,6 +201,8 @@ func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUn
 		originalLogger: logger,
 
 		startUnitOfWork: suow,
+
+		scrubInterval: scrubInterval,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -266,6 +282,9 @@ func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUn
 
 	// We check if there is any TTL expiring
 	go l.loopTTL()
+
+	// We periodically verify file checksums and enqueue repair jobs
+	go l.loopScrub()
 
 	return l, nil
 }
@@ -983,6 +1002,49 @@ func (l *local) DeleteDeletion(ctx context.Context, d *deletion.Deletion) error 
 	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		return uw.Deletions().Delete(ctx, d)
 	})
+}
+
+func (l *local) NextScrub(ctx context.Context) (*scrub.Scrub, error) {
+	var (
+		err error
+		s   *scrub.Scrub
+	)
+	err = l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		s, err = uw.Scrubs().First(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func (l *local) DeleteScrub(ctx context.Context, s *scrub.Scrub) error {
+	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		return uw.Scrubs().Delete(ctx, s)
+	})
+}
+
+func (l *local) OverwriteFileContent(ctx context.Context, sig string, r io.Reader) error {
+	p := file.Path(l.fileDir, sig)
+	fh, err := l.fs.OpenFile(p, os.O_WRONLY|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+
+	h := sha1.New()
+	if _, err := io.Copy(io.MultiWriter(fh, h), r); err != nil {
+		return err
+	}
+	computed := fmt.Sprintf("%x", h.Sum(nil))
+	if computed != sig {
+		return fmt.Errorf("overwrite checksum mismatch: got %s want %s", computed, sig)
+	}
+	return nil
 }
 
 func (l *local) PrepareForDrain(ctx context.Context) error {
