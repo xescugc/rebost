@@ -16,9 +16,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
+	"github.com/xescugc/rebost/deletion"
 	"github.com/xescugc/rebost/mock"
 	"github.com/xescugc/rebost/replica"
 	httptransport "github.com/xescugc/rebost/storing/transport/http"
+	"github.com/xescugc/rebost/volume"
 )
 
 func newTestService(t *testing.T, m *mock.Membership) *service {
@@ -154,5 +156,116 @@ func TestProcessNextReplica(t *testing.T) {
 		v.EXPECT().UpdateReplica(gomock.Any(), rp, newVID).Return(nil)
 
 		assert.True(t, s.processNextReplica(v))
+	})
+}
+
+func TestProcessNextDeletion(t *testing.T) {
+	t.Run("QueueEmpty", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		v := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		s := newTestService(t, m)
+
+		v.EXPECT().NextDeletion(gomock.Any()).Return(nil, errors.New("not found"))
+
+		assert.False(t, s.processNextDeletion(v))
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		key := "testbucket/todelete"
+		remoteVID := "remote-vid-1"
+
+		v := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		s := newTestService(t, m)
+
+		// Set up a real HTTP test server acting as the remote node.
+		remoteNode := mock.NewStoring(ctrl)
+		h := httptransport.MakeHandler(remoteNode, &config.Config{})
+		server := httptest.NewServer(h)
+		defer server.Close()
+		c, err := client.New(server.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		d := &deletion.Deletion{Key: key, VolumeIDs: []string{remoteVID}}
+
+		v.EXPECT().NextDeletion(gomock.Any()).Return(d, nil)
+		m.EXPECT().GetNodeWithVolumeByID(remoteVID).Return(c, nil)
+		remoteNode.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
+		v.EXPECT().DeleteDeletion(gomock.Any(), d).Return(nil)
+
+		assert.True(t, s.processNextDeletion(v))
+	})
+
+	t.Run("NodeGone", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		key := "testbucket/todelete"
+		remoteVID := "gone-vid"
+
+		v := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		s := newTestService(t, m)
+
+		d := &deletion.Deletion{Key: key, VolumeIDs: []string{remoteVID}}
+
+		v.EXPECT().NextDeletion(gomock.Any()).Return(d, nil)
+		m.EXPECT().GetNodeWithVolumeByID(remoteVID).Return(nil, errors.New("node not found"))
+		v.EXPECT().DeleteDeletion(gomock.Any(), d).Return(nil)
+
+		assert.True(t, s.processNextDeletion(v))
+	})
+}
+
+func TestProcessRemovedVolumeIDs(t *testing.T) {
+	t.Run("Empty", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		m := mock.NewMembership(ctrl)
+		s := newTestService(t, m)
+
+		// No calls expected at all.
+		s.processRemovedVolumeIDs([]string{})
+	})
+
+	t.Run("SingleVolume", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		vid := "removed-vid"
+		lv := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		s := newTestService(t, m)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{lv})
+		lv.EXPECT().SynchronizeReplicas(gomock.Any(), vid).Return(nil)
+
+		s.processRemovedVolumeIDs([]string{vid})
+	})
+
+	t.Run("MultipleLocalVolumes", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		vid := "removed-vid"
+		lv1 := mock.NewVolumeLocal(ctrl)
+		lv2 := mock.NewVolumeLocal(ctrl)
+		m := mock.NewMembership(ctrl)
+		s := newTestService(t, m)
+
+		m.EXPECT().LocalVolumes().Return([]volume.Local{lv1, lv2})
+		lv1.EXPECT().SynchronizeReplicas(gomock.Any(), vid).Return(nil)
+		lv2.EXPECT().SynchronizeReplicas(gomock.Any(), vid).Return(nil)
+
+		s.processRemovedVolumeIDs([]string{vid})
 	})
 }

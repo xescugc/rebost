@@ -280,7 +280,7 @@ func TestVolumes(t *testing.T) {
 
 			p2, err := util.FreePort()
 			require.NoError(t, err)
-			cfg2 := &config.Config{Name: "rm2", Replica: -1, VolumeDowntime: 2 * time.Second, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+			cfg2 := &config.Config{Name: "rm2", Replica: -1, Timing: config.Timing{VolumeDowntime: 2 * time.Second}, Memberlist: config.Memberlist{Port: p2}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -290,7 +290,7 @@ func TestVolumes(t *testing.T) {
 
 			p3, err := util.FreePort()
 			require.NoError(t, err)
-			cfg := &config.Config{Name: "rm", VolumeDowntime: time.Second, Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
+			cfg := &config.Config{Name: "rm", Timing: config.Timing{VolumeDowntime: time.Second}, Memberlist: config.Memberlist{Port: p3}, Cache: config.Cache{Size: config.DefaultCacheSize}}
 			m, err := membership.New(cfg, []volume.Local{v}, server.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 			assert.Len(t, m.Nodes(), 1)

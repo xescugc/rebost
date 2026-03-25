@@ -26,6 +26,7 @@ type Service interface {
 	UpdateFileReplica(ctx context.Context, key string, volumeIDs []string, replica int) error
 	Config(context.Context) (*config.Config, error)
 	CreateReplica(ctx context.Context, key string, reader io.ReadCloser, ttl time.Duration, ca time.Time) (vID string, err error)
+	GetReplicaInfo(ctx context.Context, key string) ([]string, int, error)
 }
 
 // MakeHandler returns an http.Handler that exposes an S3-compatible API backed
@@ -39,6 +40,7 @@ func MakeHandler(s Service, cfg *config.Config) http.Handler {
 	// Internal inter-node routes (JSON, always pass auth)
 	r.Handle("/replicas/{key:.*}", createReplicaHandler(s)).Methods("PUT")
 	r.Handle("/replicas/{key:.*}", updateFileReplicaHandler(s)).Methods("PATCH")
+	r.Handle("/replicas/{key:.*}", getReplicaInfoHandler(s)).Methods("GET")
 	r.Handle("/config", getConfigHandler(s)).Methods("GET")
 
 	// S3 object routes: /{bucket}/{key}
@@ -295,6 +297,22 @@ func getConfigHandler(s Service) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		b, _ := json.Marshal(map[string]interface{}{"data": model.ConfigToModel(cfg)})
+		w.Write(b)
+	}
+}
+
+func getReplicaInfoHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := mux.Vars(r)["key"]
+		vids, replica, err := s.GetReplicaInfo(r.Context(), key)
+		if err != nil {
+			encodeError(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		b, _ := json.Marshal(map[string]interface{}{
+			"data": model.ReplicaInfo{VolumeIDs: vids, Replica: replica},
+		})
 		w.Write(b)
 	}
 }

@@ -172,3 +172,19 @@ func (cl *Client) DeleteFile(ctx context.Context, key string) error {
 	_, err := c.request(ctx, http.MethodDelete, u, nil, nil)
 	return err
 }
+
+type getReplicaInfoResponse struct {
+	Data model.ReplicaInfo `json:"data,omitempty"`
+	Err  string            `json:"error,omitempty"`
+}
+
+// CheckReplica fetches the VolumeIDs and replica count for a file from a remote node.
+func (cl *Client) CheckReplica(ctx context.Context, key string) ([]string, int, error) {
+	c := cl.getClient()
+	u := fmt.Sprintf("%s/replicas/%s", c.url, key)
+	var resp getReplicaInfoResponse
+	if _, err := c.request(ctx, http.MethodGet, u, nil, &resp); err != nil {
+		return nil, 0, err
+	}
+	return resp.Data.VolumeIDs, resp.Data.Replica, nil
+}

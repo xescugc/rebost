@@ -252,21 +252,24 @@ kill $(pgrep rebost)
 
 All options can be provided as CLI flags, environment variables (uppercased with `_` separator, prefixed with `REBOST_`), or a config file.
 
-| Flag                  | Type     | Default       | Description                                                                                                                                                                       |
-| --------------------- | -------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--port` / `-p`       | int      | `3805`        | HTTP port the node listens on                                                                                                                                                     |
-| `--name`              | string   | random 7-char | Unique node name in the cluster. Auto-generated if not set.                                                                                                                       |
-| `--volumes` / `-v`    | strings  | _(none)_      | Paths to local storage volumes. Repeat or comma-separate for multiple. Omit entirely to run as a [proxy node](#proxy-nodes). See [Volume Sizing](#volume-sizing) for size limits. |
-| `--remote` / `-r`     | string   | —             | URL of any existing cluster node to join. Omit to start a new single-node cluster.                                                                                                |
-| `--replica`           | int      | `3`           | Default replica count per object. Set to `-1` to disable replication on this node (storage-only mode).                                                                            |
-| `--volume-downtime`   | duration | `2m`          | How long a volume can be unreachable before Rebost starts re-replicating its objects to surviving nodes.                                                                          |
-| `--memberlist.port`   | int      | `0` (auto)    | UDP/TCP port for gossip. Auto-assigned if `0`. Fix this port if you need deterministic firewall rules.                                                                            |
-| `--cache.size`        | int      | `200`         | Size of the per-node LRU cache that maps object keys to remote volume IDs, avoiding repeated `HEAD` queries to peers.                                                             |
-| `--dashboard.port`    | int      | `3806`        | HTTP port for the dashboard UI.                                                                                                                                                   |
-| `--dashboard.enabled` | bool     | `true`        | Enable or disable the dashboard on this node.                                                                                                                                     |
-| `--s3.access_key`     | string   | —             | AWS access key ID. Leave empty to disable authentication.                                                                                                                         |
-| `--s3.secret_key`     | string   | —             | AWS secret access key. Required when `--s3.access_key` is set.                                                                                                                    |
-| `--s3.auth_mode`      | string   | `all`         | Authentication scope. `all` requires auth for every request. `write` requires auth only for mutating operations (PUT, DELETE, PATCH, POST); GET and HEAD are public.              |
+| Flag                                    | Type     | Default       | Description                                                                                                                                                                       |
+| --------------------------------------- | -------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--port` / `-p`                         | int      | `3805`        | HTTP port the node listens on                                                                                                                                                     |
+| `--name`                                | string   | random 7-char | Unique node name in the cluster. Auto-generated if not set.                                                                                                                       |
+| `--volumes` / `-v`                      | strings  | _(none)_      | Paths to local storage volumes. Repeat or comma-separate for multiple. Omit entirely to run as a [proxy node](#proxy-nodes). See [Volume Sizing](#volume-sizing) for size limits. |
+| `--remote` / `-r`                       | string   | —             | URL of any existing cluster node to join. Omit to start a new single-node cluster.                                                                                                |
+| `--replica`                             | int      | `3`           | Default replica count per object. Set to `-1` to disable replication on this node (storage-only mode).                                                                            |
+| `--timing.volume-downtime`              | duration | `2m`          | How long a volume can be unreachable before Rebost starts re-replicating its objects to surviving nodes.                                                                          |
+| `--timing.scrub-interval`               | duration | `24h`         | How often each volume re-verifies file checksums and auto-repairs corrupt copies from replicas.                                                                                   |
+| `--timing.replica-check-interval`       | duration | `1h`          | How often each volume checks for under-replicated files and re-queues replication jobs.                                                                                           |
+| `--timing.replica-consistency-interval` | duration | `1h`          | How often non-owner replicas verify they are still expected by the file owner and purge stale local copies.                                                                       |
+| `--memberlist.port`                     | int      | `0` (auto)    | UDP/TCP port for gossip. Auto-assigned if `0`. Fix this port if you need deterministic firewall rules.                                                                            |
+| `--cache.size`                          | int      | `200`         | Size of the per-node LRU cache that maps object keys to remote volume IDs, avoiding repeated `HEAD` queries to peers.                                                             |
+| `--dashboard.port`                      | int      | `3806`        | HTTP port for the dashboard UI.                                                                                                                                                   |
+| `--dashboard.enabled`                   | bool     | `true`        | Enable or disable the dashboard on this node.                                                                                                                                     |
+| `--s3.access_key`                       | string   | —             | AWS access key ID. Leave empty to disable authentication.                                                                                                                         |
+| `--s3.secret_key`                       | string   | —             | AWS secret access key. Required when `--s3.access_key` is set.                                                                                                                   |
+| `--s3.auth_mode`                        | string   | `all`         | Authentication scope. `all` requires auth for every request. `write` requires auth only for mutating operations (PUT, DELETE, PATCH, POST); GET and HEAD are public.              |
 
 ---
 
@@ -298,11 +301,12 @@ Rebost exposes an S3-compatible HTTP API using path-style addressing: `/{bucket}
 
 These routes are used for replication between nodes. They are always exempt from authentication.
 
-| Method  | Path              | Description                                                     |
-| ------- | ----------------- | --------------------------------------------------------------- |
-| `PUT`   | `/replicas/{key}` | Accept a replica of an object from a peer node.                 |
-| `PATCH` | `/replicas/{key}` | Update replica location metadata after a new replica is placed. |
-| `GET`   | `/config`         | Return this node's configuration (used during cluster join).    |
+| Method  | Path              | Description                                                                              |
+| ------- | ----------------- | ---------------------------------------------------------------------------------------- |
+| `PUT`   | `/replicas/{key}` | Accept a replica of an object from a peer node.                                          |
+| `PATCH` | `/replicas/{key}` | Update replica location metadata after a new replica is placed.                          |
+| `GET`   | `/replicas/{key}` | Return the VolumeIDs and replica count for a file (used by the consistency check).       |
+| `GET`   | `/config`         | Return this node's configuration (used during cluster join).                             |
 
 ### Error responses
 
@@ -406,7 +410,7 @@ Set `--replica -1` on a node to make it a storage-only node that never initiates
 Rebost monitors the gossip heartbeat of each node. When a node disappears:
 
 1. All volume IDs owned by that node are stamped with the departure time.
-2. After `--volume-downtime` (default 2 minutes), Rebost assumes the node is gone and starts re-replicating the affected objects to surviving nodes.
+2. After `--timing.volume-downtime` (default 2 minutes), Rebost assumes the node is gone and starts re-replicating the affected objects to surviving nodes.
 
 If the node comes back before the downtime threshold, replication is not triggered.
 

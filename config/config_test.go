@@ -20,11 +20,11 @@ func TestNew(t *testing.T) {
 		assert.NotEmpty(t, cfg.Memberlist.Port)
 		assert.Equal(t, config.DefaultReplica, cfg.Replica)
 		assert.Equal(t, config.DefaultCacheSize, cfg.Cache.Size)
-		assert.Equal(t, config.DefaultVolumeDowntime, cfg.VolumeDowntime)
+		assert.Equal(t, config.DefaultVolumeDowntime, cfg.Timing.VolumeDowntime)
 	})
 	t.Run("InvalidVolumeDowntime", func(t *testing.T) {
 		v := viper.New()
-		v.Set("volume-downtime", 20*time.Second)
+		v.Set("timing.volume-downtime", 20*time.Second)
 		_, err := config.New(v)
 		assert.EqualError(t, err, fmt.Sprintf("the volume-downtime cannot be lower than %s", volume.TickerDuration))
 	})

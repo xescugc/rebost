@@ -28,11 +28,39 @@ const (
 
 	// DefaultScrubInterval is the default interval between scrub passes.
 	DefaultScrubInterval = 24 * time.Hour
+	// DefaultReplicaCheckInterval is the default interval between background
+	// replica-check passes that detect and re-queue under-replicated files.
+	DefaultReplicaCheckInterval = 1 * time.Hour
+	// DefaultReplicaConsistencyInterval is the default interval for replica
+	// consistency checks that detect and purge stale non-owner replicas.
+	DefaultReplicaConsistencyInterval = 1 * time.Hour
 
 	// defaultNameLen is the default length of the
 	// auto generated Node name if none defined
 	defaultNameLen = 7
 )
+
+// Timing holds all time-based configuration.
+type Timing struct {
+	// VolumeDowntime is the maximum time a volume can be down
+	// before the rest of the cluster try to rebalance
+	// the lost of data, is the time we'll wait for it
+	// to go back up again
+	VolumeDowntime time.Duration `mapstructure:"volume-downtime"`
+
+	// ScrubInterval is how often each volume checksums all its files and
+	// enqueues repair jobs for any that fail. Defaults to 24h.
+	ScrubInterval time.Duration `mapstructure:"scrub-interval"`
+
+	// ReplicaCheckInterval is how often each volume checks whether all
+	// locally-owned files have the required number of replicas and re-queues
+	// replication jobs for any that are under-replicated. Defaults to 1h.
+	ReplicaCheckInterval time.Duration `mapstructure:"replica-check-interval"`
+
+	// ReplicaConsistencyInterval is how often non-owner replicas verify that
+	// they are still expected by the owner. Defaults to 1h.
+	ReplicaConsistencyInterval time.Duration `mapstructure:"replica-consistency-interval"`
+}
 
 // Config represents the struct with all the possible
 // configuration options
@@ -53,18 +81,10 @@ type Config struct {
 	// replica from another Node
 	Replica int `mapstructure:"replica"`
 
-	// VolumeDowntime is the maximum time a volume can be down
-	// before the rest of the cluster try to rebalance
-	// the lost of data, is the time we'll wait for it
-	// to go back up again
-	VolumeDowntime time.Duration `mapstructure:"volume-downtime"`
-
-	// ScrubInterval is how often each volume checksums all its files and
-	// enqueues repair jobs for any that fail. Defaults to 24h.
-	ScrubInterval time.Duration `mapstructure:"scrub-interval"`
-
 	// Name is the name the Node will have inside of the Memberlist
 	Name string `mapstructure:"name"`
+
+	Timing Timing
 
 	Cache Cache
 
@@ -122,8 +142,10 @@ func New(v *viper.Viper) (*Config, error) {
 
 	v.SetDefault("port", DefaultPort)
 	v.SetDefault("replica", DefaultReplica)
-	v.SetDefault("volume-downtime", DefaultVolumeDowntime)
-	v.SetDefault("scrub-interval", DefaultScrubInterval)
+	v.SetDefault("timing.volume-downtime", DefaultVolumeDowntime)
+	v.SetDefault("timing.scrub-interval", DefaultScrubInterval)
+	v.SetDefault("timing.replica-check-interval", DefaultReplicaCheckInterval)
+	v.SetDefault("timing.replica-consistency-interval", DefaultReplicaConsistencyInterval)
 	v.SetDefault("cache.size", DefaultCacheSize)
 
 	name := randomstring.HumanFriendlyEnglishString(defaultNameLen)
@@ -143,7 +165,7 @@ func New(v *viper.Viper) (*Config, error) {
 		return nil, err
 	}
 
-	if cfg.VolumeDowntime < volume.TickerDuration {
+	if cfg.Timing.VolumeDowntime < volume.TickerDuration {
 		return nil, fmt.Errorf("the volume-downtime cannot be lower than %s", volume.TickerDuration)
 	}
 

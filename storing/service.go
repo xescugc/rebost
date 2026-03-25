@@ -41,6 +41,10 @@ type Service interface {
 	// have enough replicas on other nodes, then purging local copies and leaving
 	// the cluster.
 	Drain(ctx context.Context) error
+
+	// GetReplicaInfo returns the VolumeIDs and replica count for a file.
+	// It searches local volumes and returns the first match.
+	GetReplicaInfo(ctx context.Context, key string) ([]string, int, error)
 }
 
 type service struct {
@@ -80,8 +84,8 @@ func New(cfg *config.Config, m Membership, logger *slog.Logger) (Service, error)
 	if s.cfg.Replica != -1 {
 		go s.loopVolumes()
 		go s.loopRemovedVolumeDIs()
+		go s.loopConsistencyCheck()
 	}
-	//go s.loopTLL()
 
 	return s, nil
 }
@@ -314,6 +318,20 @@ func (s *service) Drain(ctx context.Context) error {
 	s.logger.Info("drain: leaving cluster")
 	s.members.Leave()
 	return nil
+}
+
+func (s *service) GetReplicaInfo(ctx context.Context, key string) ([]string, int, error) {
+	for _, v := range s.members.LocalVolumes() {
+		_, ok, err := v.HasFile(ctx, key)
+		if err != nil || !ok {
+			continue
+		}
+		vids, replica, err := v.FileVolumeIDs(ctx, key)
+		if err == nil {
+			return vids, replica, nil
+		}
+	}
+	return nil, 0, errors.New("not found")
 }
 
 // getLocalVolumes returns all local volumes in preferred write order.
