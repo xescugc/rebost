@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Replica consistency check (`loopConsistencyCheck`): non-owner replicas periodically ask the file owner whether they are still listed in VolumeIDs and silently purge stale local copies if not. Configurable via `--timing.replica-consistency-interval` (default `1h`). [Issue#129](https://github.com/xescugc/rebost/issues/129)
+
+### Changed
+
+- Timing configuration flags grouped under `timing.*` prefix (`--timing.volume-downtime`, `--timing.scrub-interval`, `--timing.replica-check-interval`, `--timing.replica-consistency-interval`). Config struct now has a `Timing` sub-struct. [Issue#129](https://github.com/xescugc/rebost/issues/129)
+
+- Replica reconciliation on startup: clears stale replica queue and rebuilds from file state after a crash [Issue#129](https://github.com/xescugc/rebost/issues/129)
+- Background replica-check loop (`loopReplicaCheck`) that periodically detects and re-queues under-replicated files. Configurable via `--replica-check-interval` (default `1h`). [Issue#129](https://github.com/xescugc/rebost/issues/129)
 - Periodic scrubbing: background loop re-verifies file checksums on each volume and auto-repairs corrupt files by fetching a good copy from a remote replica. Configurable via `--scrub-interval` (default `24h`).
   [Issue#130](https://github.com/xescugc/rebost/issues/130)
 - Graceful node drain via SIGQUIT: replicates locally-held files to peers, purges local copies, and leaves the cluster before shutdown.

@@ -147,6 +147,22 @@ type Local interface {
 	// PurgeAllFiles removes all local files and their keys from this volume
 	// without creating deletion jobs for remote nodes (remote copies are preserved).
 	PurgeAllFiles(ctx context.Context) error
+
+	// ReconcileReplicas clears the stale replica queue and rebuilds it from
+	// the current file state. It enqueues a replica job for every locally-owned
+	// file (VolumeIDs[0] == l.ID()) that has fewer copies than required.
+	// Call this once at startup after a crash (non-reset path).
+	ReconcileReplicas(ctx context.Context) error
+
+	// AllFiles returns all file records stored on this volume.
+	AllFiles(ctx context.Context) ([]*file.File, error)
+
+	// FileVolumeIDs returns the VolumeIDs and replica count for the file with the given key.
+	FileVolumeIDs(ctx context.Context, key string) ([]string, int, error)
+
+	// PurgeFile removes the local file and index entries for key without
+	// creating deletion jobs for remote nodes (unlike DeleteFile).
+	PurgeFile(ctx context.Context, key string) error
 }
 
 type local struct {
@@ -162,6 +178,7 @@ type local struct {
 	startUnitOfWork uow.StartUnitOfWork
 
 	scrubInterval time.Duration
+	replicaCheckInterval time.Duration
 
 	logger         *slog.Logger
 	originalLogger *slog.Logger
@@ -174,7 +191,7 @@ type local struct {
 // it can return an error because when initialized it also creates the needed directories
 // if they are missing which are $root/file and $root/tmps and also the ID
 // To define a total size of the volume it has to be appended to the root like `/v1:1GB`
-func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUnitOfWork, scrubInterval time.Duration) (Local, error) {
+func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUnitOfWork, scrubInterval time.Duration, replicaCheckInterval time.Duration) (Local, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -203,6 +220,7 @@ func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUn
 		startUnitOfWork: suow,
 
 		scrubInterval: scrubInterval,
+		replicaCheckInterval: replicaCheckInterval,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -285,6 +303,8 @@ func New(root string, fileSystem afero.Fs, logger *slog.Logger, suow uow.StartUn
 
 	// We periodically verify file checksums and enqueue repair jobs
 	go l.loopScrub()
+	// We periodically check for under-replicated files and re-queue jobs
+	go l.loopReplicaCheck()
 
 	return l, nil
 }
@@ -1168,6 +1188,127 @@ func (l *local) PurgeAllFiles(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (l *local) ReconcileReplicas(ctx context.Context) error {
+	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		if err := uw.Replicas().DeleteAll(ctx); err != nil {
+			return err
+		}
+
+		files, err := uw.Files().All(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, f := range files {
+			if len(f.VolumeIDs) == 0 || f.VolumeIDs[0] != l.id {
+				continue
+			}
+			if len(f.VolumeIDs) >= f.Replica {
+				continue
+			}
+
+			rp := &replica.Replica{
+				ID:            uuid.NewV4().String(),
+				Key:           f.Keys[0],
+				Count:         f.Replica - len(f.VolumeIDs),
+				OriginalCount: f.Replica,
+				Signature:     f.Signature,
+				VolumeID:      l.id,
+				VolumeIDs:     f.VolumeIDs,
+			}
+			if err := uw.Replicas().Create(ctx, rp); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (l *local) AllFiles(ctx context.Context) ([]*file.File, error) {
+	var files []*file.File
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		var err error
+		files, err = uw.Files().All(ctx)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
+func (l *local) FileVolumeIDs(ctx context.Context, key string) ([]string, int, error) {
+	var (
+		vids    []string
+		replica int
+	)
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		idk, err := uw.IDXKeys().FindByKey(ctx, key)
+		if err != nil {
+			return err
+		}
+		f, err := uw.Files().FindBySignature(ctx, idk.Value)
+		if err != nil {
+			return err
+		}
+		vids = append([]string(nil), f.VolumeIDs...)
+		replica = f.Replica
+		return nil
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return vids, replica, nil
+}
+
+func (l *local) PurgeFile(ctx context.Context, key string) error {
+	var f *file.File
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		idk, err := uw.IDXKeys().FindByKey(ctx, key)
+		if err != nil {
+			return err
+		}
+		f, err = uw.Files().FindBySignature(ctx, idk.Value)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+		for _, k := range f.Keys {
+			if err := uw.IDXKeys().DeleteByKey(ctx, k); err != nil {
+				return err
+			}
+		}
+		if f.TTL != noTTL {
+			dbidxttl, err := uw.IDXTTLs().Find(ctx, f.ExpiresAt())
+			if err != nil && err.Error() != "not found" {
+				return err
+			}
+			if err == nil {
+				newSigs := make([]string, 0, len(dbidxttl.Signatures))
+				for _, s := range dbidxttl.Signatures {
+					if s != f.Signature {
+						newSigs = append(newSigs, s)
+					}
+				}
+				if len(newSigs) == 0 {
+					if err := uw.IDXTTLs().Delete(ctx, f.ExpiresAt()); err != nil {
+						return err
+					}
+				} else {
+					dbidxttl.Signatures = newSigs
+					if err := uw.IDXTTLs().CreateOrReplace(ctx, dbidxttl); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		return l.purgeFile(ctx, f, uw)
+	})
 }
 
 func (l *local) createID(idPath string) (string, error) {

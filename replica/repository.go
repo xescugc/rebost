@@ -20,4 +20,7 @@ type Repository interface {
 
 	// HasAny returns true if there is at least one replica in the queue
 	HasAny(ctx context.Context) (bool, error)
+
+	// HasKey returns true if there is already a pending replica job for the given file key.
+	HasKey(ctx context.Context, key string) (bool, error)
 }

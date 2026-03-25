@@ -66,3 +66,17 @@ func (r *replicaRepository) HasAny(ctx context.Context) (bool, error) {
 	k, _ := r.bucket.Cursor().First()
 	return k != nil, nil
 }
+
+func (r *replicaRepository) HasKey(ctx context.Context, key string) (bool, error) {
+	c := r.bucket.Cursor()
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		var p replica.Replica
+		if err := json.Unmarshal(v, &p); err != nil {
+			return false, err
+		}
+		if p.Key == key {
+			return true, nil
+		}
+	}
+	return false, nil
+}

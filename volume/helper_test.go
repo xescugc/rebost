@@ -70,7 +70,7 @@ func newManageVolume(t *testing.T, root string) manageVolume {
 	sr.EXPECT().Find(gomock.Any()).Return(&state.State{}, nil)
 	sr.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	v, err := volume.New(root, fs, nil, uowFn, 0)
+	v, err := volume.New(root, fs, nil, uowFn, 0, 0)
 	require.NoError(t, err)
 
 	return manageVolume{

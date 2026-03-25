@@ -167,18 +167,19 @@ func (s *service) loopRemovedVolumeDIs() {
 				time.Sleep(time.Second)
 				break
 			}
-
-			for _, vid := range rvids {
-				for _, lv := range s.members.LocalVolumes() {
-					err := lv.SynchronizeReplicas(s.ctx, vid)
-					if err != nil {
-						s.logger.Error(err.Error())
-						continue
-					}
-				}
-			}
+			s.processRemovedVolumeIDs(rvids)
 		}
 	}
 end:
 	return
+}
+
+func (s *service) processRemovedVolumeIDs(rvids []string) {
+	for _, vid := range rvids {
+		for _, lv := range s.members.LocalVolumes() {
+			if err := lv.SynchronizeReplicas(s.ctx, vid); err != nil {
+				s.logger.Error(err.Error())
+			}
+		}
+	}
 }

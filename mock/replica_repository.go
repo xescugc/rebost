@@ -106,3 +106,18 @@ func (mr *ReplicaRepositoryMockRecorder) HasAny(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasAny", reflect.TypeOf((*ReplicaRepository)(nil).HasAny), arg0)
 }
+
+// HasKey mocks base method.
+func (m *ReplicaRepository) HasKey(arg0 context.Context, arg1 string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasKey", arg0, arg1)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HasKey indicates an expected call of HasKey.
+func (mr *ReplicaRepositoryMockRecorder) HasKey(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasKey", reflect.TypeOf((*ReplicaRepository)(nil).HasKey), arg0, arg1)
+}

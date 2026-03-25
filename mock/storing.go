@@ -126,6 +126,22 @@ func (mr *StoringMockRecorder) GetFile(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*Storing)(nil).GetFile), arg0, arg1)
 }
 
+// GetReplicaInfo mocks base method.
+func (m *Storing) GetReplicaInfo(arg0 context.Context, arg1 string) ([]string, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReplicaInfo", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetReplicaInfo indicates an expected call of GetReplicaInfo.
+func (mr *StoringMockRecorder) GetReplicaInfo(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReplicaInfo", reflect.TypeOf((*Storing)(nil).GetReplicaInfo), arg0, arg1)
+}
+
 // HasFile mocks base method.
 func (m *Storing) HasFile(arg0 context.Context, arg1 string) (string, bool, error) {
 	m.ctrl.T.Helper()

@@ -45,7 +45,7 @@ func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config
 
 	// We set it outside of the New because we want to be fast for testing
 	// and it has a validation on the New to not allow it
-	cfg.VolumeDowntime = time.Second
+	cfg.Timing.VolumeDowntime = time.Second
 
 	if cfgFn != nil {
 		cfgFn(cfg)
@@ -74,7 +74,7 @@ func newNode(t *testing.T, name string, remote string, cfgFn func(*config.Config
 
 	suow = fs.UOWWithFs(osfs, suow)
 
-	v, err := volume.New(tmpDir, osfs, logger, suow, 0)
+	v, err := volume.New(tmpDir, osfs, logger, suow, 0, 0)
 	require.NoError(t, err)
 
 	m, err := membership.New(cfg, []volume.Local{v}, cfg.Remote, logger)

@@ -214,7 +214,7 @@ func (m *Membership) RemovedVolumeIDs() []string {
 
 	rvids := make([]string, 0, len(m.removedVolumeIDs))
 	for vid, t := range m.removedVolumeIDs {
-		if t.Add(m.cfg.VolumeDowntime).Before(time.Now()) {
+		if t.Add(m.cfg.Timing.VolumeDowntime).Before(time.Now()) {
 			rvids = append(rvids, vid)
 			delete(m.removedVolumeIDs, vid)
 		}

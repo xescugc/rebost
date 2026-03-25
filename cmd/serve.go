@@ -82,16 +82,20 @@ var (
 					return fmt.Errorf("error getting the state of Volume: %s", err)
 				}
 
-				v, err := volume.New(vp, osfs, logger, suow, cfg.ScrubInterval)
+				v, err := volume.New(vp, osfs, logger, suow, cfg.Timing.ScrubInterval, cfg.Timing.ReplicaCheckInterval)
 				if err != nil {
 					return fmt.Errorf("error creating Volume: %s", err)
 				}
 
-				if st.IsInDowntimeRange(cfg.VolumeDowntime) {
+				if st.IsInDowntimeRange(cfg.Timing.VolumeDowntime) {
 					logger.Info(fmt.Sprintf("Resetting the volume due to downtime: %q", vp))
 					err = v.Reset(ctx)
 					if err != nil {
 						return fmt.Errorf("error resetting the Volume due to downtime: %s", err)
+					}
+				} else {
+					if err := v.ReconcileReplicas(ctx); err != nil {
+						return fmt.Errorf("error reconciling replicas: %s", err)
 					}
 				}
 
@@ -234,11 +238,17 @@ func init() {
 	serveCmd.PersistentFlags().Int("replica", config.DefaultReplica, "The default number of replicas used if none specified on the requests")
 	viper.BindPFlag("replica", serveCmd.PersistentFlags().Lookup("replica"))
 
-	serveCmd.PersistentFlags().Duration("volume-downtime", config.DefaultVolumeDowntime, fmt.Sprintf("The time a volume can be down before start replicating and also the time the node can be restarted before it's old and all the data would be cleaned. The value cannot be lower or equal to %s", volume.TickerDuration))
-	viper.BindPFlag("volume-downtime", serveCmd.PersistentFlags().Lookup("volume-downtime"))
+	serveCmd.PersistentFlags().Duration("timing.volume-downtime", config.DefaultVolumeDowntime, fmt.Sprintf("The time a volume can be down before start replicating and also the time the node can be restarted before it's old and all the data would be cleaned. The value cannot be lower or equal to %s", volume.TickerDuration))
+	viper.BindPFlag("timing.volume-downtime", serveCmd.PersistentFlags().Lookup("timing.volume-downtime"))
 
-	serveCmd.PersistentFlags().Duration("scrub-interval", config.DefaultScrubInterval, "How often each volume re-verifies file checksums and auto-repairs corrupt copies from replicas")
-	viper.BindPFlag("scrub-interval", serveCmd.PersistentFlags().Lookup("scrub-interval"))
+	serveCmd.PersistentFlags().Duration("timing.scrub-interval", config.DefaultScrubInterval, "How often each volume re-verifies file checksums and auto-repairs corrupt copies from replicas")
+	viper.BindPFlag("timing.scrub-interval", serveCmd.PersistentFlags().Lookup("timing.scrub-interval"))
+
+	serveCmd.PersistentFlags().Duration("timing.replica-check-interval", config.DefaultReplicaCheckInterval, "How often each volume checks for under-replicated files and re-queues replication jobs")
+	viper.BindPFlag("timing.replica-check-interval", serveCmd.PersistentFlags().Lookup("timing.replica-check-interval"))
+
+	serveCmd.PersistentFlags().Duration("timing.replica-consistency-interval", config.DefaultReplicaConsistencyInterval, "How often non-owner replicas verify they are still expected by the file owner and purge stale local copies")
+	viper.BindPFlag("timing.replica-consistency-interval", serveCmd.PersistentFlags().Lookup("timing.replica-consistency-interval"))
 
 	serveCmd.PersistentFlags().Int("memberlist.port", 0, "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist.port", serveCmd.PersistentFlags().Lookup("memberlist.port"))

@@ -39,7 +39,7 @@ func newScrubTestVolume(t *testing.T) (*local, func()) {
 	osfs := afero.NewOsFs()
 	suow := fs.UOWWithFs(osfs, boltUow)
 
-	v, err := New(tmpDir, osfs, slog.New(slog.NewTextHandler(io.Discard, nil)), suow, time.Hour)
+	v, err := New(tmpDir, osfs, slog.New(slog.NewTextHandler(io.Discard, nil)), suow, time.Hour, 0)
 	require.NoError(t, err)
 
 	lv := v.(*local)

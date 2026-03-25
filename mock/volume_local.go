@@ -12,6 +12,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	deletion "github.com/xescugc/rebost/deletion"
+	file "github.com/xescugc/rebost/file"
 	replica "github.com/xescugc/rebost/replica"
 	scrub "github.com/xescugc/rebost/scrub"
 	state "github.com/xescugc/rebost/state"
@@ -39,6 +40,21 @@ func NewVolumeLocal(ctrl *gomock.Controller) *VolumeLocal {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *VolumeLocal) EXPECT() *VolumeLocalMockRecorder {
 	return m.recorder
+}
+
+// AllFiles mocks base method.
+func (m *VolumeLocal) AllFiles(arg0 context.Context) ([]*file.File, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllFiles", arg0)
+	ret0, _ := ret[0].([]*file.File)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AllFiles indicates an expected call of AllFiles.
+func (mr *VolumeLocalMockRecorder) AllFiles(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllFiles", reflect.TypeOf((*VolumeLocal)(nil).AllFiles), arg0)
 }
 
 // Close mocks base method.
@@ -123,6 +139,22 @@ func (m *VolumeLocal) DeleteScrub(arg0 context.Context, arg1 *scrub.Scrub) error
 func (mr *VolumeLocalMockRecorder) DeleteScrub(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteScrub", reflect.TypeOf((*VolumeLocal)(nil).DeleteScrub), arg0, arg1)
+}
+
+// FileVolumeIDs mocks base method.
+func (m *VolumeLocal) FileVolumeIDs(arg0 context.Context, arg1 string) ([]string, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FileVolumeIDs", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// FileVolumeIDs indicates an expected call of FileVolumeIDs.
+func (mr *VolumeLocalMockRecorder) FileVolumeIDs(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FileVolumeIDs", reflect.TypeOf((*VolumeLocal)(nil).FileVolumeIDs), arg0, arg1)
 }
 
 // GetFile mocks base method.
@@ -286,6 +318,34 @@ func (m *VolumeLocal) PurgeAllFiles(arg0 context.Context) error {
 func (mr *VolumeLocalMockRecorder) PurgeAllFiles(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeAllFiles", reflect.TypeOf((*VolumeLocal)(nil).PurgeAllFiles), arg0)
+}
+
+// PurgeFile mocks base method.
+func (m *VolumeLocal) PurgeFile(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PurgeFile", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PurgeFile indicates an expected call of PurgeFile.
+func (mr *VolumeLocalMockRecorder) PurgeFile(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeFile", reflect.TypeOf((*VolumeLocal)(nil).PurgeFile), arg0, arg1)
+}
+
+// ReconcileReplicas mocks base method.
+func (m *VolumeLocal) ReconcileReplicas(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReconcileReplicas", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReconcileReplicas indicates an expected call of ReconcileReplicas.
+func (mr *VolumeLocalMockRecorder) ReconcileReplicas(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileReplicas", reflect.TypeOf((*VolumeLocal)(nil).ReconcileReplicas), arg0)
 }
 
 // Reset mocks base method.
