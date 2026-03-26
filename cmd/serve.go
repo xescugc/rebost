@@ -273,5 +273,8 @@ func init() {
 	serveCmd.PersistentFlags().String("s3.auth_mode", "", `S3 auth mode: "all" (default) requires auth for all requests; "write" requires auth only for write operations (PUT, DELETE, PATCH, POST)`)
 	viper.BindPFlag("s3.auth_mode", serveCmd.PersistentFlags().Lookup("s3.auth_mode"))
 
+	serveCmd.PersistentFlags().StringToString("tag", map[string]string{}, "Arbitrary key=value label for this node (repeatable: --tag rack=us-east-1 --tag env=prod)")
+	viper.BindPFlag("tags", serveCmd.PersistentFlags().Lookup("tag"))
+
 	RootCmd.AddCommand(serveCmd)
 }

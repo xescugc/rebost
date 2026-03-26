@@ -93,6 +93,10 @@ type Config struct {
 	Dashboard Dashboard
 
 	S3 S3
+
+	// Tags is a map of arbitrary key=value labels for this node.
+	// Set at startup via --tag flags; propagated via gossip.
+	Tags map[string]string `mapstructure:"tags"`
 }
 
 // Memberlist is the set  of configuration required for the memberlist,
