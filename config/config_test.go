@@ -22,6 +22,13 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, config.DefaultCacheSize, cfg.Cache.Size)
 		assert.Equal(t, config.DefaultVolumeDowntime, cfg.Timing.VolumeDowntime)
 	})
+	t.Run("Tags", func(t *testing.T) {
+		v := viper.New()
+		v.Set("tags", map[string]string{"rack": "us-east-1", "env": "prod"})
+		cfg, err := config.New(v)
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"rack": "us-east-1", "env": "prod"}, cfg.Tags)
+	})
 	t.Run("InvalidVolumeDowntime", func(t *testing.T) {
 		v := viper.New()
 		v.Set("timing.volume-downtime", 20*time.Second)

@@ -2,6 +2,7 @@ package membership_test
 
 import (
 	"context"
+	"net"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -188,6 +189,67 @@ func TestDrainingFiltering(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return len(m.Nodes()) == 1
 	}, 5*time.Second, 100*time.Millisecond, "expected m2 to reappear in Nodes() after draining cleared")
+}
+
+func TestTagsGossip(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	v := mock.NewVolumeLocal(ctrl)
+	v.EXPECT().ID().Return("local-id").AnyTimes()
+	v.EXPECT().GetState(gomock.Any()).Return(&state.State{}, nil).AnyTimes()
+
+	v2 := mock.NewVolumeLocal(ctrl)
+	v2.EXPECT().ID().Return("remote-id").AnyTimes()
+	v2.EXPECT().GetState(gomock.Any()).Return(&state.State{}, nil).AnyTimes()
+
+	// Allocate the HTTP listener first so we know the port before creating membership.
+	// The gossip metadata carries cfg.Port so the observer can build the correct client URL.
+	// Listen on all interfaces because memberlist reports the node's LAN address, not 127.0.0.1.
+	l2, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+	httpPort2 := l2.Addr().(*net.TCPAddr).Port
+
+	p2, err := util.FreePort()
+	require.NoError(t, err)
+	cfg2 := &config.Config{
+		Name:       "tagged-node",
+		Port:       httpPort2,
+		Replica:    -1,
+		Tags:       map[string]string{"rack": "us-east-1"},
+		Memberlist: config.Memberlist{Port: p2},
+		Cache:      config.Cache{Size: config.DefaultCacheSize},
+	}
+	m2, err := membership.New(cfg2, []volume.Local{v2}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	m2.SetStatus(membership.StatusRunning)
+
+	s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	server2 := httptest.NewUnstartedServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }))
+	server2.Listener = l2
+	server2.Start()
+	defer server2.Close()
+
+	p3, err := util.FreePort()
+	require.NoError(t, err)
+	cfg := &config.Config{
+		Name:       "observer",
+		Memberlist: config.Memberlist{Port: p3},
+		Cache:      config.Cache{Size: config.DefaultCacheSize},
+	}
+	m, err := membership.New(cfg, []volume.Local{v}, server2.URL, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	defer m.Leave()
+
+	require.Eventually(t, func() bool {
+		return len(m.Nodes()) == 1
+	}, 5*time.Second, 100*time.Millisecond, "tagged-node must appear in Nodes()")
+
+	peers := m.Nodes()
+	peerCfg, err := peers[0].Config(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"rack": "us-east-1"}, peerCfg.Tags)
 }
 
 func TestVolumes(t *testing.T) {

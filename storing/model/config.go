@@ -7,13 +7,15 @@ type Config struct {
 	Port    int      `json:"port"`
 	Volumes []string `json:"volumes"`
 	Remote  string   `json:"remote"`
-	Replica int      `json:"int"`
+	Replica int      `json:"replica"`
 
 	Name string `json:"name"`
 
 	Memberlist ConfigMemberlist `json:"memberlist"`
 
 	Dashboard ConfigDashboard `json:"dashboard"`
+
+	Tags map[string]string `json:"tags"`
 }
 
 // ConfigMemberlist is the set  of configuration required for the memberlist,
@@ -42,6 +44,7 @@ func ToConfig(c Config) *config.Config {
 			Port:    c.Dashboard.Port,
 			Enabled: c.Dashboard.Enabled,
 		},
+		Tags: c.Tags,
 	}
 }
 
@@ -60,5 +63,6 @@ func ConfigToModel(c *config.Config) Config {
 			Port:    c.Dashboard.Port,
 			Enabled: c.Dashboard.Enabled,
 		},
+		Tags: c.Tags,
 	}
 }

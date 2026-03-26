@@ -11,4 +11,8 @@ type Metadata struct {
 
 	// Status is the lifecycle state of the node
 	Status Status `json:"status"`
+
+	// Tags is a map of arbitrary key=value labels for this node,
+	// set at startup and propagated via gossip.
+	Tags map[string]string `json:"tags"`
 }

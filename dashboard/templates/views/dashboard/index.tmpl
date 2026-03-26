@@ -18,6 +18,13 @@
                 {{ .Config.Name }}
                 <span class="badge bg-{{ statusColor .State.Status }}">{{ .State.Status }}</span>
               </h5>
+              {{- if .Config.Tags }}
+              <p class="mb-1">
+                {{- range $k, $v := .Config.Tags }}
+                <span class="badge bg-secondary">{{ $k }}={{ $v }}</span>
+                {{- end }}
+              </p>
+              {{- end }}
               {{ range $id, $state := .State.Volumes }}
                 <p class="card-text">Used {{ humanizeUsedSize $state }} out of {{ humanizeTotalSize $state }}</p>
                 {{ $percentage := percentageStateUsedSize $state }}
@@ -41,6 +48,13 @@
                   <p><strong>Memberlist Bind Port:</strong> {{ .Config.Memberlist.Port }}</p>
                   <p><strong>Dashboard Enabled:</strong> {{ .Config.Dashboard.Enabled }}</p>
                   <p><strong>Dashboard Port:</strong> {{ .Config.Dashboard.Port }}</p>
+                  {{- if .Config.Tags }}
+                  <p><strong>Tags:</strong>
+                    {{- range $k, $v := .Config.Tags }}
+                    <span class="badge bg-secondary">{{ $k }}={{ $v }}</span>
+                    {{- end }}
+                  </p>
+                  {{- end }}
                 </div>
               </div>
             </div>

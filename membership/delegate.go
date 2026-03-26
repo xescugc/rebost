@@ -16,6 +16,7 @@ func (d *delegate) NodeMeta(limit int) []byte {
 		Port:    d.members.cfg.Port,
 		Volumes: make(map[string]struct{}),
 		Status:  d.members.status.Load().(Status),
+		Tags:    d.members.cfg.Tags,
 	}
 	for _, v := range d.members.localVolumes {
 		m.Volumes[v.ID()] = struct{}{}
