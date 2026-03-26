@@ -67,3 +67,4 @@ data/
 rebost
 rebost.db
 .claude
+.worktrees/

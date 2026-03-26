@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -164,9 +165,12 @@ func (m *Membership) Nodes() (res []*client.Client) {
 	return
 }
 
-// NodesWithoutVolumeIDs return all the nodes of the Cluster
-func (m *Membership) NodesWithoutVolumeIDs(vids []string) (res []*client.Client) {
+// NodesWithoutVolumeIDs returns all running nodes that do not hold any of the
+// given volume IDs, sorted by descending total free space so the best-capacity
+// node is tried first during replication.
+func (m *Membership) NodesWithoutVolumeIDs(vids []string) []*client.Client {
 	m.nodesLock.RLock()
+	var candidates []node
 	for _, r := range m.nodes {
 		if r.meta.Status != StatusRunning {
 			continue
@@ -179,12 +183,30 @@ func (m *Membership) NodesWithoutVolumeIDs(vids []string) (res []*client.Client)
 			}
 		}
 		if !found {
-			res = append(res, r.conn)
+			candidates = append(candidates, r)
 		}
 	}
 	m.nodesLock.RUnlock()
 
-	return
+	sort.Slice(candidates, func(i, j int) bool {
+		return nodeFreeSpace(candidates[i]) > nodeFreeSpace(candidates[j])
+	})
+
+	res := make([]*client.Client, len(candidates))
+	for i, c := range candidates {
+		res[i] = c.conn
+	}
+	return res
+}
+
+// nodeFreeSpace returns the total free bytes across all of n's gossip-reported volumes.
+// Nodes with no state yet return 0 and sort last, which is the safe conservative choice.
+func nodeFreeSpace(n node) int {
+	total := 0
+	for _, vs := range n.state.Volumes {
+		total += vs.TotalSize() - vs.UsedSize()
+	}
+	return total
 }
 
 // NodesWithCapacity returns all peer nodes that have at least one volume
