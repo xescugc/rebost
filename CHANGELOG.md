@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Sort replication candidate nodes by descending free space so replicas prefer nodes with the most headroom [Issue#15](https://github.com/xescugc/rebost/issues/15)
+
 - Timing configuration flags grouped under `timing.*` prefix (`--timing.volume-downtime`, `--timing.scrub-interval`, `--timing.replica-check-interval`, `--timing.replica-consistency-interval`). Config struct now has a `Timing` sub-struct. [Issue#129](https://github.com/xescugc/rebost/issues/129)
 
 - Replica reconciliation on startup: clears stale replica queue and rebuilds from file state after a crash [Issue#129](https://github.com/xescugc/rebost/issues/129)
