@@ -324,6 +324,41 @@ func TestReplica(t *testing.T) {
 	})
 }
 
+// TestHeadEndpointAsymmetry verifies the core invariant of issue #183:
+// for a file stored only on node1, node2 must return different results from
+// the two HEAD endpoints:
+//   - HEAD /{bucket}/{key}       (StatFile, cluster-wide)  → found
+//   - HEAD /local/{bucket}/{key} (HasFile, local-only)     → not found
+func TestHeadEndpointAsymmetry(t *testing.T) {
+	var (
+		key        = "testbucket/remoteonly"
+		txtcontent = []byte("asymmetry test content")
+		ctx        = context.Background()
+	)
+
+	cl1, u1, _, ca1 := newClient(t, "n1", firstNode)
+	defer ca1()
+	cl2, _, _, ca2 := newClient(t, "n2", u1)
+	defer ca2()
+
+	// Let the cluster stabilise
+	time.Sleep(time.Second)
+
+	// Upload to node1 with no replica — file stays local to node1 only
+	err := cl1.CreateFile(ctx, key, io.NopCloser(bytes.NewBuffer(txtcontent)), noReplica, noTTL, noCA)
+	require.NoError(t, err)
+
+	// From node2: cluster-wide HEAD must find the file (on node1)
+	stat, err := cl2.StatFile(ctx, key)
+	require.NoError(t, err)
+	assert.NotNil(t, stat, "StatFile should find the file cluster-wide")
+
+	// From node2: local-only HEAD must NOT find the file
+	_, ok, err := cl2.HasFile(ctx, key)
+	require.NoError(t, err)
+	assert.False(t, ok, "HasFile must return false — file is not local to node2")
+}
+
 func TestDrain(t *testing.T) {
 	var (
 		keytxt     = "testbucket/keytxt"

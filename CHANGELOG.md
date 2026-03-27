@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- New internal `HEAD /local/{key}` endpoint for local-only file presence checks, fixing a replication regression where `processNextReplica` and `processNextScrub` incorrectly believed every peer already had a file because `HEAD /{bucket}/{key}` (now `StatFile`) searches the whole cluster. `client.HasFile` now targets `/local/{key}` so replication and scrub correctly detect missing replicas. [Issue#183](https://github.com/xescugc/rebost/issues/183)
 - Health/readiness HTTP endpoints: `GET /live` and `GET /health` (always 200), `GET /ready` (200 when running and all volumes healthy, 503 otherwise). All three bypass the readiness gate so they are reachable during startup and drain. [Issue#155](https://github.com/xescugc/rebost/issues/155)
 - Node lifecycle status (`starting` | `running` | `draining`): visible in the dashboard as a badge per node and propagated via gossip so peers skip routing to non-running nodes. [Issue#194](https://github.com/xescugc/rebost/issues/194)
 - Node tags: arbitrary `--tag key=value` labels (repeatable) visible in the dashboard as badges and broadcast via gossip for future placement constraints. [Issue#137](https://github.com/xescugc/rebost/issues/137)
@@ -31,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Storage capacity fallback: when a volume is full, `CreateFile` automatically
   falls back to another local volume, then a remote cluster node.
   [Issue#36](https://github.com/xescugc/rebost/issues/36)
+
+### Fixed
+
+- HEAD handler now correctly finds files on remote nodes, matching GET behaviour; eliminates redundant double-lookup [Issue#183](https://github.com/xescugc/rebost/issues/183)
 
 ## Changed
 

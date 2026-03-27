@@ -139,8 +139,9 @@ func (cl *Client) StatFile(ctx context.Context, key string) (*volume.FileStat, e
 		return nil, err
 	}
 	stat := &volume.FileStat{
-		Size: hresp.ContentLength,
-		ETag: hresp.Header.Get("ETag"),
+		Size:     hresp.ContentLength,
+		ETag:     hresp.Header.Get("ETag"),
+		VolumeID: hresp.Header.Get(model.HasFileVolumeIDHeader),
 	}
 	if lm := hresp.Header.Get("Last-Modified"); lm != "" {
 		stat.ModTime, _ = http.ParseTime(lm)
@@ -148,10 +149,10 @@ func (cl *Client) StatFile(ctx context.Context, key string) (*volume.FileStat, e
 	return stat, nil
 }
 
-// HasFile returns if the file exists
+// HasFile returns if the file exists on this specific node (local check only).
 func (cl *Client) HasFile(ctx context.Context, key string) (string, bool, error) {
 	c := cl.getClient()
-	u := fmt.Sprintf("%s/%s", c.url, key)
+	u := fmt.Sprintf("%s/local/%s", c.url, key)
 	hresp, err := c.request(ctx, http.MethodHead, u, nil, nil)
 	if err != nil {
 		if hresp != nil {

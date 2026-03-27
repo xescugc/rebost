@@ -168,11 +168,16 @@ func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep
 }
 
 func (s *service) StatFile(ctx context.Context, k string) (*volume.FileStat, error) {
-	_, v, err := s.getVolume(ctx, k)
+	vid, v, err := s.getVolume(ctx, k)
 	if err != nil {
 		return nil, err
 	}
-	return v.StatFile(ctx, k)
+	stat, err := v.StatFile(ctx, k)
+	if err != nil {
+		return nil, err
+	}
+	stat.VolumeID = vid
+	return stat, nil
 }
 
 func (s *service) GetFile(ctx context.Context, k string) (io.ReadCloser, int64, error) {

@@ -265,7 +265,7 @@ func TestGetFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
-		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len("expectedcontent"))}, nil).Times(2)
+		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len("expectedcontent"))}, nil)
 		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), int64(-1), nil)
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -298,7 +298,7 @@ func TestGetFile(t *testing.T) {
 		m.EXPECT().Nodes().Return([]*client.Client{c})
 
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
-		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len("expectedcontent"))}, nil).Times(2)
+		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len("expectedcontent"))}, nil)
 		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), int64(-1), nil)
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -357,7 +357,6 @@ func TestDeleteFile(t *testing.T) {
 
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
-		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -387,7 +386,6 @@ func TestDeleteFile(t *testing.T) {
 		m.EXPECT().Nodes().Return([]*client.Client{c})
 
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
-		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
