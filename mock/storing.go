@@ -158,6 +158,20 @@ func (mr *StoringMockRecorder) HasFile(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFile", reflect.TypeOf((*Storing)(nil).HasFile), arg0, arg1)
 }
 
+// Ready mocks base method.
+func (m *Storing) Ready(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ready", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ready indicates an expected call of Ready.
+func (mr *StoringMockRecorder) Ready(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*Storing)(nil).Ready), arg0)
+}
+
 // StatFile mocks base method.
 func (m *Storing) StatFile(arg0 context.Context, arg1 string) (*volume.FileStat, error) {
 	m.ctrl.T.Helper()
