@@ -53,6 +53,7 @@ func MakeHandler(s Service, cfg *config.Config, ready func() bool) http.Handler 
 	r.Handle("/replicas/{key:.*}", updateFileReplicaHandler(s)).Methods("PATCH")
 	r.Handle("/replicas/{key:.*}", getReplicaInfoHandler(s)).Methods("GET")
 	r.Handle("/config", getConfigHandler(s)).Methods("GET")
+	r.Handle("/local/{key:.*}", hasFileLocalHandler(s)).Methods("HEAD")
 
 	// S3 object routes: /{bucket}/{key}
 	r.Handle("/{bucket}/{key:.*}", putObjectHandler(s)).Methods("PUT")
@@ -191,22 +192,12 @@ func headObjectHandler(s Service) http.HandlerFunc {
 		vars := mux.Vars(r)
 		key := vars["bucket"] + "/" + vars["key"]
 
-		vid, ok, err := s.HasFile(r.Context(), key)
+		stat, err := s.StatFile(r.Context(), key)
 		if err != nil {
-			encodeS3Error(w, "InternalError", err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if !ok {
-			w.Header().Add(model.HasFileVolumeIDHeader, vid)
 			encodeS3Error(w, "NoSuchKey", "The specified key does not exist.", http.StatusNotFound)
 			return
 		}
-		stat, err := s.StatFile(r.Context(), key)
-		if err != nil {
-			encodeS3Error(w, "NoSuchKey", err.Error(), http.StatusNotFound)
-			return
-		}
-		w.Header().Add(model.HasFileVolumeIDHeader, vid)
+		w.Header().Add(model.HasFileVolumeIDHeader, stat.VolumeID)
 		if stat.Size >= 0 {
 			w.Header().Set("Content-Length", strconv.FormatInt(stat.Size, 10))
 		}
@@ -215,6 +206,25 @@ func headObjectHandler(s Service) http.HandlerFunc {
 		}
 		if !stat.ModTime.IsZero() {
 			w.Header().Set("Last-Modified", stat.ModTime.UTC().Format(http.TimeFormat))
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func hasFileLocalHandler(s Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		key := vars["key"]
+
+		vid, ok, err := s.HasFile(r.Context(), key)
+		if err != nil {
+			encodeS3Error(w, "InternalError", err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Add(model.HasFileVolumeIDHeader, vid)
+		if !ok {
+			encodeS3Error(w, "NoSuchKey", "The specified key does not exist.", http.StatusNotFound)
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 	}

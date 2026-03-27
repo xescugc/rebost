@@ -42,9 +42,10 @@ const (
 
 // FileStat holds metadata about a stored file, used for S3-compatible HEAD responses.
 type FileStat struct {
-	Size    int64
-	ETag    string
-	ModTime time.Time
+	Size     int64
+	ETag     string
+	ModTime  time.Time
+	VolumeID string
 }
 
 //go:generate go tool mockgen -destination=../mock/volume.go -mock_names=Volume=Volume -package=mock github.com/xescugc/rebost/volume Volume
@@ -589,9 +590,10 @@ func (l *local) StatFile(ctx context.Context, k string) (*FileStat, error) {
 			return err
 		}
 		stat = FileStat{
-			Size:    int64(f.Size),
-			ETag:    f.Signature,
-			ModTime: f.CreatedAt,
+			Size:     int64(f.Size),
+			ETag:     f.Signature,
+			ModTime:  f.CreatedAt,
+			VolumeID: l.id,
 		}
 		return nil
 	})

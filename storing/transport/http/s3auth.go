@@ -26,7 +26,7 @@ func S3AuthMiddleware(accessKey, secretKey, authMode string) mux.MiddlewareFunc 
 			}
 
 			// Skip internal routes
-			if r.URL.Path == "/config" || strings.HasPrefix(r.URL.Path, "/replicas/") {
+			if r.URL.Path == "/config" || strings.HasPrefix(r.URL.Path, "/replicas/") || strings.HasPrefix(r.URL.Path, "/local/") {
 				next.ServeHTTP(w, r)
 				return
 			}

@@ -48,15 +48,12 @@ func TestMakeHandler(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, content, b)
 	}).Return(nil).AnyTimes()
-	st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len(content))}, nil).AnyTimes()
+	st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len(content)), VolumeID: vid}, nil).AnyTimes()
+	st.EXPECT().StatFile(gomock.Any(), "testbucket/otherFile").Return(nil, errors.New("not found")).AnyTimes()
+	st.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil).AnyTimes()
+	st.EXPECT().HasFile(gomock.Any(), "testbucket/otherFile").Return("", false, nil).AnyTimes()
 	st.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBuffer(content)), int64(-1), nil).AnyTimes()
 	st.EXPECT().DeleteFile(gomock.Any(), key).Return(nil).AnyTimes()
-	st.EXPECT().HasFile(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, k string) (string, bool, error) {
-		if k == key {
-			return vid, true, nil
-		}
-		return "", false, nil
-	}).AnyTimes()
 	st.EXPECT().Config(gomock.Any()).Return(&cfg, nil)
 	st.EXPECT().CreateReplica(gomock.Any(), "fileName", gomock.Any(), ttl, timeMatcher{ca}).Do(func(_ context.Context, _ string, r io.Reader, _ time.Duration, _ time.Time) {
 		b, err := io.ReadAll(r)
@@ -96,14 +93,26 @@ func TestMakeHandler(t *testing.T) {
 			EStatusCode: http.StatusNoContent,
 		},
 		{
-			Name:        "HasFile(true)",
+			Name:        "HeadObject(found)",
 			URL:         "/testbucket/fileName",
 			Method:      http.MethodHead,
 			EStatusCode: http.StatusOK,
 		},
 		{
-			Name:        "HasFile(false)",
+			Name:        "HeadObject(notfound)",
 			URL:         "/testbucket/otherFile",
+			Method:      http.MethodHead,
+			EStatusCode: http.StatusNotFound,
+		},
+		{
+			Name:        "HasFileLocal(found)",
+			URL:         "/local/testbucket/fileName",
+			Method:      http.MethodHead,
+			EStatusCode: http.StatusOK,
+		},
+		{
+			Name:        "HasFileLocal(notfound)",
+			URL:         "/local/testbucket/otherFile",
 			Method:      http.MethodHead,
 			EStatusCode: http.StatusNotFound,
 		},
@@ -266,6 +275,42 @@ func TestCreateReplicaMultipartPipeClosedOnBodyError(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("handler blocked: pipe writer not closed with error on NextPart failure")
 	}
+}
+
+func TestHeadEndpointAsymmetry(t *testing.T) {
+	// File exists somewhere in the cluster but NOT on this node.
+	// StatFile (cluster-wide) should find it; HasFile (local-only) should not.
+	ctrl := gomock.NewController(t)
+	st := mock.NewStoring(ctrl)
+	defer ctrl.Finish()
+
+	key := "testbucket/remoteonly"
+	vid := "remote-vid"
+	stat := &volume.FileStat{Size: 42, VolumeID: vid}
+
+	// StatFile finds the file (via cluster-wide search)
+	st.EXPECT().StatFile(gomock.Any(), key).Return(stat, nil)
+	// HasFile does NOT find it locally
+	st.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
+
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
+	server := httptest.NewServer(h)
+	defer server.Close()
+	client := server.Client()
+
+	// S3 HEAD: cluster-wide — should find the file
+	req, err := http.NewRequest(http.MethodHead, server.URL+"/testbucket/remoteonly", nil)
+	require.NoError(t, err)
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "HEAD /{bucket}/{key} must return 200 for cluster-wide match")
+
+	// Internal HEAD: local-only — must NOT find the file
+	req, err = http.NewRequest(http.MethodHead, server.URL+"/local/testbucket/remoteonly", nil)
+	require.NoError(t, err)
+	resp, err = client.Do(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode, "HEAD /local/{key} must return 404 when file is not local")
 }
 
 type timeMatcher struct {

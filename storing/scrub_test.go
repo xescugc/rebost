@@ -68,9 +68,8 @@ func TestProcessNextScrub(t *testing.T) {
 
 		v.EXPECT().NextScrub(gomock.Any()).Return(sc, nil)
 		m.EXPECT().GetNodeWithVolumeByID(remoteVID).Return(c, nil)
-		// HEAD /{key}: HasFile + StatFile
+		// HEAD /local/{key}: HasFile (local check on remote node)
 		remoteStore.EXPECT().HasFile(gomock.Any(), key).Return(remoteVID, true, nil)
-		remoteStore.EXPECT().StatFile(gomock.Any(), key).Return(stat, nil)
 		// GET /{key}: StatFile + GetFile
 		remoteStore.EXPECT().StatFile(gomock.Any(), key).Return(stat, nil)
 		remoteStore.EXPECT().GetFile(gomock.Any(), key).Return(
@@ -158,7 +157,7 @@ func TestProcessNextScrub(t *testing.T) {
 
 		v.EXPECT().NextScrub(gomock.Any()).Return(sc, nil)
 		m.EXPECT().GetNodeWithVolumeByID(remoteVID).Return(c, nil)
-		// HEAD /{key}: HasFile returns not-found (ok=false) → 404
+		// HEAD /local/{key}: HasFile returns false → remote does not have the file
 		remoteStore.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 		v.EXPECT().DeleteScrub(gomock.Any(), sc).Return(nil)
 

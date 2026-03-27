@@ -32,7 +32,6 @@ func TestNew(t *testing.T) {
 		defer ctrl.Finish()
 
 		st.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
-		st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
 		h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
 		server := httptest.NewServer(h)
@@ -58,9 +57,6 @@ func TestNew(t *testing.T) {
 		st1.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil).Times(2)
 		st2.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil).Times(2)
 		st3.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
-		st1.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil).Times(2)
-		st2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil).Times(2)
-		st3.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
 		h1 := httptransport.MakeHandler(st1, &config.Config{}, func() bool { return true })
 		h2 := httptransport.MakeHandler(st2, &config.Config{}, func() bool { return true })
@@ -236,7 +232,6 @@ func TestHasFile(t *testing.T) {
 		defer ctrl.Finish()
 
 		st.EXPECT().HasFile(gomock.Any(), key).Return(evid, true, nil)
-		st.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{}, nil)
 
 		h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
 		server := httptest.NewServer(h)
