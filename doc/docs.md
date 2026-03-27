@@ -15,7 +15,8 @@
 11. [TTL & Expiration](#ttl--expiration)
 12. [Volume Sizing](#volume-sizing)
 13. [Dashboard](#dashboard)
-14. [Known Limitations](#known-limitations)
+14. [Health & Readiness Endpoints](#health--readiness-endpoints)
+15. [Known Limitations](#known-limitations)
 
 ---
 
@@ -479,6 +480,36 @@ To run the dashboard on a different port:
 ```bash
 xescugc/rebost serve --volumes /data --dashboard.port 8080
 ```
+
+---
+
+## Health & Readiness Endpoints
+
+Three endpoints are always reachable regardless of node readiness state (they bypass the readiness gate used by the S3 API):
+
+| Path | Method | Description |
+|------|--------|-------------|
+| `/live` | GET | Liveness probe — always returns 200 while the process is running |
+| `/health` | GET | Alias for `/live` |
+| `/ready` | GET | Readiness probe — 200 when the node is running and all local volumes are healthy, 503 otherwise |
+
+### Response format
+
+Success (200):
+```json
+{"status": "ok"}
+```
+
+Failure (503):
+```json
+{"status": "not_ready", "reason": "<description>"}
+```
+
+Possible `reason` values:
+- `"node not running"` — node is starting up or draining
+- `"volume <id> unhealthy: <error>"` — a local volume failed its health check
+
+These endpoints are suitable for use as Kubernetes liveness/readiness probes or load-balancer health checks.
 
 ---
 

@@ -27,16 +27,25 @@ type Service interface {
 	Config(context.Context) (*config.Config, error)
 	CreateReplica(ctx context.Context, key string, reader io.ReadCloser, ttl time.Duration, ca time.Time) (vID string, err error)
 	GetReplicaInfo(ctx context.Context, key string) ([]string, int, error)
+	Ready(ctx context.Context) error
 }
 
 // MakeHandler returns an http.Handler that exposes an S3-compatible API backed
 // by the Service. Internal inter-node routes (/replicas/, /config) are
 // registered first so they are not shadowed by the S3 bucket/key patterns.
-// The ready function is called on every request; if it returns false the
-// handler responds with 503 Service Unavailable.
+// Health routes (/live, /health, /ready) are always reachable regardless of
+// readiness state.
 func MakeHandler(s Service, cfg *config.Config, ready func() bool) http.Handler {
-	r := mux.NewRouter()
+	top := mux.NewRouter()
 
+	// Health routes — always reachable, bypass readyMiddleware
+	top.Handle("/live", liveHandler()).Methods("GET")
+	top.Handle("/health", liveHandler()).Methods("GET")
+	top.Handle("/ready", readyCheckHandler(s, ready)).Methods("GET")
+
+	// Operational routes — gated by readiness + auth
+	r := top.NewRoute().Subrouter()
+	r.Use(readyMiddleware(ready))
 	r.Use(S3AuthMiddleware(cfg.S3.AccessKey, cfg.S3.SecretKey, cfg.S3.AuthMode))
 
 	// Internal inter-node routes (JSON, always pass auth)
@@ -57,21 +66,23 @@ func MakeHandler(s Service, cfg *config.Config, ready func() bool) http.Handler 
 	r.Handle("/{bucket}", createBucketHandler()).Methods("PUT")
 	r.Handle("/{bucket}", deleteBucketHandler()).Methods("DELETE")
 
-	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	top.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encodeS3Error(w, "NoSuchKey", "Path not found", http.StatusNotFound)
 	})
 
-	return readyMiddleware(ready, r)
+	return top
 }
 
-func readyMiddleware(ready func() bool, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !ready() {
-			http.Error(w, "node not ready", http.StatusServiceUnavailable)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+func readyMiddleware(ready func() bool) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !ready() {
+				http.Error(w, "node not ready", http.StatusServiceUnavailable)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func putObjectHandler(s Service) http.HandlerFunc {

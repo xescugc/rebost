@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Health/readiness HTTP endpoints: `GET /live` and `GET /health` (always 200), `GET /ready` (200 when running and all volumes healthy, 503 otherwise). All three bypass the readiness gate so they are reachable during startup and drain. [Issue#155](https://github.com/xescugc/rebost/issues/155)
 - Node lifecycle status (`starting` | `running` | `draining`): visible in the dashboard as a badge per node and propagated via gossip so peers skip routing to non-running nodes. [Issue#194](https://github.com/xescugc/rebost/issues/194)
 - Node tags: arbitrary `--tag key=value` labels (repeatable) visible in the dashboard as badges and broadcast via gossip for future placement constraints. [Issue#137](https://github.com/xescugc/rebost/issues/137)
 - Replica consistency check (`loopConsistencyCheck`): non-owner replicas periodically ask the file owner whether they are still listed in VolumeIDs and silently purge stale local copies if not. Configurable via `--timing.replica-consistency-interval` (default `1h`). [Issue#129](https://github.com/xescugc/rebost/issues/129)

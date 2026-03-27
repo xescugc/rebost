@@ -45,6 +45,10 @@ type Service interface {
 	// GetReplicaInfo returns the VolumeIDs and replica count for a file.
 	// It searches local volumes and returns the first match.
 	GetReplicaInfo(ctx context.Context, key string) ([]string, int, error)
+
+	// Ready checks whether all local volumes are accessible.
+	// Returns nil if all volumes respond to GetState without error.
+	Ready(ctx context.Context) error
 }
 
 type service struct {
