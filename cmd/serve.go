@@ -17,6 +17,7 @@ import (
 	"log/slog"
 
 	"github.com/gorilla/handlers"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -27,12 +28,16 @@ import (
 	dhttp "github.com/xescugc/rebost/dashboard/transport/http"
 	"github.com/xescugc/rebost/fs"
 	"github.com/xescugc/rebost/membership"
+	"github.com/xescugc/rebost/otelwrap"
 	"github.com/xescugc/rebost/state"
 	"github.com/xescugc/rebost/storing"
 	httptransport "github.com/xescugc/rebost/storing/transport/http"
 	"github.com/xescugc/rebost/uow"
 	"github.com/xescugc/rebost/volume"
 	bolt "go.etcd.io/bbolt"
+	"go.opentelemetry.io/otel"
+	otelprometheus "go.opentelemetry.io/otel/exporters/prometheus"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
 var (
@@ -52,6 +57,14 @@ var (
 				return errors.New("the 'name' is required")
 			}
 
+			promExporter, err := otelprometheus.New()
+			if err != nil {
+				return fmt.Errorf("init prometheus exporter: %w", err)
+			}
+			mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(promExporter))
+			otel.SetMeterProvider(mp)
+			defer mp.Shutdown(ctx)
+
 			osfs := afero.NewOsFs()
 
 			vs := make([]volume.Local, 0, len(cfg.Volumes))
@@ -66,6 +79,10 @@ var (
 					return fmt.Errorf("error creating BoltDB UoW: %s", err)
 				}
 				suow := fs.UOWWithFs(osfs, boltdbUow)
+				suow, err = otelwrap.UOWWithOTEL(suow)
+				if err != nil {
+					return fmt.Errorf("error creating OTEL UoW wrapper: %w", err)
+				}
 
 				var (
 					st *state.State
@@ -121,6 +138,7 @@ var (
 
 			mux := http.NewServeMux()
 
+			mux.Handle("/metrics", promhttp.Handler())
 			mux.Handle("/", httptransport.MakeHandler(s, cfg, m.IsRunning))
 
 			http.Handle("/", handlers.CustomLoggingHandler(os.Stdout, mux, func(writer io.Writer, params handlers.LogFormatterParams) {
