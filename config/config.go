@@ -35,6 +35,10 @@ const (
 	// consistency checks that detect and purge stale non-owner replicas.
 	DefaultReplicaConsistencyInterval = 1 * time.Hour
 
+	// DefaultRebalanceInterval is the default interval between HRW rebalance
+	// passes. Set to 0 or negative to disable rebalancing.
+	DefaultRebalanceInterval = 1 * time.Hour
+
 	// defaultNameLen is the default length of the
 	// auto generated Node name if none defined
 	defaultNameLen = 7
@@ -60,6 +64,11 @@ type Timing struct {
 	// ReplicaConsistencyInterval is how often non-owner replicas verify that
 	// they are still expected by the owner. Defaults to 1h.
 	ReplicaConsistencyInterval time.Duration `mapstructure:"replica-consistency-interval"`
+
+	// RebalanceInterval is how often the node checks whether any locally-held
+	// file primaries have been displaced by a higher-ranking volume (HRW) and
+	// transfers ownership accordingly. If 0 or negative, rebalancing is disabled.
+	RebalanceInterval time.Duration `mapstructure:"rebalance-interval"`
 }
 
 // Config represents the struct with all the possible
@@ -150,6 +159,7 @@ func New(v *viper.Viper) (*Config, error) {
 	v.SetDefault("timing.scrub-interval", DefaultScrubInterval)
 	v.SetDefault("timing.replica-check-interval", DefaultReplicaCheckInterval)
 	v.SetDefault("timing.replica-consistency-interval", DefaultReplicaConsistencyInterval)
+	v.SetDefault("timing.rebalance-interval", DefaultRebalanceInterval)
 	v.SetDefault("cache.size", DefaultCacheSize)
 
 	name := randomstring.HumanFriendlyEnglishString(defaultNameLen)

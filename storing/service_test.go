@@ -35,6 +35,7 @@ func TestCreateFile(t *testing.T) {
 			rep  = 2
 			ttl  = 2 * time.Minute
 			ca   = time.Now()
+			vid  = "vid1"
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
@@ -42,9 +43,10 @@ func TestCreateFile(t *testing.T) {
 		defer ctrl.Finish()
 
 		v.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(nil)
+		v.EXPECT().ID().Return(vid)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
-		m.EXPECT().NodesWithCapacity(gomock.Any()).Return(nil).AnyTimes()
+		m.EXPECT().AllVolumeIDs().Return([]string{vid})
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
@@ -61,6 +63,7 @@ func TestCreateFile(t *testing.T) {
 			rep  = 2
 			ttl  = 2 * time.Minute
 			ca   = time.Now()
+			vid  = "vid1"
 		)
 
 		v := mock.NewVolumeLocal(ctrl)
@@ -69,12 +72,12 @@ func TestCreateFile(t *testing.T) {
 
 		v.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(nil)
 
-		// It's AnyTimes as we have the config witha number of replicas
-		// which activates the goroutines that also calls this
+		// AnyTimes: goroutines also call these
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v}).AnyTimes()
-		m.EXPECT().NodesWithCapacity(gomock.Any()).Return(nil).AnyTimes()
+		m.EXPECT().AllVolumeIDs().Return([]string{vid}).AnyTimes()
+		v.EXPECT().ID().Return(vid).AnyTimes()
 
-		// This is also because of the goroutine, it may call it or not
+		// Goroutine calls
 		v.EXPECT().NextReplica(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		v.EXPECT().NextDeletion(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
 		v.EXPECT().NextScrub(gomock.Any()).Return(nil, errors.New("not found")).AnyTimes()
@@ -102,13 +105,15 @@ func TestCreateFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		// Either volume may be randomly selected as primary by getLocalVolume.
-		// Both expectations use AnyTimes so the test is not sensitive to selection order;
-		// require.NoError below still verifies the fallback succeeds.
+		// HRW determines order deterministically for this key; use AnyTimes
+		// so the test passes regardless of which volume ranks first.
 		v1.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrNoSpace).AnyTimes()
 		v2.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(nil).AnyTimes()
+		v1.EXPECT().ID().Return("vid1")
+		v2.EXPECT().ID().Return("vid2")
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v1, v2})
+		m.EXPECT().AllVolumeIDs().Return([]string{"vid1", "vid2"})
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
@@ -125,6 +130,7 @@ func TestCreateFile(t *testing.T) {
 			rep  = 2
 			ttl  = 2 * time.Minute
 			ca   = time.Now()
+			vid  = "vid1"
 		)
 
 		v1 := mock.NewVolumeLocal(ctrl)
@@ -132,9 +138,10 @@ func TestCreateFile(t *testing.T) {
 		defer ctrl.Finish()
 
 		v1.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrNoSpace)
+		v1.EXPECT().ID().Return(vid)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v1})
-		m.EXPECT().NodesWithCapacity(gomock.Any()).Return(nil)
+		m.EXPECT().AllVolumeIDs().Return([]string{vid})
 
 		s, err := storing.New(&config.Config{Replica: -1, Cache: config.Cache{Size: config.DefaultCacheSize}}, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
@@ -144,13 +151,15 @@ func TestCreateFile(t *testing.T) {
 	})
 	t.Run("AllLocalVolumesFallBackToRemoteNode", func(t *testing.T) {
 		var (
-			key  = "testbucket/expectedkey"
-			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
-			ctrl = gomock.NewController(t)
-			ctx  = context.Background()
-			rep  = 2
-			ttl  = 2 * time.Minute
-			ca   = time.Now()
+			key       = "testbucket/expectedkey"
+			buff      = io.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl      = gomock.NewController(t)
+			ctx       = context.Background()
+			rep       = 2
+			ttl       = 2 * time.Minute
+			ca        = time.Now()
+			localVID  = "vid1"
+			remoteVID = "remote-vid"
 		)
 
 		v1 := mock.NewVolumeLocal(ctrl)
@@ -164,10 +173,13 @@ func TestCreateFile(t *testing.T) {
 		remoteClient, err := client.New(server.URL)
 		require.NoError(t, err)
 
-		v1.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrNoSpace)
+		// HRW may rank local or remote first; use AnyTimes for CreateFile on v1.
+		v1.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrNoSpace).AnyTimes()
+		v1.EXPECT().ID().Return(localVID)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v1})
-		m.EXPECT().NodesWithCapacity(gomock.Any()).Return([]*client.Client{remoteClient})
+		m.EXPECT().AllVolumeIDs().Return([]string{localVID, remoteVID})
+		m.EXPECT().GetNodeWithVolumeByID(remoteVID).Return(remoteClient, nil).AnyTimes()
 
 		// ttl and ca may be truncated/rounded during HTTP serialization, so use Any()
 		s2.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, gomock.Any(), gomock.Any()).Return(nil)
@@ -183,13 +195,14 @@ func TestCreateFile(t *testing.T) {
 	})
 	t.Run("ProxyNodeDelegatesToRemote", func(t *testing.T) {
 		var (
-			key  = "testbucket/expectedkey"
-			buff = io.NopCloser(bytes.NewBufferString("expectedcontent"))
-			ctrl = gomock.NewController(t)
-			ctx  = context.Background()
-			rep  = 2
-			ttl  = 2 * time.Minute
-			ca   = time.Now()
+			key       = "testbucket/expectedkey"
+			buff      = io.NopCloser(bytes.NewBufferString("expectedcontent"))
+			ctrl      = gomock.NewController(t)
+			ctx       = context.Background()
+			rep       = 2
+			ttl       = 2 * time.Minute
+			ca        = time.Now()
+			remoteVID = "remote-vid"
 		)
 
 		s2 := mock.NewStoring(ctrl)
@@ -203,7 +216,8 @@ func TestCreateFile(t *testing.T) {
 		require.NoError(t, err)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{})
-		m.EXPECT().NodesWithCapacity(gomock.Any()).Return([]*client.Client{remoteClient})
+		m.EXPECT().AllVolumeIDs().Return([]string{remoteVID})
+		m.EXPECT().GetNodeWithVolumeByID(remoteVID).Return(remoteClient, nil)
 
 		s2.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, gomock.Any(), gomock.Any()).Return(nil)
 
@@ -245,10 +259,11 @@ func TestGetFile(t *testing.T) {
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
-			key  = "testbucket/expectedkey"
-			ctrl = gomock.NewController(t)
-			ctx  = context.Background()
-			vid  = "vid"
+			key      = "testbucket/expectedkey"
+			ctrl     = gomock.NewController(t)
+			ctx      = context.Background()
+			vid      = "vid"
+			localVID = "localvid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		s2 := mock.NewStoring(ctrl)
@@ -257,13 +272,17 @@ func TestGetFile(t *testing.T) {
 
 		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true })
 		server := httptest.NewServer(h)
+		defer server.Close()
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
-		m.EXPECT().Nodes().Return([]*client.Client{c})
-
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
+		v.EXPECT().ID().Return(localVID)
+		m.EXPECT().AllVolumeIDs().Return([]string{localVID, vid})
+		m.EXPECT().GetNodeWithVolumeByID(vid).Return(c, nil)
+
+		// HRW walk calls HasFile via HTTP; GET handler calls StatFile then GetFile.
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len("expectedcontent"))}, nil)
 		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), int64(-1), nil)
@@ -279,7 +298,7 @@ func TestGetFile(t *testing.T) {
 	})
 	t.Run("ProxyNodeFindsOnRemote", func(t *testing.T) {
 		var (
-			key  = "testbucket/expectedkey"
+			key = "testbucket/expectedkey"
 			ctrl = gomock.NewController(t)
 			ctx  = context.Background()
 			vid  = "vid"
@@ -295,8 +314,10 @@ func TestGetFile(t *testing.T) {
 		require.NoError(t, err)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{})
-		m.EXPECT().Nodes().Return([]*client.Client{c})
+		m.EXPECT().AllVolumeIDs().Return([]string{vid})
+		m.EXPECT().GetNodeWithVolumeByID(vid).Return(c, nil)
 
+		// HRW walk calls HasFile via HTTP; GET handler calls StatFile then GetFile.
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().StatFile(gomock.Any(), key).Return(&volume.FileStat{Size: int64(len("expectedcontent"))}, nil)
 		s2.EXPECT().GetFile(gomock.Any(), key).Return(io.NopCloser(bytes.NewBufferString("expectedcontent")), int64(-1), nil)
@@ -337,10 +358,11 @@ func TestDeleteFile(t *testing.T) {
 	})
 	t.Run("SuccessMultiVolume", func(t *testing.T) {
 		var (
-			key  = "testbucket/expectedkey"
-			ctrl = gomock.NewController(t)
-			ctx  = context.Background()
-			vid  = "vid"
+			key      = "testbucket/expectedkey"
+			ctrl     = gomock.NewController(t)
+			ctx      = context.Background()
+			vid      = "vid"
+			localVID = "localvid"
 		)
 		v := mock.NewVolumeLocal(ctrl)
 		s2 := mock.NewStoring(ctrl)
@@ -349,13 +371,17 @@ func TestDeleteFile(t *testing.T) {
 
 		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true })
 		server := httptest.NewServer(h)
+		defer server.Close()
 		c, err := client.New(server.URL)
 		require.NoError(t, err)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{v})
-		m.EXPECT().Nodes().Return([]*client.Client{c})
-
 		v.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
+		v.EXPECT().ID().Return(localVID)
+		m.EXPECT().AllVolumeIDs().Return([]string{localVID, vid})
+		m.EXPECT().GetNodeWithVolumeByID(vid).Return(c, nil)
+
+		// HRW walk calls HasFile via HTTP; DELETE handler calls s2.DeleteFile.
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 
@@ -383,8 +409,10 @@ func TestDeleteFile(t *testing.T) {
 		require.NoError(t, err)
 
 		m.EXPECT().LocalVolumes().Return([]volume.Local{})
-		m.EXPECT().Nodes().Return([]*client.Client{c})
+		m.EXPECT().AllVolumeIDs().Return([]string{vid})
+		m.EXPECT().GetNodeWithVolumeByID(vid).Return(c, nil)
 
+		// HRW walk calls HasFile via HTTP; DELETE handler calls s2.DeleteFile.
 		s2.EXPECT().HasFile(gomock.Any(), key).Return(vid, true, nil)
 		s2.EXPECT().DeleteFile(gomock.Any(), key).Return(nil)
 

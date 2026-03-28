@@ -89,6 +89,7 @@ func New(cfg *config.Config, m Membership, logger *slog.Logger) (Service, error)
 		go s.loopVolumes()
 		go s.loopRemovedVolumeDIs()
 		go s.loopConsistencyCheck()
+		go s.loopRebalance()
 	}
 
 	return s, nil
@@ -107,7 +108,7 @@ func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep
 		rep = s.cfg.Replica
 	}
 
-	// Buffer the incoming stream so content can be replayed on fallback.
+	// Buffer the full incoming stream so it can be retried on fallback.
 	tmpFile, err := os.CreateTemp("", "rebost-buf-*")
 	if err != nil {
 		return fmt.Errorf("creating buffer file: %w", err)
@@ -117,50 +118,41 @@ func (s *service) CreateFile(ctx context.Context, k string, r io.ReadCloser, rep
 		os.Remove(tmpFile.Name())
 	}()
 
-	tee := io.NopCloser(io.TeeReader(r, tmpFile))
-
-	// Try local volumes in preferred order. The first gets the tee (streams
-	// directly); subsequent ones seek from the tmp buffer.
-	for i, v := range s.getLocalVolumes(ctx, k) {
-		var reader io.ReadCloser
-		if i == 0 {
-			reader = tee
-		} else {
-			if _, err := tmpFile.Seek(0, io.SeekStart); err != nil {
-				return err
-			}
-			reader = io.NopCloser(tmpFile)
-		}
-		if err := v.CreateFile(ctx, k, reader, rep, ttl, ca); err == nil {
-			return nil
-		} else if !errors.Is(err, volume.ErrNoSpace) {
-			return err
-		}
+	if _, err := io.Copy(tmpFile, r); err != nil {
+		return fmt.Errorf("buffering upload: %w", err)
 	}
 
-	// Drain tee into tmpFile in case no local volumes were tried
-	// (len==0) or the tee was not fully consumed by the mock/volume.
-	if _, err := io.Copy(io.Discard, tee); err != nil {
-		return err
+	// Build a local volume map for O(1) lookup during the ranked walk.
+	localMap := make(map[string]volume.Local)
+	for _, v := range s.members.LocalVolumes() {
+		localMap[v.ID()] = v
 	}
 
-	fi, err := tmpFile.Stat()
-	if err != nil {
-		return err
-	}
-	size := fi.Size()
-
-	nodes := s.members.NodesWithCapacity(size)
-	for _, node := range nodes {
+	// Walk volumes in HRW order: highest-scoring volume for this key is tried first.
+	allVids := s.members.AllVolumeIDs()
+	for _, vid := range rankVolumeIDs(k, allVids) {
 		if _, err := tmpFile.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
-		err := node.CreateFile(ctx, k, io.NopCloser(tmpFile), rep, ttl, ca)
-		if err == nil {
+		reader := io.NopCloser(tmpFile)
+
+		var createErr error
+		if v, ok := localMap[vid]; ok {
+			createErr = v.CreateFile(ctx, k, reader, rep, ttl, ca)
+		} else {
+			node, err := s.members.GetNodeWithVolumeByID(vid)
+			if err != nil {
+				// Node may have just left; skip and try next rank.
+				continue
+			}
+			createErr = node.CreateFile(ctx, k, reader, rep, ttl, ca)
+		}
+
+		if createErr == nil {
 			return nil
 		}
-		if !errors.Is(err, volume.ErrNoSpace) {
-			return err
+		if !errors.Is(createErr, volume.ErrNoSpace) {
+			return createErr
 		}
 	}
 
@@ -358,7 +350,7 @@ func (s *service) getLocalVolumes(_ context.Context, _ string) []volume.Local {
 }
 
 // getVolume returns a volume and the volumeID that may have k in his index. It tries first with
-// the LocalVolumes and then with the Nodes
+// the LocalVolumes, then with an HRW-ranked remote lookup, and finally broadcasts to all Nodes.
 func (s *service) getVolume(ctx context.Context, k string) (string, volume.Volume, error) {
 	if vid, ok := s.cache.Get(k); ok {
 		n, err := s.members.GetNodeWithVolumeByID(vid)
@@ -368,7 +360,8 @@ func (s *service) getVolume(ctx context.Context, k string) (string, volume.Volum
 		return vid, n, nil
 	}
 
-	vid, v, err := s.findVolume(ctx, localVolumesToVolumes(s.members.LocalVolumes()), k)
+	lvs := s.members.LocalVolumes()
+	vid, v, err := s.findVolume(ctx, localVolumesToVolumes(lvs), k)
 	if err != nil && err.Error() != "not found" {
 		return "", nil, err
 	}
@@ -377,17 +370,47 @@ func (s *service) getVolume(ctx context.Context, k string) (string, volume.Volum
 		return vid, v, nil
 	}
 
+	// Build a set of local volume IDs so we skip them in the remote walk.
+	localVIDSet := make(map[string]struct{}, len(lvs))
+	for _, lv := range lvs {
+		localVIDSet[lv.ID()] = struct{}{}
+	}
+
+	// HRW-ranked remote lookup: check top-Replica ranked non-local volumes.
+	allVids := s.members.AllVolumeIDs()
+	ranked := rankVolumeIDs(k, allVids)
+	remoteChecked := 0
+	replicaLimit := s.cfg.Replica
+	if replicaLimit <= 0 {
+		replicaLimit = 1
+	}
+	for _, rvid := range ranked {
+		if _, isLocal := localVIDSet[rvid]; isLocal {
+			continue
+		}
+		if remoteChecked >= replicaLimit {
+			break
+		}
+		remoteChecked++
+		node, err := s.members.GetNodeWithVolumeByID(rvid)
+		if err != nil {
+			continue
+		}
+		_, ok, err := node.HasFile(ctx, k)
+		if err != nil || !ok {
+			continue
+		}
+		s.cache.Add(k, rvid)
+		return rvid, node, nil
+	}
+
+	// Broadcast fallback for pre-HRW files or extreme topology shifts.
 	vid, v, err = s.findVolume(ctx, clientsToVolumes(s.members.Nodes()), k)
 	if err != nil && err.Error() != "not found" {
 		return "", nil, err
 	}
 
 	if v != nil {
-		// We only cache the remove ones because the local ones are faster and easier to access
-		// but also because the list of nodes does not include the current node so if where
-		// to cache the local volumes when we do the GetNodeWithVolumeByID would return a
-		// not found.
-		// Also the intention of the cache is to avoid to query HasFile to the other nodes
 		s.cache.Add(k, vid)
 		return vid, v, nil
 	}
