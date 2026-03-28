@@ -16,7 +16,8 @@
 12. [Volume Sizing](#volume-sizing)
 13. [Dashboard](#dashboard)
 14. [Health & Readiness Endpoints](#health--readiness-endpoints)
-15. [Known Limitations](#known-limitations)
+15. [Metrics](#metrics)
+16. [Known Limitations](#known-limitations)
 
 ---
 
@@ -525,6 +526,40 @@ Possible `reason` values:
 - `"volume <id> unhealthy: <error>"` — a local volume failed its health check
 
 These endpoints are suitable for use as Kubernetes liveness/readiness probes or load-balancer health checks.
+
+---
+
+## Metrics
+
+Rebost exposes a Prometheus-compatible `/metrics` endpoint on the same port as the S3 API. It uses the [OpenTelemetry](https://opentelemetry.io/) SDK with a Prometheus exporter.
+
+### Endpoint
+
+```
+GET /metrics
+```
+
+Always reachable — no readiness gate. Responds with Prometheus text format.
+
+### Exposed metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `http_server_request_duration_seconds` | Histogram | HTTP request latency per method, route, and status code |
+| `http_server_active_requests` | Gauge | In-flight HTTP requests |
+| `rebost_volume_storage_used_bytes` | Gauge | Bytes used on each local volume (label: `volume_id`) |
+| `rebost_volume_storage_total_bytes` | Gauge | Total capacity of each local volume (label: `volume_id`) |
+| `rebost_volume_files` | Gauge | Number of file records on each local volume (label: `volume_id`) |
+| `rebost_db_operation_duration_seconds` | Histogram | BoltDB repository operation latency (labels: `repo`, `method`, `status`) |
+
+### Example Prometheus scrape config
+
+```yaml
+scrape_configs:
+  - job_name: rebost
+    static_configs:
+      - targets: ['localhost:3805']
+```
 
 ---
 

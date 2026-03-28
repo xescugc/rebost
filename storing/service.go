@@ -92,6 +92,8 @@ func New(cfg *config.Config, m Membership, logger *slog.Logger) (Service, error)
 		go s.loopRebalance()
 	}
 
+	s.registerMetrics()
+
 	return s, nil
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/storing/model"
 	"github.com/xescugc/rebost/volume"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Service is the interface the HTTP transport requires. It is satisfied by
@@ -37,6 +38,17 @@ type Service interface {
 // readiness state.
 func MakeHandler(s Service, cfg *config.Config, ready func() bool) http.Handler {
 	top := mux.NewRouter()
+
+	top.Use(otelhttp.NewMiddleware("rebost",
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			if route := mux.CurrentRoute(r); route != nil {
+				if tmpl, err := route.GetPathTemplate(); err == nil {
+					return r.Method + " " + tmpl
+				}
+			}
+			return r.Method
+		}),
+	))
 
 	// Health routes — always reachable, bypass readyMiddleware
 	top.Handle("/live", liveHandler()).Methods("GET")
