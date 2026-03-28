@@ -1,6 +1,8 @@
 package httptransport_test
 
 import (
+	"log/slog"
+
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -20,7 +22,7 @@ func TestLiveHandler(t *testing.T) {
 	defer ctrl.Finish()
 
 	st := mock.NewStoring(ctrl)
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return false })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return false }, slog.Default())
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -39,7 +41,7 @@ func TestHealthHandler(t *testing.T) {
 	defer ctrl.Finish()
 
 	st := mock.NewStoring(ctrl)
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return false })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return false }, slog.Default())
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -58,7 +60,7 @@ func TestReadyHandler_NodeNotRunning(t *testing.T) {
 	defer ctrl.Finish()
 
 	st := mock.NewStoring(ctrl)
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return false })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return false }, slog.Default())
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -80,7 +82,7 @@ func TestReadyHandler_VolumeUnhealthy(t *testing.T) {
 	st := mock.NewStoring(ctrl)
 	st.EXPECT().Ready(gomock.Any()).Return(errors.New("volume abc unhealthy: disk error"))
 
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true }, slog.Default())
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -102,7 +104,7 @@ func TestReadyHandler_OK(t *testing.T) {
 	st := mock.NewStoring(ctrl)
 	st.EXPECT().Ready(gomock.Any()).Return(nil)
 
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true }, slog.Default())
 	server := httptest.NewServer(h)
 	defer server.Close()
 

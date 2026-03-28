@@ -105,6 +105,8 @@ type Config struct {
 
 	Tracing Tracing
 
+	Log Log
+
 	// Tags is a map of arbitrary key=value labels for this node.
 	// Set at startup via --tag flags; propagated via gossip.
 	Tags map[string]string `mapstructure:"tags"`
@@ -132,6 +134,12 @@ type Tracing struct {
 	// OTLPEndpoint is the OTLP HTTP collector endpoint (e.g. "localhost:4318").
 	// If empty, spans are created and context propagates, but nothing is exported.
 	OTLPEndpoint string `mapstructure:"otlp-endpoint"`
+}
+
+// Log holds logging configuration.
+type Log struct {
+	Format string `mapstructure:"format"` // "text" (default) or "json"
+	Level  string `mapstructure:"level"`  // "debug", "info" (default), "warn", "error"
 }
 
 // S3 is the configuration required for S3-compatible API support
@@ -170,6 +178,8 @@ func New(v *viper.Viper) (*Config, error) {
 	v.SetDefault("timing.replica-consistency-interval", DefaultReplicaConsistencyInterval)
 	v.SetDefault("timing.rebalance-interval", DefaultRebalanceInterval)
 	v.SetDefault("cache.size", DefaultCacheSize)
+	v.SetDefault("log.format", "text")
+	v.SetDefault("log.level", "info")
 
 	name := randomstring.HumanFriendlyEnglishString(defaultNameLen)
 	v.SetDefault("name", name)

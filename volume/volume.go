@@ -24,6 +24,7 @@ import (
 	"github.com/xescugc/rebost/idxkey"
 	"github.com/xescugc/rebost/idxttl"
 	"github.com/xescugc/rebost/idxvolume"
+	"github.com/xescugc/rebost/logevent"
 	"github.com/xescugc/rebost/replica"
 	"github.com/xescugc/rebost/scrub"
 	"github.com/xescugc/rebost/state"
@@ -554,6 +555,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 		return err
 	}
 
+	l.logger.Info("file created", "event", logevent.FileCreated, "key", key, "volume_id", l.id)
 	return nil
 }
 
@@ -615,9 +617,14 @@ func (l *local) StatFile(ctx context.Context, k string) (*FileStat, error) {
 }
 
 func (l *local) DeleteFile(ctx context.Context, key string) error {
-	return l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
+	err := l.startUnitOfWork(ctx, uow.Write, func(ctx context.Context, uw uow.UnitOfWork) error {
 		return l.deleteFile(ctx, uw, key)
 	})
+	if err != nil {
+		return err
+	}
+	l.logger.Info("file deleted", "event", logevent.FileDeleted, "key", key, "volume_id", l.id)
+	return nil
 }
 
 func (l *local) deleteFile(ctx context.Context, uw uow.UnitOfWork, key string) error {

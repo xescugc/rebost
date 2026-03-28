@@ -101,7 +101,7 @@ func New(cfg *config.Config, lv []volume.Local, remote string, logger *slog.Logg
 		if err != nil {
 			return nil, fmt.Errorf("failed to join cluster: %s", err.Error())
 		}
-		m.logger.Info(fmt.Sprintf("Joined remote cluster %q", hostPort))
+		m.logger.Info("joined remote cluster", "remote", hostPort)
 	}
 
 	return m, nil
@@ -306,5 +306,6 @@ func (m *Membership) buildConfig(cfg *config.Config) *memberlist.Config {
 	mcfg.Name = cfg.Name
 	mcfg.Events = &eventDelegate{members: m}
 	mcfg.Delegate = &delegate{members: m}
+	mcfg.Logger = slog.NewLogLogger(m.logger.Handler(), slog.LevelDebug)
 	return mcfg
 }

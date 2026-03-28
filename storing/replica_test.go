@@ -126,7 +126,7 @@ func TestProcessNextReplica(t *testing.T) {
 
 		// Set up a real HTTP test server acting as the remote node.
 		remoteNode := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -186,7 +186,7 @@ func TestProcessNextDeletion(t *testing.T) {
 
 		// Set up a real HTTP test server acting as the remote node.
 		remoteNode := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)

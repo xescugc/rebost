@@ -48,7 +48,7 @@ func TestNodesWithCapacity(t *testing.T) {
 
 		s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
-		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }))
+		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default()))
 		defer server2.Close()
 
 		p3, err := util.FreePort()
@@ -92,7 +92,7 @@ func TestNodesWithCapacity(t *testing.T) {
 
 		s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
-		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }))
+		server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default()))
 		defer server2.Close()
 
 		// Remote node B: completely full (100 total, 100 used)
@@ -111,7 +111,7 @@ func TestNodesWithCapacity(t *testing.T) {
 
 		s3, err := storing.New(cfg3, m3, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		require.NoError(t, err)
-		server3 := httptest.NewServer(httptransport.MakeHandler(s3, &config.Config{}, func() bool { return true }))
+		server3 := httptest.NewServer(httptransport.MakeHandler(s3, &config.Config{}, func() bool { return true }, slog.Default()))
 		defer server3.Close()
 
 		// Local node joins via node A; gossip will propagate node B as well
@@ -162,7 +162,7 @@ func TestDrainingFiltering(t *testing.T) {
 
 	s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	require.NoError(t, err)
-	server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }))
+	server2 := httptest.NewServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default()))
 	defer server2.Close()
 
 	p3, err := util.FreePort()
@@ -226,7 +226,7 @@ func TestTagsGossip(t *testing.T) {
 
 	s2, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	require.NoError(t, err)
-	server2 := httptest.NewUnstartedServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }))
+	server2 := httptest.NewUnstartedServer(httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default()))
 	server2.Listener = l2
 	server2.Start()
 	defer server2.Close()
@@ -288,7 +288,7 @@ func TestVolumes(t *testing.T) {
 
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }))
+			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }, slog.Default()))
 			defer server.Close()
 
 			p3, err := util.FreePort()
@@ -318,7 +318,7 @@ func TestVolumes(t *testing.T) {
 			m2.SetStatus(membership.StatusRunning)
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }))
+			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }, slog.Default()))
 			defer server.Close()
 
 			p3, err := util.FreePort()
@@ -354,7 +354,7 @@ func TestVolumes(t *testing.T) {
 			m2.SetStatus(membership.StatusRunning)
 			s, err := storing.New(cfg2, m2, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
-			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }))
+			server := httptest.NewServer(httptransport.MakeHandler(s, &config.Config{}, func() bool { return true }, slog.Default()))
 			defer server.Close()
 
 			p3, err := util.FreePort()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/xescugc/rebost/logevent"
 	"github.com/xescugc/rebost/uow"
 )
 
@@ -39,6 +40,7 @@ func (l *local) loopTTL() {
 								l.logger.Error(err.Error())
 								continue
 							}
+							l.logger.Info("file ttl expired", "event", logevent.FileTTLExpired, "key", k)
 						}
 					}
 					if err := uw.IDXTTLs().Delete(ctx, ttl.ExpiresAt); err != nil {
