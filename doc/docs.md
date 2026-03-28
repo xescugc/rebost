@@ -264,6 +264,7 @@ All options can be provided as CLI flags, environment variables (uppercased with
 | `--timing.scrub-interval`               | duration | `24h`         | How often each volume re-verifies file checksums and auto-repairs corrupt copies from replicas.                                                                                   |
 | `--timing.replica-check-interval`       | duration | `1h`          | How often each volume checks for under-replicated files and re-queues replication jobs.                                                                                           |
 | `--timing.replica-consistency-interval` | duration | `1h`          | How often non-owner replicas verify they are still expected by the file owner and purge stale local copies.                                                                       |
+| `--timing.rebalance-interval`           | duration | `1h`          | How often Rebost checks whether any locally-held primaries have been displaced by a higher-ranking HRW volume and transfers ownership. Disabled when `0` or negative.            |
 | `--memberlist.port`                     | int      | `0` (auto)    | UDP/TCP port for gossip. Auto-assigned if `0`. Fix this port if you need deterministic firewall rules.                                                                            |
 | `--cache.size`                          | int      | `200`         | Size of the per-node LRU cache that maps object keys to remote volume IDs, avoiding repeated `HEAD` queries to peers.                                                             |
 | `--dashboard.port`                      | int      | `3806`        | HTTP port for the dashboard UI.                                                                                                                                                   |
@@ -388,9 +389,11 @@ Rebost replicates objects asynchronously in the background.
 
 ### How it works
 
-1. When an object is uploaded, the receiving node stores it locally and enqueues a replication job.
-2. The background loop picks up jobs, selects peer nodes that do not yet have a copy, transfers the object, and updates all replica holders with the new location.
-3. Replica metadata travels with every file: each node that holds a copy knows the volume IDs of all other copies.
+1. When an object is uploaded, the cluster uses **Highest Random Weight (HRW / Rendezvous) hashing** to choose which volume stores the primary copy. Every `(key, volumeID)` pair is scored with `fnv64a(key + volumeID)`; the highest-scoring volume is the natural owner. This makes placement deterministic and predictable: the same key always maps to the same volume as long as the cluster topology is unchanged.
+2. If the HRW-winning volume is full, the next-ranked volume is tried automatically.
+3. Lookup uses the same ranking: the node walks the top-`Replica` ranked volumes before falling back to a cluster-wide broadcast. This reduces cold-cache lookup from O(n) to O(1) in the common case.
+4. The background replication loop picks up jobs, selects peer nodes that do not yet have a copy, transfers the object, and updates all replica holders with the new location.
+5. Replica metadata travels with every file: each node that holds a copy knows the volume IDs of all other copies.
 
 ### Replica count
 
@@ -405,6 +408,18 @@ curl -T ./tmp.log "http://localhost:3805/mybucket/tmp.log?replica=1"
 ```
 
 Set `--replica -1` on a node to make it a storage-only node that never initiates replication.
+
+### HRW rebalancing
+
+When a new node joins the cluster, it may become the HRW winner for keys that were previously owned by an older node. Rebost automatically transfers primary ownership to the new winner.
+
+Each tick, Rebost walks every locally-owned file and checks whether its HRW rank is still the highest. If a newer volume ranks higher, the primary copy is transferred to that volume and the local copy is removed. Replicas on other nodes stay in place.
+
+Rebalancing runs every `1h` by default. To disable it, set `--timing.rebalance-interval 0`. To use a shorter interval:
+
+```bash
+rebost serve --volumes /data --timing.rebalance-interval 10m
+```
 
 ### Node downtime and recovery
 

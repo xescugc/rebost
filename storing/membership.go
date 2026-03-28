@@ -42,6 +42,10 @@ type Membership interface {
 	// causing peers to skip routing writes to it.
 	SetDraining(draining bool)
 
+	// AllVolumeIDs returns a flat deduplicated slice of all volume IDs known
+	// to this node: local volumes plus all running remote nodes' volumes.
+	AllVolumeIDs() []string
+
 	// Leave makes it leave the cluster
 	Leave()
 }

@@ -269,6 +269,30 @@ func (m *Membership) SetDraining(draining bool) {
 	}
 }
 
+// AllVolumeIDs returns a flat deduplicated slice of all volume IDs known to
+// this node: local volumes plus volumes of all running remote nodes.
+func (m *Membership) AllVolumeIDs() []string {
+	seen := make(map[string]struct{})
+	for _, v := range m.localVolumes {
+		seen[v.ID()] = struct{}{}
+	}
+	m.nodesLock.RLock()
+	for _, n := range m.nodes {
+		if n.meta.Status != StatusRunning {
+			continue
+		}
+		for vid := range n.meta.Volumes {
+			seen[vid] = struct{}{}
+		}
+	}
+	m.nodesLock.RUnlock()
+	vids := make([]string, 0, len(seen))
+	for vid := range seen {
+		vids = append(vids, vid)
+	}
+	return vids
+}
+
 // Leave makes the node leave the cluster
 func (m *Membership) Leave() {
 	m.members.Leave(0)

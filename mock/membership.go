@@ -36,6 +36,20 @@ func (m *Membership) EXPECT() *MembershipMockRecorder {
 	return m.recorder
 }
 
+// AllVolumeIDs mocks base method.
+func (m *Membership) AllVolumeIDs() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllVolumeIDs")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// AllVolumeIDs indicates an expected call of AllVolumeIDs.
+func (mr *MembershipMockRecorder) AllVolumeIDs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllVolumeIDs", reflect.TypeOf((*Membership)(nil).AllVolumeIDs))
+}
+
 // GetNodeState mocks base method.
 func (m *Membership) GetNodeState(arg0 string) (*membership.State, error) {
 	m.ctrl.T.Helper()

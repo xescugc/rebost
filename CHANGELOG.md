@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- HRW (Highest Random Weight / Rendezvous) hashing for deterministic file placement: uploads land on the highest-scored `fnv64a(key+volumeID)` volume, reducing cold-cache lookups from O(n) broadcast to O(Replica) ranked checks. [Issue#206](https://github.com/xescugc/rebost/issues/206)
 - New internal `HEAD /local/{key}` endpoint for local-only file presence checks, fixing a replication regression where `processNextReplica` and `processNextScrub` incorrectly believed every peer already had a file because `HEAD /{bucket}/{key}` (now `StatFile`) searches the whole cluster. `client.HasFile` now targets `/local/{key}` so replication and scrub correctly detect missing replicas. [Issue#183](https://github.com/xescugc/rebost/issues/183)
 - Health/readiness HTTP endpoints: `GET /live` and `GET /health` (always 200), `GET /ready` (200 when running and all volumes healthy, 503 otherwise). All three bypass the readiness gate so they are reachable during startup and drain. [Issue#155](https://github.com/xescugc/rebost/issues/155)
 - Node lifecycle status (`starting` | `running` | `draining`): visible in the dashboard as a badge per node and propagated via gossip so peers skip routing to non-running nodes. [Issue#194](https://github.com/xescugc/rebost/issues/194)

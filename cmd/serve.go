@@ -252,6 +252,9 @@ func init() {
 	serveCmd.PersistentFlags().Duration("timing.replica-consistency-interval", config.DefaultReplicaConsistencyInterval, "How often non-owner replicas verify they are still expected by the file owner and purge stale local copies")
 	viper.BindPFlag("timing.replica-consistency-interval", serveCmd.PersistentFlags().Lookup("timing.replica-consistency-interval"))
 
+	serveCmd.PersistentFlags().Duration("timing.rebalance-interval", config.DefaultRebalanceInterval, "How often Rebost checks whether any locally-held file primaries have been displaced by a higher-ranking HRW volume and transfers ownership. Set to 0 to disable.")
+	viper.BindPFlag("timing.rebalance-interval", serveCmd.PersistentFlags().Lookup("timing.rebalance-interval"))
+
 	serveCmd.PersistentFlags().Int("memberlist.port", 0, "The port is used for both UDP and TCP gossip. By default a free port will be used")
 	viper.BindPFlag("memberlist.port", serveCmd.PersistentFlags().Lookup("memberlist.port"))
 

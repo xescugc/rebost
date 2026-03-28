@@ -67,35 +67,43 @@ func TestCRUD(t *testing.T) {
 	})
 
 	t.Run("HasFile", func(t *testing.T) {
-		vid, ok, err := cl1.HasFile(ctx, keytxt)
-		require.NoError(t, err)
-		assert.True(t, ok)
-		assert.Equal(t, vid1, vid)
+		// With HRW placement, files land on the deterministically highest-ranked
+		// volume — not necessarily the node that initiated the write. Verify that
+		// exactly one node holds each file locally.
+		allClients := []*client.Client{cl1, cl2, cl3}
+		allVids := []string{vid1, "", vid3} // vid2 was not captured
 
-		vid, ok, err = cl1.HasFile(ctx, keyimg)
-		require.NoError(t, err)
-		assert.False(t, ok)
-		assert.Equal(t, "", vid)
+		keytxtCount, keyimgCount := 0, 0
+		for i, c := range allClients {
+			vid, ok, err := c.HasFile(ctx, keytxt)
+			require.NoError(t, err)
+			if ok {
+				keytxtCount++
+				if allVids[i] != "" {
+					assert.Equal(t, allVids[i], vid)
+				} else {
+					assert.NotEmpty(t, vid)
+				}
+			} else {
+				assert.Equal(t, "", vid)
+			}
 
-		vid, ok, err = cl2.HasFile(ctx, keytxt)
-		require.NoError(t, err)
-		assert.False(t, ok)
-		assert.Equal(t, "", vid)
+			vid, ok, err = c.HasFile(ctx, keyimg)
+			require.NoError(t, err)
+			if ok {
+				keyimgCount++
+				if allVids[i] != "" {
+					assert.Equal(t, allVids[i], vid)
+				} else {
+					assert.NotEmpty(t, vid)
+				}
+			} else {
+				assert.Equal(t, "", vid)
+			}
+		}
 
-		vid, ok, err = cl2.HasFile(ctx, keyimg)
-		require.NoError(t, err)
-		assert.False(t, ok)
-		assert.Equal(t, "", vid)
-
-		vid, ok, err = cl3.HasFile(ctx, keytxt)
-		require.NoError(t, err)
-		assert.False(t, ok)
-		assert.Equal(t, "", vid)
-
-		vid, ok, err = cl3.HasFile(ctx, keyimg)
-		require.NoError(t, err)
-		assert.True(t, ok)
-		assert.Equal(t, vid3, vid)
+		assert.Equal(t, 1, keytxtCount, "exactly one node should hold keytxt locally")
+		assert.Equal(t, 1, keyimgCount, "exactly one node should hold keyimg locally")
 	})
 
 	t.Run("GetFile", func(t *testing.T) {

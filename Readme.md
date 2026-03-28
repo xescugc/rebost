@@ -7,7 +7,7 @@
 
 Rebost is a Distributed Object Storage inspired by our experience with MogileFS, MongoDB and ElasticSearch.
 
-Rebost tries to simplify the management (deploy and operate) of an Object Storage by having an easy setup (barely no configuration required), by basically requiring just the address of one Node of the Rebost cluster (if not it'll start it's own)  and the path to the local Volumes (where the objects will be stored).
+Rebost tries to simplify the management (deploy and operate) of an Object Storage by having an easy setup (barely no configuration required), by basically requiring just the address of one Node of the Rebost cluster (if not it'll start it's own) and the path to the local Volumes (where the objects will be stored).
 The implementation also simplifies the management of the cluster as there is no "Master", each Node is Master of his objects and also knows where the replicas of those are in the cluster. So adding a new Node it's just starting it and done. When a file is asked to a Node that does not know where it is, it'll ask it to the other Nodes.
 
 ## Example
@@ -110,10 +110,6 @@ AWS_ACCESS_KEY_ID=mykey AWS_SECRET_ACCESS_KEY=mysecret \
 
 - **List objects** (`GET /{bucket}`) — returns `501 NotImplemented`. Rebost has no cluster-wide listing index.
 - **Multipart upload** — returns `501 NotImplemented`. Use single-part `PUT` for all uploads.
-
-## Graceful Drain
-
-To safely remove a node from the cluster, send `SIGQUIT` (`kill -QUIT $(pgrep rebost)`). The node will replicate any locally-held files to peers, purge its local copies, leave the cluster, and shut down cleanly. See [Draining a Node](doc/docs.md#draining-a-node) in the full documentation for details.
 
 ## Beta?
 
