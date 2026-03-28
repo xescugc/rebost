@@ -103,6 +103,8 @@ type Config struct {
 
 	S3 S3
 
+	Tracing Tracing
+
 	// Tags is a map of arbitrary key=value labels for this node.
 	// Set at startup via --tag flags; propagated via gossip.
 	Tags map[string]string `mapstructure:"tags"`
@@ -123,6 +125,13 @@ type Dashboard struct {
 // Cache is the configuration required for the cache
 type Cache struct {
 	Size int `mapstructure:"size"`
+}
+
+// Tracing holds configuration for OpenTelemetry distributed tracing.
+type Tracing struct {
+	// OTLPEndpoint is the OTLP HTTP collector endpoint (e.g. "localhost:4318").
+	// If empty, spans are created and context propagates, but nothing is exported.
+	OTLPEndpoint string `mapstructure:"otlp-endpoint"`
 }
 
 // S3 is the configuration required for S3-compatible API support

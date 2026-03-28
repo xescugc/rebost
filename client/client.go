@@ -15,6 +15,7 @@ import (
 	"github.com/xescugc/rebost/config"
 	"github.com/xescugc/rebost/storing/model"
 	"github.com/xescugc/rebost/volume"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Client is the client structure that fulfills the storing.Service
@@ -44,7 +45,7 @@ func New(hosts ...string) (*Client, error) {
 		}
 		cl.clients[i] = &client{
 			url:  strings.TrimRight(h, "/"),
-			http: &http.Client{},
+			http: &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)},
 		}
 	}
 

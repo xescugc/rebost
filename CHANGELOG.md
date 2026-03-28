@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Distributed tracing: W3C trace context propagates across inter-node HTTP calls; service and volume operations emit spans; export via OTLP HTTP when `--tracing.otlp-endpoint` is set. [Issue#156](https://github.com/xescugc/rebost/issues/156)
 - Prometheus-compatible `/metrics` endpoint via OpenTelemetry SDK (Prometheus exporter). [Issue#148](https://github.com/xescugc/rebost/issues/148) [Issue#38](https://github.com/xescugc/rebost/issues/38)
 - Per-volume replica queue depth metric (`rebost_volume_replica_queue_depth`). [Issue#149](https://github.com/xescugc/rebost/issues/149)
 - Per-volume deletion queue depth metric (`rebost_volume_deletion_queue_depth`). [Issue#150](https://github.com/xescugc/rebost/issues/150)
