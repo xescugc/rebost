@@ -1,6 +1,8 @@
 package storing
 
 import (
+	"log/slog"
+
 	"errors"
 	"net/http/httptest"
 	"testing"
@@ -72,7 +74,7 @@ func TestRunConsistencyCheck(t *testing.T) {
 		s := newTestService(t, m)
 
 		remoteNode := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -109,7 +111,7 @@ func TestRunConsistencyCheck(t *testing.T) {
 		s := newTestService(t, m)
 
 		remoteNode := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -148,7 +150,7 @@ func TestCheckFileConsistency(t *testing.T) {
 		s := newTestService(t, m)
 
 		remoteNode := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -181,7 +183,7 @@ func TestCheckFileConsistency(t *testing.T) {
 		s := newTestService(t, m)
 
 		remoteNode := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -268,7 +270,7 @@ func TestCheckFileConsistency(t *testing.T) {
 		s := newTestService(t, m)
 
 		remoteNode := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(remoteNode, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)

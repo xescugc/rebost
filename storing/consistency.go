@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/xescugc/rebost/file"
+	"github.com/xescugc/rebost/logevent"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -62,7 +63,7 @@ func (s *service) checkFileConsistency(v volume.Local, f *file.File) {
 			}
 		}
 		// This volume is no longer listed; purge the stale local copy.
-		s.logger.Info("consistency-check: purging stale replica", "key", key, "volume", v.ID())
+		s.logger.Info("consistency-check: purging stale replica", "event", logevent.ReplicaConsistencyPurged, "key", key, "volume", v.ID())
 		if err := v.PurgeFile(s.ctx, key); err != nil {
 			s.logger.Error("consistency-check: purge failed", "key", key, "err", err)
 		}

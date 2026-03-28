@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -39,7 +40,7 @@ func TestMakeHandler(t *testing.T) {
 	st := mock.NewStoring(ctrl)
 	defer ctrl.Finish()
 
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true }, slog.Default())
 	server := httptest.NewServer(h)
 	client := server.Client()
 
@@ -181,7 +182,7 @@ func TestPutObjectErrClusterFull(t *testing.T) {
 
 	st.EXPECT().CreateFile(gomock.Any(), key, gomock.Any(), rep, ttl, ca).Return(volume.ErrClusterFull)
 
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true }, slog.Default())
 	server := httptest.NewServer(h)
 	client := server.Client()
 
@@ -215,7 +216,7 @@ func TestPutObjectMultipartPipeClosedOnBodyError(t *testing.T) {
 			return nil
 		})
 
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true }, slog.Default())
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -254,7 +255,7 @@ func TestCreateReplicaMultipartPipeClosedOnBodyError(t *testing.T) {
 			return "", nil
 		})
 
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true }, slog.Default())
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -293,7 +294,7 @@ func TestHeadEndpointAsymmetry(t *testing.T) {
 	// HasFile does NOT find it locally
 	st.EXPECT().HasFile(gomock.Any(), key).Return("", false, nil)
 
-	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true })
+	h := httptransport.MakeHandler(st, &config.Config{}, func() bool { return true }, slog.Default())
 	server := httptest.NewServer(h)
 	defer server.Close()
 	client := server.Client()

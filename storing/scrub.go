@@ -1,6 +1,7 @@
 package storing
 
 import (
+	"github.com/xescugc/rebost/logevent"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -17,7 +18,7 @@ func (s *service) processNextScrub(v volume.Local) bool {
 	}
 
 	if len(sc.VolumeIDs) == 0 {
-		s.logger.Error("scrub: corrupt file has no remote replicas, cannot repair", "key", sc.Key)
+		s.logger.Error("scrub: corrupt file has no remote replicas, cannot repair", "event", logevent.FileScrubNoReplicas, "key", sc.Key)
 		if err := v.DeleteScrub(s.ctx, sc); err != nil {
 			s.logger.Error(err.Error())
 		}
@@ -49,7 +50,7 @@ func (s *service) processNextScrub(v volume.Local) bool {
 			continue
 		}
 		reader.Close()
-		s.logger.Info("scrub: repaired corrupt file", "key", sc.Key)
+		s.logger.Info("scrub: repaired corrupt file", "event", logevent.FileScrubRepaired, "key", sc.Key)
 		repaired = true
 		break
 	}

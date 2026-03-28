@@ -16,6 +16,7 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/xescugc/rebost/client"
 	"github.com/xescugc/rebost/config"
+	"github.com/xescugc/rebost/logevent"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -272,7 +273,7 @@ func (s *service) Drain(ctx context.Context) error {
 	}
 
 	// Step 1: Create replica jobs for all under-replicated files
-	s.logger.Info("drain: preparing replica jobs for all local files")
+	s.logger.Info("drain: preparing replica jobs for all local files", "event", logevent.DrainPreparing)
 	for _, v := range lvs {
 		if err := v.PrepareForDrain(ctx); err != nil {
 			// Leave() is deliberately NOT called on failure — the caller (SIGQUIT handler)
@@ -283,7 +284,7 @@ func (s *service) Drain(ctx context.Context) error {
 	}
 
 	// Step 2: Wait for all replica queues to drain
-	s.logger.Info("drain: waiting for replication to complete")
+	s.logger.Info("drain: waiting for replication to complete", "event", logevent.DrainWaiting)
 	for {
 		allDone := true
 		for _, v := range lvs {
@@ -307,7 +308,7 @@ func (s *service) Drain(ctx context.Context) error {
 	}
 
 	// Step 3: Purge local copies
-	s.logger.Info("drain: purging local copies")
+	s.logger.Info("drain: purging local copies", "event", logevent.DrainPurging)
 	for _, v := range lvs {
 		if err := v.PurgeAllFiles(ctx); err != nil {
 			// Leave() is deliberately NOT called on failure — the caller (SIGQUIT handler)
@@ -318,7 +319,7 @@ func (s *service) Drain(ctx context.Context) error {
 	}
 
 	// Step 4: Leave cluster
-	s.logger.Info("drain: leaving cluster")
+	s.logger.Info("drain: leaving cluster", "event", logevent.DrainLeaving)
 	s.members.Leave()
 	return nil
 }

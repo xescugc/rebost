@@ -3,6 +3,7 @@ package storing
 import (
 	"time"
 
+	"github.com/xescugc/rebost/logevent"
 	"github.com/xescugc/rebost/volume"
 )
 
@@ -58,7 +59,7 @@ func (s *service) processNextReplica(v volume.Local) bool {
 		return false
 	}
 	if !ok {
-		s.logger.Info("file no longer exists, removing stale replica job", "key", rp.Key)
+		s.logger.Info("file no longer exists, removing stale replica job", "event", logevent.ReplicaStale, "key", rp.Key)
 		if err = v.DeleteReplica(s.ctx, rp); err != nil {
 			s.logger.Error(err.Error())
 		}
@@ -89,7 +90,7 @@ func (s *service) processNextReplica(v volume.Local) bool {
 			s.logger.Error(err.Error())
 			continue
 		}
-		s.logger.Info("replica created")
+		s.logger.Info("replica created", "event", logevent.ReplicaCreated, "key", rp.Key, "volume_id", vID)
 
 		rp.VolumeIDs = append(rp.VolumeIDs, vID)
 
@@ -134,7 +135,7 @@ func (s *service) processNextDeletion(v volume.Local) bool {
 		}
 		return false
 	}
-	s.logger.Info("propagating delete to replicas", "key", d.Key)
+	s.logger.Info("propagating delete to replicas", "event", logevent.ReplicaDeletePropagated, "key", d.Key)
 	for _, vid := range d.VolumeIDs {
 		node, err := s.members.GetNodeWithVolumeByID(vid)
 		if err != nil {

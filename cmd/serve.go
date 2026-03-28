@@ -4,19 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path"
-	"strconv"
 	"strings"
 	"syscall"
 
 	"log/slog"
 
-	"github.com/gorilla/handlers"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -54,7 +51,25 @@ var (
 			if err != nil {
 				return err
 			}
-			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
+			var level slog.Level
+		switch strings.ToLower(cfg.Log.Level) {
+		case "debug":
+			level = slog.LevelDebug
+		case "warn":
+			level = slog.LevelWarn
+		case "error":
+			level = slog.LevelError
+		default:
+			level = slog.LevelInfo
+		}
+		opts := &slog.HandlerOptions{AddSource: true, Level: level}
+		var handler slog.Handler
+		if cfg.Log.Format == "json" {
+			handler = slog.NewJSONHandler(os.Stdout, opts)
+		} else {
+			handler = slog.NewTextHandler(os.Stdout, opts)
+		}
+		logger := slog.New(handler)
 
 			if cfg.Name == "" {
 				return errors.New("the 'name' is required")
@@ -163,48 +178,13 @@ var (
 			mux := http.NewServeMux()
 
 			mux.Handle("/metrics", promhttp.Handler())
-			mux.Handle("/", httptransport.MakeHandler(s, cfg, m.IsRunning))
-
-			http.Handle("/", handlers.CustomLoggingHandler(os.Stdout, mux, func(writer io.Writer, params handlers.LogFormatterParams) {
-				username := "-"
-				if params.URL.User != nil {
-					if name := params.URL.User.Username(); name != "" {
-						username = name
-					}
-				}
-
-				host, _, err := net.SplitHostPort(params.Request.RemoteAddr)
-				if err != nil {
-					host = params.Request.RemoteAddr
-				}
-
-				uri := params.Request.RequestURI
-
-				// Requests using the CONNECT method over HTTP/2.0 must use
-				// the authority field (aka r.Host) to identify the target.
-				// Refer: https://httpwg.github.io/specs/rfc7540.html#CONNECT
-				if params.Request.ProtoMajor == 2 && params.Request.Method == "CONNECT" {
-					uri = params.Request.Host
-				}
-				if uri == "" {
-					uri = params.URL.RequestURI()
-				}
-				logger.Info("request",
-					"name", cfg.Name,
-					"host", host,
-					"username", username,
-					"method", params.Request.Method,
-					"uri", uri,
-					"status", strconv.Itoa(params.StatusCode),
-					"size", strconv.Itoa(params.Size),
-				)
-			}))
+			mux.Handle("/", httptransport.MakeHandler(s, cfg, m.IsRunning, logger))
 
 			errs := make(chan error)
 
 			svr := &http.Server{
 				Addr:    fmt.Sprintf(":%d", cfg.Port),
-				Handler: handlers.LoggingHandler(os.Stdout, mux),
+				Handler: httpRequestLogger(logger, mux),
 			}
 
 			go func() {
@@ -242,7 +222,7 @@ var (
 
 				dsvr := &http.Server{
 					Addr:    fmt.Sprintf(":%d", cfg.Dashboard.Port),
-					Handler: handlers.LoggingHandler(os.Stdout, dmux),
+					Handler: httpRequestLogger(logger, dmux),
 				}
 
 				go func() {
@@ -257,6 +237,52 @@ var (
 		},
 	}
 )
+
+// httpRequestLogger wraps h and logs every request via logger.
+func httpRequestLogger(logger *slog.Logger, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rw := &responseRecorder{ResponseWriter: w, status: http.StatusOK}
+		h.ServeHTTP(rw, r)
+
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			host = r.RemoteAddr
+		}
+
+		uri := r.RequestURI
+		if r.ProtoMajor == 2 && r.Method == "CONNECT" {
+			uri = r.Host
+		}
+		if uri == "" {
+			uri = r.URL.RequestURI()
+		}
+
+		logger.Info("request",
+			"method", r.Method,
+			"uri", uri,
+			"host", host,
+			"status", rw.status,
+			"size", rw.size,
+		)
+	})
+}
+
+type responseRecorder struct {
+	http.ResponseWriter
+	status int
+	size   int
+}
+
+func (r *responseRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	n, err := r.ResponseWriter.Write(b)
+	r.size += n
+	return n, err
+}
 
 func createDB(p string) (*bolt.DB, error) {
 	db, err := bolt.Open(path.Join(p, "my.db"), 0600, nil)
@@ -323,6 +349,12 @@ func init() {
 
 	serveCmd.Flags().String("tracing.otlp-endpoint", "", "OTLP HTTP endpoint for trace export (e.g. localhost:4318); empty disables export")
 	viper.BindPFlag("tracing.otlp-endpoint", serveCmd.Flags().Lookup("tracing.otlp-endpoint"))
+
+	serveCmd.PersistentFlags().String("log.format", "text", `Log output format: "text" (default) or "json"`)
+	viper.BindPFlag("log.format", serveCmd.PersistentFlags().Lookup("log.format"))
+
+	serveCmd.PersistentFlags().String("log.level", "info", `Log level: "debug", "info" (default), "warn", or "error"`)
+	viper.BindPFlag("log.level", serveCmd.PersistentFlags().Lookup("log.level"))
 
 	RootCmd.AddCommand(serveCmd)
 }

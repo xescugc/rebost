@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -36,7 +37,7 @@ type Service interface {
 // registered first so they are not shadowed by the S3 bucket/key patterns.
 // Health routes (/live, /health, /ready) are always reachable regardless of
 // readiness state.
-func MakeHandler(s Service, cfg *config.Config, ready func() bool) http.Handler {
+func MakeHandler(s Service, cfg *config.Config, ready func() bool, logger *slog.Logger) http.Handler {
 	top := mux.NewRouter()
 
 	top.Use(otelhttp.NewMiddleware("rebost",
@@ -59,6 +60,7 @@ func MakeHandler(s Service, cfg *config.Config, ready func() bool) http.Handler 
 	r := top.NewRoute().Subrouter()
 	r.Use(readyMiddleware(ready))
 	r.Use(S3AuthMiddleware(cfg.S3.AccessKey, cfg.S3.SecretKey, cfg.S3.AuthMode))
+	r.Use(AuditMiddleware(logger))
 
 	// Internal inter-node routes (JSON, always pass auth)
 	r.Handle("/replicas/{key:.*}", createReplicaHandler(s)).Methods("PUT")

@@ -18,7 +18,8 @@
 14. [Health & Readiness Endpoints](#health--readiness-endpoints)
 15. [Metrics](#metrics)
 16. [Tracing](#tracing)
-17. [Known Limitations](#known-limitations)
+17. [Logging](#logging)
+18. [Known Limitations](#known-limitations)
 
 ---
 
@@ -647,6 +648,127 @@ rebost serve --name n2 --volumes /tmp/v2 --remote localhost:3805 --tracing.otlp-
 ```
 
 Open Grafana at `http://localhost:3000`, add a Tempo datasource (`http://tempo:3200`), then use **Explore → Search** to find traces for service `rebost`.
+
+---
+
+## Logging
+
+Rebost uses structured logging (`log/slog`) throughout. Two flags control output:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--log.format` | `text` | `text` for human-readable output; `json` for machine-parseable (Grafana Loki, jq) |
+| `--log.level` | `info` | `debug`, `info`, `warn`, or `error` |
+
+### Event constants
+
+Every significant operation emits a log line with an `event` key. Use this key in LogQL or grep to filter specific event types:
+
+| Event | Where it fires |
+|-------|----------------|
+| `file.created` | Volume: file written to local storage |
+| `file.deleted` | Volume: file removed from local storage |
+| `file.ttl_expired` | Volume: TTL loop expired a file |
+| `replica.created` | Background loop: replica pushed to a peer |
+| `replica.stale` | Background loop: replica job for a deleted file |
+| `replica.delete_propagated` | Background loop: deletion forwarded to replica holders |
+| `replica.consistency_purged` | Consistency check: stale non-owner replica purged |
+| `file.scrub_repaired` | Scrub: corrupt file repaired from a remote replica |
+| `file.scrub_no_replicas` | Scrub: corrupt file has no remote replicas to repair from |
+| `node.joined` | Gossip: peer node joined the cluster |
+| `node.left` | Gossip: peer node left the cluster |
+| `drain.preparing` | Drain: creating replica jobs for local files |
+| `drain.waiting` | Drain: waiting for replica queue to empty |
+| `drain.purging` | Drain: purging local copies |
+| `drain.leaving` | Drain: leaving the cluster |
+| `audit.create` | HTTP: S3 PUT object |
+| `audit.delete` | HTTP: S3 DELETE object |
+| `audit.access` | HTTP: S3 GET object |
+| `audit.stat` | HTTP: S3 HEAD object |
+
+### Audit log fields
+
+Every S3 object operation (create/access/stat/delete) emits an audit log line with these fields:
+
+| Field | Example | Description |
+|-------|---------|-------------|
+| `event` | `audit.create` | Operation type |
+| `method` | `PUT` | HTTP method |
+| `key` | `mybucket/photo.jpg` | Parsed bucket+key |
+| `caller_ip` | `10.0.0.5` | Client IP (uses `X-Forwarded-For` if present) |
+| `status` | `200` | HTTP response status code |
+| `time` | `2026-03-28T12:00:00Z` | RFC3339 timestamp |
+
+### Grafana Loki
+
+Run Rebost with JSON logging, then scrape with Promtail:
+
+```bash
+rebost serve --name n1 --volumes /tmp/v1 --log.format json 2>&1 | tee /var/log/rebost.log
+```
+
+Example `docker-compose.yml` snippet:
+
+```yaml
+services:
+  rebost:
+    image: rebost:latest
+    command: serve --name n1 --volumes /data --log.format json
+    volumes:
+      - /data:/data
+      - /var/log/rebost:/var/log/rebost
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log/rebost:/var/log/rebost
+      - ./promtail-config.yaml:/etc/promtail/config.yml
+
+  loki:
+    image: grafana/loki:latest
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+```
+
+Example Promtail config (`promtail-config.yaml`):
+
+```yaml
+scrape_configs:
+  - job_name: rebost
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: rebost
+          __path__: /var/log/rebost/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            event: event
+            key: key
+            caller_ip: caller_ip
+```
+
+### Sample LogQL queries
+
+```logql
+# All audit events
+{job="rebost"} | json | event=~"audit\\..*"
+
+# Files created by a specific client IP
+{job="rebost"} | json | event="audit.create" | caller_ip="10.0.0.5"
+
+# Replica events
+{job="rebost"} | json | event=~"replica\\..*"
+
+# TTL expirations
+{job="rebost"} | json | event="file.ttl_expired"
+
+# Node topology changes
+{job="rebost"} | json | event=~"node\\..*"
+```
 
 ---
 

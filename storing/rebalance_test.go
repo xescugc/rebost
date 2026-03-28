@@ -1,6 +1,8 @@
 package storing
 
 import (
+	"log/slog"
+
 	"bytes"
 	"context"
 	"errors"
@@ -84,7 +86,7 @@ func TestRebalanceVolume(t *testing.T) {
 
 		// Set up real HTTP test server for the winner node.
 		winnerStore := mock.NewStoring(ctrl)
-		winnerHandler := httptransport.MakeHandler(winnerStore, &config.Config{}, func() bool { return true })
+		winnerHandler := httptransport.MakeHandler(winnerStore, &config.Config{}, func() bool { return true }, slog.Default())
 		winnerServer := httptest.NewServer(winnerHandler)
 		defer winnerServer.Close()
 		winnerClient, err := client.New(winnerServer.URL)
@@ -141,7 +143,7 @@ func TestTransferOwnership(t *testing.T) {
 		s := newTestService(t, m)
 
 		winnerStore := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(winnerStore, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(winnerStore, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -167,7 +169,7 @@ func TestTransferOwnership(t *testing.T) {
 		s := newTestService(t, m)
 
 		winnerStore := mock.NewStoring(ctrl)
-		h := httptransport.MakeHandler(winnerStore, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(winnerStore, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -203,7 +205,7 @@ func TestTransferOwnership(t *testing.T) {
 
 		// Set up winner HTTP test server.
 		winnerStore := mock.NewStoring(ctrl)
-		winnerH := httptransport.MakeHandler(winnerStore, &config.Config{}, func() bool { return true })
+		winnerH := httptransport.MakeHandler(winnerStore, &config.Config{}, func() bool { return true }, slog.Default())
 		winnerServer := httptest.NewServer(winnerH)
 		defer winnerServer.Close()
 		winnerClient, err := client.New(winnerServer.URL)
@@ -211,7 +213,7 @@ func TestTransferOwnership(t *testing.T) {
 
 		// Set up replica HTTP test server.
 		replicaStore := mock.NewStoring(ctrl)
-		replicaH := httptransport.MakeHandler(replicaStore, &config.Config{}, func() bool { return true })
+		replicaH := httptransport.MakeHandler(replicaStore, &config.Config{}, func() bool { return true }, slog.Default())
 		replicaServer := httptest.NewServer(replicaH)
 		defer replicaServer.Close()
 		replicaClient, err := client.New(replicaServer.URL)

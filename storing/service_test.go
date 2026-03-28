@@ -167,7 +167,7 @@ func TestCreateFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		remoteClient, err := client.New(server.URL)
@@ -209,7 +209,7 @@ func TestCreateFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		remoteClient, err := client.New(server.URL)
@@ -270,7 +270,7 @@ func TestGetFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -307,7 +307,7 @@ func TestGetFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -369,7 +369,7 @@ func TestDeleteFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
@@ -402,7 +402,7 @@ func TestDeleteFile(t *testing.T) {
 		m := mock.NewMembership(ctrl)
 		defer ctrl.Finish()
 
-		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true })
+		h := httptransport.MakeHandler(s2, &config.Config{}, func() bool { return true }, slog.Default())
 		server := httptest.NewServer(h)
 		defer server.Close()
 		c, err := client.New(server.URL)
