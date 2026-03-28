@@ -17,7 +17,8 @@
 13. [Dashboard](#dashboard)
 14. [Health & Readiness Endpoints](#health--readiness-endpoints)
 15. [Metrics](#metrics)
-16. [Known Limitations](#known-limitations)
+16. [Tracing](#tracing)
+17. [Known Limitations](#known-limitations)
 
 ---
 
@@ -563,6 +564,89 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:3805']
 ```
+
+---
+
+## Tracing
+
+Rebost emits OpenTelemetry spans for service and volume operations. W3C `traceparent` headers are propagated across inter-node HTTP calls automatically. Spans are exported via OTLP HTTP when `--tracing.otlp-endpoint` is configured; if omitted, context still propagates but nothing is exported.
+
+### Configuration
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--tracing.otlp-endpoint` | _(empty)_ | OTLP HTTP collector endpoint, e.g. `localhost:4318`. Empty disables export. |
+
+### Spans
+
+| Span | Attributes |
+|------|------------|
+| `storing.CreateFile` | `key`, `replica` |
+| `storing.GetFile` | `key` |
+| `storing.DeleteFile` | `key` |
+| `storing.HasFile` | `key` |
+| `storing.StatFile` | `key` |
+| `storing.CreateReplica` | `key` |
+| `storing.UpdateFileReplica` | `key` |
+| `storing.GetReplicaInfo` | `key` |
+| `storing.Drain` | — |
+| `storing.Ready` | — |
+| `volume.CreateFile` | `key`, `volume_id` |
+| `volume.GetFile` | `key`, `volume_id` |
+| `volume.DeleteFile` | `key`, `volume_id` |
+| `volume.StatFile` | `key`, `volume_id` |
+| `volume.HasFile` | `key`, `volume_id` |
+| `volume.SynchronizeReplicas` | `volume_id`, `removed_volume_id` |
+| `volume.NextReplica` | `volume_id` |
+| `volume.UpdateReplica` | `volume_id` |
+
+### Example: Grafana Tempo + Grafana
+
+```yaml
+# docker-compose.yml
+services:
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "4318:4318"   # OTLP HTTP receiver
+      - "3200:3200"   # Tempo query API
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_DATASOURCES_DEFAULT_URL=http://tempo:3200
+```
+
+```yaml
+# tempo.yaml
+server:
+  http_listen_port: 3200
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo
+```
+
+Start Rebost pointing at Tempo:
+
+```bash
+rebost serve --name n1 --volumes /tmp/v1 --tracing.otlp-endpoint localhost:4318
+rebost serve --name n2 --volumes /tmp/v2 --remote localhost:3805 --tracing.otlp-endpoint localhost:4318
+```
+
+Open Grafana at `http://localhost:3000`, add a Tempo datasource (`http://tempo:3200`), then use **Explore → Search** to find traces for service `rebost`.
 
 ---
 

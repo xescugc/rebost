@@ -37,7 +37,10 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/otel"
 	otelprometheus "go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 var (
@@ -64,6 +67,26 @@ var (
 			mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(promExporter))
 			otel.SetMeterProvider(mp)
 			defer mp.Shutdown(ctx)
+
+			otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+				propagation.TraceContext{},
+				propagation.Baggage{},
+			))
+			var tpOpts []sdktrace.TracerProviderOption
+			tpOpts = append(tpOpts, sdktrace.WithSampler(sdktrace.AlwaysSample()))
+			if cfg.Tracing.OTLPEndpoint != "" {
+				exp, err := otlptracehttp.New(ctx,
+					otlptracehttp.WithEndpoint(cfg.Tracing.OTLPEndpoint),
+					otlptracehttp.WithInsecure(),
+				)
+				if err != nil {
+					return fmt.Errorf("init OTLP trace exporter: %w", err)
+				}
+				tpOpts = append(tpOpts, sdktrace.WithBatcher(exp))
+			}
+			tp := sdktrace.NewTracerProvider(tpOpts...)
+			otel.SetTracerProvider(tp)
+			defer tp.Shutdown(ctx)
 
 			osfs := afero.NewOsFs()
 
@@ -117,7 +140,7 @@ var (
 				}
 
 				logger.Info(fmt.Sprintf("Attached to volume: %q", vp))
-				vs = append(vs, v)
+				vs = append(vs, otelwrap.LocalVolumeWithTracing(v))
 			}
 
 			if len(vs) == 0 {
@@ -133,6 +156,7 @@ var (
 			if err != nil {
 				return err
 			}
+			s = otelwrap.ServiceWithTracing(s)
 
 			m.SetStatus(membership.StatusRunning)
 
@@ -296,6 +320,9 @@ func init() {
 
 	serveCmd.PersistentFlags().StringToString("tag", map[string]string{}, "Arbitrary key=value label for this node (repeatable: --tag rack=us-east-1 --tag env=prod)")
 	viper.BindPFlag("tags", serveCmd.PersistentFlags().Lookup("tag"))
+
+	serveCmd.Flags().String("tracing.otlp-endpoint", "", "OTLP HTTP endpoint for trace export (e.g. localhost:4318); empty disables export")
+	viper.BindPFlag("tracing.otlp-endpoint", serveCmd.Flags().Lookup("tracing.otlp-endpoint"))
 
 	RootCmd.AddCommand(serveCmd)
 }
