@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-28
+
 ### Added
 
 - HRW (Highest Random Weight / Rendezvous) hashing for deterministic file placement: uploads land on the highest-scored `fnv64a(key+volumeID)` volume, reducing cold-cache lookups from O(n) broadcast to O(Replica) ranked checks. [Issue#206](https://github.com/xescugc/rebost/issues/206)
@@ -33,15 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Storage capacity fallback: when a volume is full, `CreateFile` automatically
   falls back to another local volume, then a remote cluster node.
   [Issue#36](https://github.com/xescugc/rebost/issues/36)
+- All the endpoints are now S3 compatible
+  [Issue#89](https://github.com/xescugc/rebost/issues/89)
 
 ### Fixed
 
 - HEAD handler now correctly finds files on remote nodes, matching GET behaviour; eliminates redundant double-lookup [Issue#183](https://github.com/xescugc/rebost/issues/183)
-
-## Changed
-
-- All the endpoints are now S3 compatible
-  [Issue#89](https://github.com/xescugc/rebost/issues/89)
 
 ## [0.4.0] - 2026-03-20
 
