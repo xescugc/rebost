@@ -71,6 +71,36 @@ func (mr *VolumeLocalMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*VolumeLocal)(nil).Close))
 }
 
+// CountDeletions mocks base method.
+func (m *VolumeLocal) CountDeletions(arg0 context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountDeletions", arg0)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountDeletions indicates an expected call of CountDeletions.
+func (mr *VolumeLocalMockRecorder) CountDeletions(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountDeletions", reflect.TypeOf((*VolumeLocal)(nil).CountDeletions), arg0)
+}
+
+// CountReplicas mocks base method.
+func (m *VolumeLocal) CountReplicas(arg0 context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountReplicas", arg0)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountReplicas indicates an expected call of CountReplicas.
+func (mr *VolumeLocalMockRecorder) CountReplicas(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountReplicas", reflect.TypeOf((*VolumeLocal)(nil).CountReplicas), arg0)
+}
+
 // CreateFile mocks base method.
 func (m *VolumeLocal) CreateFile(arg0 context.Context, arg1 string, arg2 io.ReadCloser, arg3 int, arg4 time.Duration, arg5 time.Time) error {
 	m.ctrl.T.Helper()
@@ -276,6 +306,22 @@ func (m *VolumeLocal) NextScrub(arg0 context.Context) (*scrub.Scrub, error) {
 func (mr *VolumeLocalMockRecorder) NextScrub(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextScrub", reflect.TypeOf((*VolumeLocal)(nil).NextScrub), arg0)
+}
+
+// OldestReplica mocks base method.
+func (m *VolumeLocal) OldestReplica(arg0 context.Context) (*replica.Replica, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OldestReplica", arg0)
+	ret0, _ := ret[0].(*replica.Replica)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// OldestReplica indicates an expected call of OldestReplica.
+func (mr *VolumeLocalMockRecorder) OldestReplica(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OldestReplica", reflect.TypeOf((*VolumeLocal)(nil).OldestReplica), arg0)
 }
 
 // OverwriteFileContent mocks base method.

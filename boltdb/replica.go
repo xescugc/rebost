@@ -67,6 +67,10 @@ func (r *replicaRepository) HasAny(ctx context.Context) (bool, error) {
 	return k != nil, nil
 }
 
+func (r *replicaRepository) Count(_ context.Context) (int64, error) {
+	return int64(r.bucket.Stats().KeyN), nil
+}
+
 func (r *replicaRepository) HasKey(ctx context.Context, key string) (bool, error) {
 	c := r.bucket.Cursor()
 	for k, v := c.First(); k != nil; k, v = c.Next() {

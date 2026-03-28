@@ -35,6 +35,21 @@ func (m *DeletionRepository) EXPECT() *DeletionRepositoryMockRecorder {
 	return m.recorder
 }
 
+// Count mocks base method.
+func (m *DeletionRepository) Count(arg0 context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Count", arg0)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Count indicates an expected call of Count.
+func (mr *DeletionRepositoryMockRecorder) Count(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*DeletionRepository)(nil).Count), arg0)
+}
+
 // Create mocks base method.
 func (m *DeletionRepository) Create(arg0 context.Context, arg1 *deletion.Deletion) error {
 	m.ctrl.T.Helper()

@@ -164,6 +164,16 @@ type Local interface {
 	// PurgeFile removes the local file and index entries for key without
 	// creating deletion jobs for remote nodes (unlike DeleteFile).
 	PurgeFile(ctx context.Context, key string) error
+
+	// CountReplicas returns the number of pending replica jobs on this volume.
+	CountReplicas(ctx context.Context) (int64, error)
+
+	// CountDeletions returns the number of pending deletion jobs on this volume.
+	CountDeletions(ctx context.Context) (int64, error)
+
+	// OldestReplica returns the oldest pending replica job (for lag measurement).
+	// Returns nil, false, nil if the queue is empty.
+	OldestReplica(ctx context.Context) (*replica.Replica, bool, error)
 }
 
 type local struct {
@@ -528,6 +538,7 @@ func (l *local) CreateFile(ctx context.Context, key string, r io.ReadCloser, rep
 				VolumeID:      l.id,
 				TTL:           ttl,
 				CreatedAt:     ca,
+				EnqueuedAt:    time.Now(),
 			}
 
 			err = uw.Replicas().Create(ctx, rp)
@@ -786,6 +797,7 @@ func (l *local) UpdateReplica(ctx context.Context, rp *replica.Replica, vID stri
 		rp.Count--
 
 		if rp.Count > 0 {
+			rp.EnqueuedAt = time.Now()
 			err = uw.Replicas().Create(ctx, rp)
 			if err != nil {
 				return err
@@ -906,6 +918,7 @@ func (l *local) SynchronizeReplicas(ctx context.Context, vID string) error {
 					Signature:     f.Signature,
 					VolumeID:      l.id,
 					VolumeIDs:     f.VolumeIDs,
+					EnqueuedAt:    time.Now(),
 				}
 
 				err = uw.Replicas().Create(ctx, rp)
@@ -1100,6 +1113,7 @@ func (l *local) PrepareForDrain(ctx context.Context) error {
 					VolumeIDs:     vidsWithoutSelf,
 					TTL:           f.TTL,
 					CreatedAt:     f.CreatedAt,
+					EnqueuedAt:    time.Now(),
 				}
 
 				err = uw.Replicas().Create(ctx, rp)
@@ -1126,6 +1140,39 @@ func (l *local) HasPendingReplicas(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return has, nil
+}
+
+func (l *local) CountReplicas(ctx context.Context) (int64, error) {
+	var count int64
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		var err error
+		count, err = uw.Replicas().Count(ctx)
+		return err
+	})
+	return count, err
+}
+
+func (l *local) CountDeletions(ctx context.Context) (int64, error) {
+	var count int64
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		var err error
+		count, err = uw.Deletions().Count(ctx)
+		return err
+	})
+	return count, err
+}
+
+func (l *local) OldestReplica(ctx context.Context) (*replica.Replica, bool, error) {
+	var r *replica.Replica
+	err := l.startUnitOfWork(ctx, uow.Read, func(ctx context.Context, uw uow.UnitOfWork) error {
+		var ferr error
+		r, ferr = uw.Replicas().First(ctx)
+		if ferr != nil && ferr.Error() == "not found" {
+			return nil
+		}
+		return ferr
+	})
+	return r, r != nil, err
 }
 
 func (l *local) PurgeAllFiles(ctx context.Context) error {
@@ -1219,6 +1266,7 @@ func (l *local) ReconcileReplicas(ctx context.Context) error {
 				Signature:     f.Signature,
 				VolumeID:      l.id,
 				VolumeIDs:     f.VolumeIDs,
+				EnqueuedAt:    time.Now(),
 			}
 			if err := uw.Replicas().Create(ctx, rp); err != nil {
 				return err
