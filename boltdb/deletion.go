@@ -51,3 +51,7 @@ func (r *deletionRepository) First(ctx context.Context) (*deletion.Deletion, err
 func (r *deletionRepository) Delete(ctx context.Context, d *deletion.Deletion) error {
 	return r.bucket.Delete(d.VolumeDeletionID)
 }
+
+func (r *deletionRepository) Count(_ context.Context) (int64, error) {
+	return int64(r.bucket.Stats().KeyN), nil
+}

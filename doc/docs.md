@@ -550,6 +550,9 @@ Always reachable — no readiness gate. Responds with Prometheus text format.
 | `rebost_volume_storage_used_bytes` | Gauge | Bytes used on each local volume (label: `volume_id`) |
 | `rebost_volume_storage_total_bytes` | Gauge | Total capacity of each local volume (label: `volume_id`) |
 | `rebost_volume_files` | Gauge | Number of file records on each local volume (label: `volume_id`) |
+| `rebost_volume_replica_queue_depth` | Gauge | Pending replica jobs per volume (label: `volume_id`) |
+| `rebost_volume_deletion_queue_depth` | Gauge | Pending deletion jobs per volume (label: `volume_id`) |
+| `rebost_volume_replication_lag_seconds` | Gauge | Age of oldest pending replica job in seconds; 0 if queue is empty (label: `volume_id`) |
 | `rebost_db_operation_duration_seconds` | Histogram | BoltDB repository operation latency (labels: `repo`, `method`, `status`) |
 
 ### Example Prometheus scrape config

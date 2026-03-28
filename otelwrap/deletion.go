@@ -26,3 +26,8 @@ func (r *instrDeletionRepo) Delete(ctx context.Context, d *deletion.Deletion) (e
 	defer func(s time.Time) { r.inst.record(ctx, "deletion", "delete", s, err) }(time.Now())
 	return r.inner.Delete(ctx, d)
 }
+
+func (r *instrDeletionRepo) Count(ctx context.Context) (_ int64, err error) {
+	defer func(s time.Time) { r.inst.record(ctx, "deletion", "count", s, err) }(time.Now())
+	return r.inner.Count(ctx)
+}

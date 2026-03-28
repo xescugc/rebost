@@ -41,3 +41,8 @@ func (r *instrReplicaRepo) HasKey(ctx context.Context, key string) (_ bool, err 
 	defer func(s time.Time) { r.inst.record(ctx, "replica", "has_key", s, err) }(time.Now())
 	return r.inner.HasKey(ctx, key)
 }
+
+func (r *instrReplicaRepo) Count(ctx context.Context) (_ int64, err error) {
+	defer func(s time.Time) { r.inst.record(ctx, "replica", "count", s, err) }(time.Now())
+	return r.inner.Count(ctx)
+}

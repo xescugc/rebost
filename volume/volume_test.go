@@ -974,7 +974,14 @@ func TestUpdateReplica(t *testing.T) {
 		mv.IDXVolumes.EXPECT().FindByVolumeID(ctx, "1").Return(nil, errors.New("not found"))
 		mv.IDXVolumes.EXPECT().CreateOrReplace(ctx, idxvolume.New("1", []string{findFile.Signature})).Return(nil)
 		mv.Replicas.EXPECT().Delete(ctx, rp).Return(nil)
-		mv.Replicas.EXPECT().Create(ctx, createRP).Return(nil)
+		mv.Replicas.EXPECT().Create(ctx, gomock.Any()).Do(
+			func(_ context.Context, got *replica.Replica) error {
+				assert.False(t, got.EnqueuedAt.IsZero())
+				got.EnqueuedAt = createRP.EnqueuedAt
+				assert.Equal(t, createRP, got)
+				return nil
+			},
+		).Return(nil)
 
 		err := mv.V.UpdateReplica(ctx, rp, "1")
 		require.NoError(t, err)
@@ -1130,6 +1137,9 @@ func TestSynchronizeReplicas(t *testing.T) {
 			func(_ context.Context, rp *replica.Replica) error {
 				assert.NotEmpty(t, rp.ID)
 				rp.ID = rep.ID
+
+				assert.False(t, rp.EnqueuedAt.IsZero())
+				rp.EnqueuedAt = rep.EnqueuedAt
 
 				assert.Equal(t, rep, rp)
 				return nil

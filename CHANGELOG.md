@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Prometheus-compatible `/metrics` endpoint via OpenTelemetry SDK (Prometheus exporter). [Issue#148](https://github.com/xescugc/rebost/issues/148) [Issue#38](https://github.com/xescugc/rebost/issues/38)
+- Per-volume replica queue depth metric (`rebost_volume_replica_queue_depth`). [Issue#149](https://github.com/xescugc/rebost/issues/149)
+- Per-volume deletion queue depth metric (`rebost_volume_deletion_queue_depth`). [Issue#150](https://github.com/xescugc/rebost/issues/150)
+- Replication lag metric (`rebost_volume_replication_lag_seconds`): age of the oldest pending replica job; 0 when the queue is empty. [Issue#151](https://github.com/xescugc/rebost/issues/151)
 
 ## [0.5.0] - 2026-03-28
 

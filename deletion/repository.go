@@ -14,4 +14,7 @@ type Repository interface {
 
 	// Delete removes a processed deletion job.
 	Delete(ctx context.Context, d *Deletion) error
+
+	// Count returns the number of pending deletion jobs.
+	Count(ctx context.Context) (int64, error)
 }

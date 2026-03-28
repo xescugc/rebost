@@ -36,4 +36,7 @@ type Replica struct {
 
 	// CreatedAt is the time of creation of the original file
 	CreatedAt time.Time
+
+	// EnqueuedAt is the time this replica job was added to the queue
+	EnqueuedAt time.Time
 }

@@ -2,6 +2,7 @@ package storing
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -40,6 +41,34 @@ func (s *service) registerMetrics() {
 		return
 	}
 
+	replicaQueueGauge, err := meter.Int64ObservableGauge(
+		"rebost.volume.replica_queue_depth",
+		otelmetric.WithDescription("Number of pending replica jobs on each local volume"),
+	)
+	if err != nil {
+		s.logger.Error("failed to create rebost.volume.replica_queue_depth gauge", "err", err)
+		return
+	}
+
+	deletionQueueGauge, err := meter.Int64ObservableGauge(
+		"rebost.volume.deletion_queue_depth",
+		otelmetric.WithDescription("Number of pending deletion jobs on each local volume"),
+	)
+	if err != nil {
+		s.logger.Error("failed to create rebost.volume.deletion_queue_depth gauge", "err", err)
+		return
+	}
+
+	replicationLagGauge, err := meter.Float64ObservableGauge(
+		"rebost.volume.replication_lag_seconds",
+		otelmetric.WithDescription("Age of the oldest pending replica job in seconds; 0 if queue is empty"),
+		otelmetric.WithUnit("s"),
+	)
+	if err != nil {
+		s.logger.Error("failed to create rebost.volume.replication_lag_seconds gauge", "err", err)
+		return
+	}
+
 	_, err = meter.RegisterCallback(func(ctx context.Context, o otelmetric.Observer) error {
 		for _, v := range s.members.LocalVolumes() {
 			attrs := otelmetric.WithAttributes(attribute.String("volume_id", v.ID()))
@@ -50,9 +79,22 @@ func (s *service) registerMetrics() {
 			if files, err := v.AllFiles(ctx); err == nil {
 				o.ObserveInt64(filesGauge, int64(len(files)), attrs)
 			}
+			if n, err := v.CountReplicas(ctx); err == nil {
+				o.ObserveInt64(replicaQueueGauge, n, attrs)
+			}
+			if n, err := v.CountDeletions(ctx); err == nil {
+				o.ObserveInt64(deletionQueueGauge, n, attrs)
+			}
+			if r, ok, err := v.OldestReplica(ctx); err == nil {
+				lag := float64(0)
+				if ok {
+					lag = time.Since(r.EnqueuedAt).Seconds()
+				}
+				o.ObserveFloat64(replicationLagGauge, lag, attrs)
+			}
 		}
 		return nil
-	}, usedGauge, totalGauge, filesGauge)
+	}, usedGauge, totalGauge, filesGauge, replicaQueueGauge, deletionQueueGauge, replicationLagGauge)
 	if err != nil {
 		s.logger.Error("failed to register metrics callback", "err", err)
 	}

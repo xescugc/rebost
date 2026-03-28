@@ -23,4 +23,7 @@ type Repository interface {
 
 	// HasKey returns true if there is already a pending replica job for the given file key.
 	HasKey(ctx context.Context, key string) (bool, error)
+
+	// Count returns the number of pending replica jobs.
+	Count(ctx context.Context) (int64, error)
 }
