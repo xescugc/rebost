@@ -219,6 +219,7 @@ var (
 				dmux.Handle("/", dhandler)
 				dmux.Handle("/css/", http.FileServer(http.FS(assets.Assets)))
 				dmux.Handle("/js/", http.FileServer(http.FS(assets.Assets)))
+				dmux.Handle("/img/", http.FileServer(http.FS(assets.Assets)))
 
 				dsvr := &http.Server{
 					Addr:    fmt.Sprintf(":%d", cfg.Dashboard.Port),

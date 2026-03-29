@@ -1,6 +1,10 @@
 [![Go](https://github.com/xescugc/rebost/actions/workflows/go.yml/badge.svg)](https://github.com/xescugc/rebost/actions/workflows/go.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/xescugc/rebost.svg)](https://pkg.go.dev/github.com/xescugc/rebost)
 
+<p align="center">
+  <img src="doc/11-triangle-mesh.svg" alt="Rebost" width="340" />
+</p>
+
 # Rebost (Beta)
 
 **[Full Documentation →](doc/docs.md)**

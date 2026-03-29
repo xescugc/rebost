@@ -2,15 +2,20 @@
   <!DOCTYPE html>
   <html lang="en">
     <head>
-      <title>Ingremix</title>
+      <title>Rebost</title>
       <link href="/css/bootstrap.min.css" rel="stylesheet" />
+      <link href="/css/custom.css" rel="stylesheet" />
+      <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     </head>
 
     <body>
       <div class="container">
-        <nav class="navbar navbar-expand-lg bg-light">
+        <nav class="navbar navbar-expand-lg">
           <div class="container-fluid">
-            <a class="navbar-brand" href="/">Rebost</a>
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+              <img src="/img/favicon.svg" alt="Rebost" height="36" />
+              Rebost
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
               <span class="navbar-toggler-icon"></span>
             </button>
@@ -23,7 +28,7 @@
         {{ end }}
         {{template "content" .}}
       </div>
-      <script type = "text/javascript" src="/js/bootstrap.bundle.min.js"></script>
+      <script type="text/javascript" src="/js/bootstrap.bundle.min.js"></script>
     </body>
   </html>
 {{end}}
