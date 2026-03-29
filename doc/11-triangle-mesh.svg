@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 400 310" width="340" height="263" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#1a0f2e"/>
+      <stop offset="100%" stop-color="#0C0A18"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="eg" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- separate filter for horizontal edge using absolute units to avoid zero-height collapse -->
+    <filter id="eg-h" filterUnits="userSpaceOnUse" x="80" y="198" width="240" height="16">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;display=swap');</style>
+  </defs>
+  <rect width="400" height="310" fill="url(#bg)" rx="16"/>
+  <!-- triangle fill -->
+  <polygon points="200,58 105,208 295,208" fill="#7C3AED" fill-opacity=".07"/>
+  <!-- diagonal edges -->
+  <line x1="200" y1="58" x2="105" y2="208" stroke="#8B5CF6" stroke-width="2" opacity=".75" filter="url(#eg)"/>
+  <line x1="200" y1="58" x2="295" y2="208" stroke="#8B5CF6" stroke-width="2" opacity=".75" filter="url(#eg)"/>
+  <!-- bottom horizontal edge — uses userSpaceOnUse filter -->
+  <line x1="105" y1="208" x2="295" y2="208" stroke="#8B5CF6" stroke-width="2" opacity=".75" filter="url(#eg-h)"/>
+  <!-- node top -->
+  <circle cx="200" cy="58"  r="20" fill="#7C3AED" fill-opacity=".1" filter="url(#glow)"/>
+  <circle cx="200" cy="58"  r="12" fill="none" stroke="#7C3AED" stroke-width="2.5" filter="url(#glow)"/>
+  <circle cx="200" cy="58"  r="6"  fill="#8B5CF6" fill-opacity=".9"/>
+  <circle cx="200" cy="58"  r="2.5" fill="#C4B5FD"/>
+  <!-- node bottom-left -->
+  <circle cx="105" cy="208" r="20" fill="#7C3AED" fill-opacity=".1" filter="url(#glow)"/>
+  <circle cx="105" cy="208" r="12" fill="none" stroke="#7C3AED" stroke-width="2.5" filter="url(#glow)"/>
+  <circle cx="105" cy="208" r="6"  fill="#8B5CF6" fill-opacity=".9"/>
+  <circle cx="105" cy="208" r="2.5" fill="#C4B5FD"/>
+  <!-- node bottom-right -->
+  <circle cx="295" cy="208" r="20" fill="#7C3AED" fill-opacity=".1" filter="url(#glow)"/>
+  <circle cx="295" cy="208" r="12" fill="none" stroke="#7C3AED" stroke-width="2.5" filter="url(#glow)"/>
+  <circle cx="295" cy="208" r="6"  fill="#8B5CF6" fill-opacity=".9"/>
+  <circle cx="295" cy="208" r="2.5" fill="#C4B5FD"/>
+  <!-- wordmark -->
+  <text font-family="'DM Mono',monospace" font-size="36" font-weight="500"
+        fill="#E2D9FA" x="200" y="262" text-anchor="middle" letter-spacing="4">REBOST</text>
+  <!-- tagline -->
+  <text font-family="'DM Mono',monospace" font-size="13" font-weight="400"
+        fill="#6D28D9" x="200" y="286" text-anchor="middle" letter-spacing="3">DISTRIBUTED STORAGE</text>
+</svg>

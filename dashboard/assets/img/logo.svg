@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 40" width="200" height="40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="g" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="eg" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&amp;display=swap');</style>
+  </defs>
+  <!-- symbol -->
+  <polygon points="10,4 2,22 18,22" fill="#7C3AED" fill-opacity=".07"/>
+  <line x1="10" y1="4"  x2="2"  y2="22" stroke="#8B5CF6" stroke-width="1" opacity=".75" filter="url(#eg)"/>
+  <line x1="10" y1="4"  x2="18" y2="22" stroke="#8B5CF6" stroke-width="1" opacity=".75" filter="url(#eg)"/>
+  <line x1="2"  y1="22" x2="18" y2="22" stroke="#8B5CF6" stroke-width="1" opacity=".75" filter="url(#eg)"/>
+  <!-- top node -->
+  <circle cx="10" cy="4" r="5" fill="#7C3AED" fill-opacity=".1" filter="url(#g)"/>
+  <circle cx="10" cy="4" r="3" fill="none" stroke="#7C3AED" stroke-width="1" filter="url(#g)"/>
+  <circle cx="10" cy="4" r="1.5" fill="#8B5CF6" fill-opacity=".9"/>
+  <!-- bottom-left node -->
+  <circle cx="2"  cy="22" r="5" fill="#7C3AED" fill-opacity=".1" filter="url(#g)"/>
+  <circle cx="2"  cy="22" r="3" fill="none" stroke="#7C3AED" stroke-width="1" filter="url(#g)"/>
+  <circle cx="2"  cy="22" r="1.5" fill="#8B5CF6" fill-opacity=".9"/>
+  <!-- bottom-right node -->
+  <circle cx="18" cy="22" r="5" fill="#7C3AED" fill-opacity=".1" filter="url(#g)"/>
+  <circle cx="18" cy="22" r="3" fill="none" stroke="#7C3AED" stroke-width="1" filter="url(#g)"/>
+  <circle cx="18" cy="22" r="1.5" fill="#8B5CF6" fill-opacity=".9"/>
+  <!-- wordmark -->
+  <text font-family="'DM Mono',monospace" font-size="16" font-weight="500"
+        fill="#E2D9FA" x="28" y="24" letter-spacing="2">rebost</text>
+</svg>

@@ -1,0 +1,62 @@
+:root {
+  --bs-body-bg: #0C0A18;
+  --bs-body-color: #C4B5FD;
+  --bs-border-color: #2e1f5e;
+  --bs-primary: #7C3AED;
+  --bs-primary-rgb: 124, 58, 237;
+  --bs-link-color: #A78BFA;
+  --bs-link-hover-color: #C4B5FD;
+}
+
+body {
+  background-color: #0C0A18;
+  color: #C4B5FD;
+}
+
+.navbar {
+  background-color: #12102a !important;
+  border-bottom: 1px solid #2e1f5e;
+}
+
+.navbar-brand {
+  padding: 0;
+  line-height: 1;
+}
+
+.card {
+  background-color: #12102a;
+  border-color: #2e1f5e;
+  color: #C4B5FD;
+}
+
+.card-header {
+  background-color: #1a0f2e;
+  border-bottom-color: #2e1f5e;
+  color: #E2D9FA;
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: #C4B5FD;
+  --bs-table-border-color: #2e1f5e;
+  --bs-table-striped-bg: #1a0f2e;
+  --bs-table-hover-bg: #2e1f5e;
+}
+
+.table th {
+  color: #A78BFA;
+  border-bottom-color: #7C3AED;
+}
+
+.alert-warning {
+  background-color: #2e1f5e;
+  border-color: #7C3AED;
+  color: #E2D9FA;
+}
+
+.badge.bg-primary {
+  background-color: #7C3AED !important;
+}
+
+a { color: #A78BFA; }
+a:hover { color: #C4B5FD; }
