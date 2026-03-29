@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Dashboard showing the current node twice when joining an existing cluster: `NotifyJoin` now skips events for the local node by name instead of relying on the `members == nil` initialization guard. [Issue#125](https://github.com/xescugc/rebost/issues/125)
+
 ### Added
 
+- Modernized dashboard UI: responsive node grid, animated progress bars with glow effects, pulsing status indicators, monospace data values, and refined dark-purple aesthetic. [Issue#125](https://github.com/xescugc/rebost/issues/125)
 - Official logo (triangle mesh — three equal nodes, no master), favicon SVG, and dashboard dark-purple rebrand to match the logo palette.
 - Added structured logging [Issue#157](https://github.com/xescugc/rebost/issues/157)
 - Audit logging middleware: every S3 object create, access, stat, and delete is logged with `event`, `key`, `caller_ip`, and `status`. [Issue#160](https://github.com/xescugc/rebost/issues/160)

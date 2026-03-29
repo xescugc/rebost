@@ -19,9 +19,10 @@ type eventDelegate struct {
 func (e *eventDelegate) NotifyJoin(n *memberlist.Node) {
 	// When a memberlist.Config is created it sends the JOIN event
 	// for itself, we do not want to store the current node as we already
-	// have the 'localVolumes' we just ignore the first node if we already
-	// have not been initialized.
-	if e.members.members == nil {
+	// have the 'localVolumes'. We skip any event for our own node name
+	// to handle both the initial startup case and re-announcements that
+	// can occur when joining an existing cluster.
+	if n.Name == e.members.cfg.Name {
 		return
 	}
 
