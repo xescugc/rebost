@@ -1,66 +1,141 @@
 {{template "main" .}}
 {{define "content"}}
-  <div class="container">
-    <h1>Nodes</h1>
-    <p>General state of the cluster</p>
-    <p class="card-text">Used {{ humanizeNodesUsedSize .Nodes }} out of {{ humanizeNodesTotalSize .Nodes }}</p>
+<div class="dashboard">
+
+  {{/* ── Cluster Overview ── */}}
+  <section class="cluster-overview">
+    <div class="section-header">
+      <div>
+        <h1 class="section-title">Cluster Overview</h1>
+        <p class="section-subtitle">Distributed object storage health</p>
+      </div>
+      <div class="node-count-badge">
+        <span class="count-number">{{ len .Nodes }}</span>
+        <span class="count-label">nodes</span>
+      </div>
+    </div>
+
     {{ $percentage := percentageNodesUsedSize .Nodes }}
     {{ $color := percentageUsedColor $percentage }}
-    <div class="progress" role="progressbar" aria-valuenow="{{$percentage}}" aria-valuemin="0" aria-valuemax="100">
-      <div class="progress-bar bg-{{$color}}" style="width: {{$percentage}}%">{{$percentage}}%</div>
+    <div class="cluster-storage">
+      <div class="storage-meta">
+        <span class="storage-label">Total Storage Used</span>
+        <span class="storage-value mono">
+          {{ humanizeNodesUsedSize .Nodes }}<span class="storage-sep">/</span>{{ humanizeNodesTotalSize .Nodes }}
+        </span>
+      </div>
+      <div class="progress-track" role="progressbar" aria-valuenow="{{$percentage}}" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-fill fill-{{$color}}" style="width: {{$percentage}}%">
+          <span class="progress-label">{{$percentage}}%</span>
+        </div>
+      </div>
     </div>
-    {{ range .Nodes }} 
-      <div class="row">
-        <div class="col-sm-6 mb-3 mb-sm-0">
-          <div class="card">
-            <div class="card-body">
-              <h5 class="card-title">
-                {{ .Config.Name }}
-                <span class="badge bg-{{ statusColor .State.Status }}">{{ .State.Status }}</span>
-              </h5>
-              {{- if .Config.Tags }}
-              <p class="mb-1">
-                {{- range $k, $v := .Config.Tags }}
-                <span class="badge bg-secondary">{{ $k }}={{ $v }}</span>
-                {{- end }}
-              </p>
-              {{- end }}
-              {{ range $id, $state := .State.Volumes }}
-                <p class="card-text">Used {{ humanizeUsedSize $state }} out of {{ humanizeTotalSize $state }}</p>
-                {{ $percentage := percentageStateUsedSize $state }}
-                {{ $color := percentageUsedColor $percentage }}
-                <div class="progress" role="progressbar" aria-valuenow="{{$percentage}}" aria-valuemin="0" aria-valuemax="100">
-                  <div class="progress-bar bg-{{$color}}" style="width: {{$percentage}}%">{{$percentage}}%</div>
-                </div>
-              {{ end }}
-              <p>
-                <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ .Config.Name }}" aria-expanded="false" aria-controls="{{ .Config.Name }}">
-                  See Config
-                </button>
-              </p>
-              <div class="collapse" id="{{ .Config.Name }}">
-                <div class="card card-body">
-                  <p><strong>Port:</strong> {{ .Config.Port }}</p>
-                  <p><strong>Name:</strong> {{ .Config.Name }}</p>
-                  <p><strong>Volumes:</strong> {{ .Config.Volumes }}</p>
-                  <p><strong>Remote:</strong> {{ .Config.Remote }}</p>
-                  <p><strong>Replica:</strong> {{ .Config.Replica }}</p>
-                  <p><strong>Memberlist Bind Port:</strong> {{ .Config.Memberlist.Port }}</p>
-                  <p><strong>Dashboard Enabled:</strong> {{ .Config.Dashboard.Enabled }}</p>
-                  <p><strong>Dashboard Port:</strong> {{ .Config.Dashboard.Port }}</p>
-                  {{- if .Config.Tags }}
-                  <p><strong>Tags:</strong>
-                    {{- range $k, $v := .Config.Tags }}
-                    <span class="badge bg-secondary">{{ $k }}={{ $v }}</span>
-                    {{- end }}
-                  </p>
-                  {{- end }}
-                </div>
+  </section>
+
+  {{/* ── Nodes Grid ── */}}
+  <section>
+    <p class="nodes-section-title">Nodes</p>
+    <div class="nodes-grid">
+      {{ range .Nodes }}
+      <div class="node-card">
+
+        {{/* Card header */}}
+        <div class="node-card-header">
+          <div class="node-identity">
+            <span class="status-indicator status-{{ statusColor .State.Status }}"></span>
+            <h2 class="node-name mono">{{ .Config.Name }}</h2>
+          </div>
+          <span class="status-badge badge-{{ statusColor .State.Status }}">{{ .State.Status }}</span>
+        </div>
+
+        {{/* Tags */}}
+        {{- if .Config.Tags }}
+        <div class="node-tags">
+          {{- range $k, $v := .Config.Tags }}
+          <span class="tag">{{ $k }}<span class="tag-sep">=</span>{{ $v }}</span>
+          {{- end }}
+        </div>
+        {{- end }}
+
+        {{/* Volume metrics */}}
+        <div class="node-volumes">
+          {{ range $id, $state := .State.Volumes }}
+          <div class="volume-metric">
+            <div class="volume-info">
+              <span class="volume-label mono">vol://{{ $id }}</span>
+              <span class="volume-size">{{ humanizeUsedSize $state }} / {{ humanizeTotalSize $state }}</span>
+            </div>
+            {{ $p := percentageStateUsedSize $state }}
+            {{ $c := percentageUsedColor $p }}
+            <div class="progress-track slim" role="progressbar" aria-valuenow="{{$p}}" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-fill fill-{{$c}}" style="width: {{$p}}%"></div>
+            </div>
+            <span class="volume-pct mono">{{$p}}%</span>
+          </div>
+          {{ end }}
+        </div>
+
+        {{/* Config toggle */}}
+        <div class="node-footer">
+          <button class="config-toggle" type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#config-{{ .Config.Name }}"
+            aria-expanded="false"
+            aria-controls="config-{{ .Config.Name }}">
+            <span class="toggle-icon">›</span> Config
+          </button>
+        </div>
+
+        {{/* Config detail */}}
+        <div class="collapse" id="config-{{ .Config.Name }}">
+          <div class="config-panel">
+            <div class="config-grid">
+              <div class="config-row">
+                <span class="config-key">Port</span>
+                <span class="config-val">{{ .Config.Port }}</span>
               </div>
+              <div class="config-row">
+                <span class="config-key">Name</span>
+                <span class="config-val">{{ .Config.Name }}</span>
+              </div>
+              <div class="config-row">
+                <span class="config-key">Volumes</span>
+                <span class="config-val">{{ .Config.Volumes }}</span>
+              </div>
+              <div class="config-row">
+                <span class="config-key">Remote</span>
+                <span class="config-val">{{ .Config.Remote }}</span>
+              </div>
+              <div class="config-row">
+                <span class="config-key">Replica</span>
+                <span class="config-val">{{ .Config.Replica }}</span>
+              </div>
+              <div class="config-row">
+                <span class="config-key">Memberlist Port</span>
+                <span class="config-val">{{ .Config.Memberlist.Port }}</span>
+              </div>
+              <div class="config-row">
+                <span class="config-key">Dashboard</span>
+                <span class="config-val">enabled={{ .Config.Dashboard.Enabled }} port={{ .Config.Dashboard.Port }}</span>
+              </div>
+              {{- if .Config.Tags }}
+              <div class="config-row">
+                <span class="config-key">Tags</span>
+                <span class="config-val">
+                  {{- range $k, $v := .Config.Tags }}
+                  <span class="tag small">{{ $k }}<span class="tag-sep">=</span>{{ $v }}</span>
+                  {{- end }}
+                </span>
+              </div>
+              {{- end }}
             </div>
           </div>
         </div>
+
       </div>
-    {{ end }}
-  </div>
+      {{ end }}
+    </div>
+  </section>
+
+</div>
 {{end}}
