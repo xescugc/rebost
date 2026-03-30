@@ -4,12 +4,11 @@ go 1.25.0
 
 require (
 	code.cloudfoundry.org/bytefmt v0.67.0
-	github.com/aws/aws-sdk-go-v2 v1.41.4
+	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.12
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.12
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.97.2
 	github.com/golang/mock v1.6.0
-	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru/v2 v2.0.2
 	github.com/hashicorp/memberlist v0.5.4
