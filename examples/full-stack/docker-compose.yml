@@ -1,0 +1,262 @@
+services:
+  node1:
+    image: xescugc/rebost
+    command:
+      - serve
+      - --name=node1
+      - --volumes=/data:5G:5G
+      - --port=3805
+      - --memberlist.port=7946
+      - --dashboard.port=3806
+      - --replica=3
+      - --log.format=json
+      - --log.level=debug
+      - --tracing.otlp-endpoint=tempo:4318
+    ports:
+      - "3901:3805"
+      - "3911:3806"
+    volumes:
+      - node1-data:/data
+    labels:
+      logging: "promtail"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3805/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - rebost
+
+  node2:
+    image: xescugc/rebost
+    command:
+      - serve
+      - --name=node2
+      - --volumes=/data:5G
+      - --port=3805
+      - --memberlist.port=7946
+      - --dashboard.port=3806
+      - --replica=3
+      - --log.format=json
+      - --log.level=debug
+      - --tracing.otlp-endpoint=tempo:4318
+      - --remote=http://node1:3805
+    ports:
+      - "3902:3805"
+      - "3912:3806"
+    volumes:
+      - node2-data:/data
+    labels:
+      logging: "promtail"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3805/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    depends_on:
+      node1:
+        condition: service_healthy
+    networks:
+      - rebost
+
+  node3:
+    image: xescugc/rebost
+    command:
+      - serve
+      - --name=node3
+      - --volumes=/data:5G
+      - --port=3805
+      - --memberlist.port=7946
+      - --dashboard.port=3806
+      - --replica=3
+      - --log.format=json
+      - --log.level=debug
+      - --tracing.otlp-endpoint=tempo:4318
+      - --remote=http://node1:3805
+    ports:
+      - "3903:3805"
+      - "3913:3806"
+    volumes:
+      - node3-data:/data
+    labels:
+      logging: "promtail"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3805/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    depends_on:
+      node1:
+        condition: service_healthy
+    networks:
+      - rebost
+
+  node4:
+    image: xescugc/rebost
+    command:
+      - serve
+      - --name=node4
+      - --volumes=/data:5G
+      - --port=3805
+      - --memberlist.port=7946
+      - --dashboard.port=3806
+      - --replica=3
+      - --log.format=json
+      - --log.level=debug
+      - --tracing.otlp-endpoint=tempo:4318
+      - --remote=http://node1:3805
+    ports:
+      - "3904:3805"
+      - "3914:3806"
+    volumes:
+      - node4-data:/data
+    labels:
+      logging: "promtail"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3805/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    depends_on:
+      node1:
+        condition: service_healthy
+    networks:
+      - rebost
+
+  node5:
+    image: xescugc/rebost
+    command:
+      - serve
+      - --name=node5
+      - --volumes=/data:5G
+      - --port=3805
+      - --memberlist.port=7946
+      - --dashboard.port=3806
+      - --replica=3
+      - --log.format=json
+      - --log.level=debug
+      - --tracing.otlp-endpoint=tempo:4318
+      - --remote=http://node1:3805
+    ports:
+      - "3905:3805"
+      - "3915:3806"
+    volumes:
+      - node5-data:/data
+    labels:
+      logging: "promtail"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3805/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    depends_on:
+      node1:
+        condition: service_healthy
+    networks:
+      - rebost
+
+  # Proxy node — no local volumes, forwards all operations to storage peers
+  proxy:
+    image: xescugc/rebost
+    command:
+      - serve
+      - --name=proxy
+      - --port=3805
+      - --memberlist.port=7946
+      - --dashboard.port=3806
+      - --log.format=json
+      - --log.level=debug
+      - --tracing.otlp-endpoint=tempo:4318
+      - --remote=http://node1:3805
+    ports:
+      - "3906:3805"
+      - "3916:3806"
+    labels:
+      logging: "promtail"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3805/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    depends_on:
+      node1:
+        condition: service_healthy
+    networks:
+      - rebost
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - rebost
+
+  loki:
+    image: grafana/loki:3.4.0
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "3100:3100"
+    networks:
+      - rebost
+
+  promtail:
+    image: grafana/promtail:3.4.0
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - rebost
+
+  tempo:
+    image: grafana/tempo:latest
+    volumes:
+      - ./tempo/tempo-config.yml:/etc/tempo/tempo-config.yml
+    command: -config.file=/etc/tempo/tempo-config.yml
+    ports:
+      - "3200:3200"
+      - "4318:4318"
+    networks:
+      - rebost
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - rebost
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:
+  node4-data:
+  node5-data:
+
+networks:
+  rebost:
+    driver: bridge

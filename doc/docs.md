@@ -772,6 +772,12 @@ scrape_configs:
 
 ---
 
+## Full-Stack Example
+
+A complete Docker Compose example is available in [`examples/full-stack/`](../examples/full-stack/). It deploys a 6-node Rebost cluster with the full Grafana observability stack (Prometheus, Loki, Promtail, Tempo, Grafana) and a pre-built dashboard. Run `make up` in that directory to start everything with a single command. See the [example README](../examples/full-stack/README.md) for details.
+
+---
+
 ## Known Limitations
 
 | Feature                                   | Status                | Notes                                                                            |

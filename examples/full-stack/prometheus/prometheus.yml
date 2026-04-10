@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: rebost
+    static_configs:
+      - targets:
+          - node1:3805
+          - node2:3805
+          - node3:3805
+          - node4:3805
+          - node5:3805
+          - proxy:3805
