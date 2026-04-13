@@ -3,7 +3,7 @@ module github.com/xescugc/rebost
 go 1.25.0
 
 require (
-	code.cloudfoundry.org/bytefmt v0.67.0
+	code.cloudfoundry.org/bytefmt v0.68.0
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.14
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14
